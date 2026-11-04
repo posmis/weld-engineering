@@ -303,14 +303,29 @@ try {
     if (-not $filename) { throw 'Native PDF filename input not found' }
     $reportPath = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../target/weld-report-smoke.pdf'))
     $filename.SetFocus()
-    $filename.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue($reportPath)
-    Key-Press 0x09 # Commit the shell filename edit before invoking Save.
+    # The shell dialog requires actual editing keystrokes, not only UIA SetValue.
+    Set-Clipboard -Value $reportPath
+    [WeldDesktopInput]::keybd_event(0x11, 0, 0, [UIntPtr]::Zero)
+    Key-Press 0x41
+    Key-Press 0x56
+    [WeldDesktopInput]::keybd_event(0x11, 0, 2, [UIntPtr]::Zero)
+    $null = Wait-Until { $filename.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.Value -eq $reportPath } 'native filename entered by keyboard'
+    Key-Press 0x09
     $saveCondition = [System.Windows.Automation.AndCondition]::new(
         [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::AutomationIdProperty, '1'),
         [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Button))
     $save = $dialog.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $saveCondition)
     $save.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
-    $null = Wait-Until { Find-Name "PDF-отчёт сохранён: $reportPath" } 'PDF generated and written by native adapter'
+    $pdfPrefix = 'PDF-отчёт сохранён: '
+    $pdfStatus = Wait-Until {
+        $texts = $script:window.FindAll([System.Windows.Automation.TreeScope]::Descendants,
+            [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Text))
+        foreach ($text in $texts) { if ($text.Current.Name.StartsWith($pdfPrefix)) { return $text.Current.Name } }
+        return $null
+    } 'PDF generated and written by native adapter'
+    $actualPath = $pdfStatus.Substring($pdfPrefix.Length)
+    Write-Output "Synthetic report saved at: $actualPath"
+    if (-not [string]::Equals($actualPath, $reportPath, [StringComparison]::OrdinalIgnoreCase)) { throw "Native save chose '$actualPath' instead of '$reportPath'" }
     $reportBytes = [System.IO.File]::ReadAllBytes($reportPath)
     if ($reportBytes.Length -lt 1000 -or [System.Text.Encoding]::ASCII.GetString($reportBytes, 0, 5) -ne '%PDF-') { throw 'Invalid PDF report output' }
     Activate-Tree 'Шов S1'
@@ -329,13 +344,14 @@ try {
     if (-not $process.WaitForExit(10000)) { throw 'Restarted desktop did not close cleanly' }
     Write-Output 'PASS: classic CAD toolbar, model tree and selected properties, persistent right viewport, resizable sidebar and bottom result dock; nominal bending/torsion, undo/redo, zoom/pan, SQLite snapshots and process restart.'
  } catch {
+    if ($script:window) { Save-Preview 'windows-failure-smoke.png' }
     if ($script:window) {
         $elements = $script:window.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)
         Write-Output 'Accessibility tree (default synthetic project only):'
         $count = 0
         foreach ($element in $elements) {
             Write-Output "$($element.Current.ControlType.ProgrammaticName): $($element.Current.Name)"
-            if (++$count -ge 100) { break }
+            if (++$count -ge 300) { break }
         }
     }
     throw

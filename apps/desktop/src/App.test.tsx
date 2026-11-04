@@ -475,3 +475,14 @@ test('intermittent generation delegates to Rust and is one undoable geometry edi
   expect(screen.queryByRole('treeitem', { name: 'Шов S2' })).toBeNull();
   expect(screen.queryByText('Есть несохранённые изменения')).toBeNull();
 });
+
+test('an incomplete load value is retained with a clear error when attempting to leave the case', async () => {
+  await renderApp();
+  fireEvent.click(screen.getByRole('treeitem', { name: 'Нагрузки' }));
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Копировать случай' })); });
+  await act(async () => { fireEvent.change(screen.getByLabelText('force_n z'), { target: { value: '' } }); });
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Копировать случай' })); });
+  expect(screen.getByRole('alert').textContent).toContain('Обнаружено неконечное число');
+  expect((screen.getByLabelText('Нагрузочный случай') as HTMLSelectElement).options).toHaveLength(2);
+  expect((screen.getByLabelText('force_n z') as HTMLInputElement).value).toBe('');
+});

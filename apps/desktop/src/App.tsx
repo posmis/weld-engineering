@@ -123,7 +123,8 @@ export function App() {
   }
   function changeCase(next: Project) {
     if (sameValue(next, project)) return;
-    ensureFinite(); inputEpoch.current += 1; history.current.breakGroup(); changeProject(next, false); setError(''); setMessage('');
+    try { ensureFinite(); } catch (e) { setError(describe(e)); return; }
+    inputEpoch.current += 1; history.current.breakGroup(); changeProject(next, false); setError(''); setMessage('');
   }
   async function calculateAll() {
     ensureFinite(); const epoch = inputEpoch.current;

@@ -83,3 +83,11 @@ jobs:
             target/weld-report-smoke.pdf
           if-no-files-found: error
           retention-days: 7
+      - name: Preserve synthetic UI diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: weld-engineering-windows-ui-diagnostics
+          path: target/windows-*-smoke.png
+          if-no-files-found: ignore
+          retention-days: 3
