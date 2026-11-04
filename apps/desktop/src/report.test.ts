@@ -14,7 +14,8 @@ test('Cyrillic multipage report is a readable PDF with the original project atta
   const pdf = await PDFDocument.load(bytes);
   expect(pdf.getTitle()).toBe(project.title); expect(pdf.getPageCount()).toBeGreaterThan(2);
   const names = pdf.catalog.lookup(PDFName.of('Names'), PDFDict).lookup(PDFName.of('EmbeddedFiles'), PDFDict).lookup(PDFName.of('Names'), PDFArray);
-  expect(names.size()).toBe(2);
-  expect(names.lookup(0, PDFHexString).decodeText()).toBe('weld-project.json');
+  expect(names.size()).toBe(4);
+  const filenames = Array.from({ length: names.size() / 2 }, (_, i) => names.lookup(i * 2, PDFHexString).decodeText());
+  expect(filenames).toContain('weld-project.json'); expect(filenames).toContain('NotoSans-OFL.txt');
   expect(JSON.stringify(project)).toBe(before);
 });

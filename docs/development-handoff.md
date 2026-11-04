@@ -98,3 +98,5 @@ Windows run 41904078861 для f82eacf — success: 51 Rust/API, 44 frontend ×3
 
 
 Windows run 41905263645 / 17e0205 — полный success: 51 Rust/API, 44 frontend ×3, реальный API/OpenAPI/C#, desktop/SQLite/PDF/intermittent/Undo и независимый pypdf. Следующий независимый этап: NSIS current-user installer, проверка установленного EXE (hash), полный UI workflow на установленной копии, uninstall с сохранением SQLite. Конфигурация bundle активирована; GitHub release не публикуется. Первая installer Windows CI ожидается.
+
+Первый installer run 41906116391 / 01ca395: сборка NSIS прошла, строгий hash-check установленного EXE выявил штатное отличие Tauri bundle marker. Официальный tauri-bundler/src/bundle.rs подтверждает first-match UNK→NSS и восстановление исходного EXE после упаковки. Эталон теперь повторяет только эту замену и сверяет hash всего файла; любые остальные отличия отклоняются. Поддержка метки updater не отключена. Дополнительно OFL шрифта прикрепляется к PDF и проверяется независимым parser. Следующий Windows-прогон ожидается.

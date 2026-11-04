@@ -1,5 +1,6 @@
 import { PDFDocument, rgb, type PDFPage } from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
+import fontLicense from './assets/OFL.txt?raw';
 import type { CalculationResult, CaseSummary, Project } from './contracts';
 
 /** Presentation only. All mechanical values and envelopes come from Rust snapshots. */
@@ -96,5 +97,6 @@ export async function createReport(project: Project, fontBytes: Uint8Array, summ
   const pages = pdf.getPages();
   pages.forEach((p, i) => p.drawText(`Weld Engineering | ${i + 1} / ${pages.length} | Прочность не проверена`, { x: 42, y: 24, font, size: 8, color: rgb(0.4, 0.4, 0.4) }));
   await pdf.attach(new TextEncoder().encode(JSON.stringify(project, null, 2)), 'weld-project.json', { mimeType: 'application/json', description: 'Project inputs and original result snapshots', creationDate: date });
+  await pdf.attach(new TextEncoder().encode(fontLicense), 'NotoSans-OFL.txt', { mimeType: 'text/plain', description: 'SIL Open Font License for the embedded Noto Sans font' });
   return pdf.save();
 }

@@ -13,6 +13,7 @@ assert "?" not in text, "Synthetic engineering report has missing glyphs"
 assert "Нагрузочный случай: LC1" in text and "Нагрузочный случай: LC2" in text
 assert "Проверка прочности недоступна" in text
 assert "Сводка независимых случаев: 2/2" in text
+assert b"SIL OPEN FONT LICENSE" in reader.attachments["NotoSans-OFL.txt"][0]
 project = json.loads(reader.attachments["weld-project.json"][0])
 cases = project["casebook"]["cases"]
 assert len(cases) == 2
