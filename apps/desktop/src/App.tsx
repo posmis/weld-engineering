@@ -163,12 +163,7 @@ export function App() {
       <button onClick={() => run(async () => setRevisions(await backend.list()))}>{t.open}</button>
       <button onClick={() => inputFile.current?.click()}>{t.import}</button><button onClick={() => run(exportProject)}>{t.export}</button>
       <label className="project-title">{t.title}<input maxLength={200} value={project.title} onChange={e => changeProject({ ...project, title: e.target.value })}/></label>
-      <button className="primary" onClick={() => run(async () => {
-        history.current.breakGroup(); ensureFinite(); const epoch = inputEpoch.current; const value = await backend.calculate(project.input);
-        // Editing or cancelling a drag can happen while a request is in flight.
-        if (epoch !== inputEpoch.current) return;
-        showSnapshot({ ...current.current, project: { ...current.current.project, last_calculation: value }, historical: false });
-      })}>{busy ? t.busy : t.calculate}</button>
+
     </fieldset>
     <input ref={inputFile} type="file" accept=".json,application/json" hidden onChange={e => {
       const file = e.target.files?.[0]; e.target.value = '';
@@ -223,6 +218,12 @@ export function App() {
           if (project.input.application.kind !== 'point') return; const point_mm: Vec3 = [...project.input.application.point_mm]; point_mm[i] = n;
           edit({ ...project.input, application: { kind: 'point', point_mm } });
         }}/></label>)}</div>}
+      <button className="primary" onClick={() => run(async () => {
+        history.current.breakGroup(); ensureFinite(); const epoch = inputEpoch.current; const value = await backend.calculate(project.input);
+        // Editing or cancelling a drag can happen while a request is in flight.
+        if (epoch !== inputEpoch.current) return;
+        showSnapshot({ ...current.current, project: { ...current.current.project, last_calculation: value }, historical: false });
+      })}>{busy ? t.busy : t.calculate}</button>
       </fieldset><p className="hint">{t.source}</p></section>
       <section className="panel results"><div className="section-title"><h2>03 / {t.results}</h2></div>
         <div className="unsupported">{t.unsupported}</div><p className="hint">{t.safety}</p>

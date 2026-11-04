@@ -29,3 +29,5 @@ html { overflow-y: scroll; scrollbar-gutter: stable; }
 .results > dl, .nominal-results { max-width: 800px; }
 .stress-chart { display: block; max-width: 560px; }
 .unsaved-dialog { max-height: calc(100dvh - 48px); overflow-y: auto; }
+
+.loads .primary { margin-top: 16px; }
