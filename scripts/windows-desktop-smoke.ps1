@@ -302,13 +302,15 @@ try {
     $filename = $dialog.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $filenameCondition)
     if (-not $filename) { throw 'Native PDF filename input not found' }
     $reportPath = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../target/weld-report-smoke.pdf'))
+    $filename.SetFocus()
     $filename.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue($reportPath)
+    Key-Press 0x09 # Commit the shell filename edit before invoking Save.
     $saveCondition = [System.Windows.Automation.AndCondition]::new(
         [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::AutomationIdProperty, '1'),
         [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Button))
     $save = $dialog.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $saveCondition)
     $save.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
-    $null = Wait-Until { Find-Name 'PDF-отчёт сохранён' } 'PDF generated and written by native adapter'
+    $null = Wait-Until { Find-Name "PDF-отчёт сохранён: $reportPath" } 'PDF generated and written by native adapter'
     $reportBytes = [System.IO.File]::ReadAllBytes($reportPath)
     if ($reportBytes.Length -lt 1000 -or [System.Text.Encoding]::ASCII.GetString($reportBytes, 0, 5) -ne '%PDF-') { throw 'Invalid PDF report output' }
     Activate-Tree 'Шов S1'

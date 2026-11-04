@@ -25,6 +25,17 @@ try {
     if ($result.strength_status -ne 'unsupported_calculation') { throw 'Calculation falsely accepts strength' }
     $spec = Invoke-RestMethod -Uri "$base/openapi.json" -Headers $headers
     if ($spec.openapi -ne '3.1.0') { throw 'OpenAPI document unavailable' }
+    function Assert-Contract([string]$SchemaName, [string]$Json) {
+        $schema = @{ '$schema' = 'https://json-schema.org/draft/2020-12/schema'; '$ref' = "#/components/schemas/$SchemaName"; components = $spec.components } | ConvertTo-Json -Depth 100
+        if (-not (Test-Json -Json $Json -Schema $schema -ErrorAction Stop)) { throw "OpenAPI schema violation: $SchemaName" }
+    }
+    Assert-Contract 'CalculationInput' $inputJson
+    Assert-Contract 'CalculationResult' ($result | ConvertTo-Json -Depth 100)
+    Assert-Contract 'Capabilities' ($capabilities | ConvertTo-Json -Depth 100)
+    Assert-Contract 'AppError' $unauthorized.Content
+    $clientOutput = & dotnet run --no-build --configuration Release --project (Join-Path $PSScriptRoot '../examples/inventor-client/WeldClient.csproj') -- $port
+    if ($LASTEXITCODE -ne 0 -or ($clientOutput -join ' ') -notmatch 'unsupported_calculation') { throw 'C# client did not complete a real API calculation' }
+
     Write-Output 'PASS: standalone API starts on Windows, binds loopback only, authenticates, calculates the reference and serves OpenAPI.'
 } finally {
     if (-not $process.HasExited) { Stop-Process -Id $process.Id -Force }

@@ -84,7 +84,7 @@ fn save_editor_settings(
         .save_editor_settings(&settings)
 }
 #[tauri::command]
-async fn save_pdf_report(bytes: Vec<u8>) -> Result<bool, AppError> {
+async fn save_pdf_report(bytes: Vec<u8>) -> Result<Option<String>, AppError> {
     if bytes.len() > 16 * 1024 * 1024 || !bytes.starts_with(b"%PDF-") {
         return Err(AppError::new("invalid_report", None));
     }
@@ -95,10 +95,10 @@ async fn save_pdf_report(bytes: Vec<u8>) -> Result<bool, AppError> {
             .set_file_name("weld-report.pdf")
             .save_file()
         else {
-            return Ok(false);
+            return Ok(None);
         };
-        std::fs::write(path, bytes).map_err(|_| AppError::new("report_write_error", None))?;
-        Ok(true)
+        std::fs::write(&path, bytes).map_err(|_| AppError::new("report_write_error", None))?;
+        Ok(Some(path.to_string_lossy().into_owned()))
     })
     .await
     .map_err(|_| AppError::new("report_write_error", None))?

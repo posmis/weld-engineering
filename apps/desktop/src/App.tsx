@@ -176,7 +176,8 @@ export function App() {
     const response = await fetch(fontUrl); if (!response.ok) throw { code: 'invalid_report' };
     const summary = validated.casebook ? await backend.summarizeCases(validated) : null;
     const bytes = await createReport(validated, new Uint8Array(await response.arrayBuffer()), summary);
-    if (await backend.savePdf(bytes)) setMessage(t.reportSaved);
+    const path = await backend.savePdf(bytes);
+    if (path) setMessage(`${t.reportSaved}: ${path}`);
   }
   const blocked = busy || pending !== null;
   return <div className={dark ? 'app dark' : 'app'} onBlurCapture={() => history.current.breakGroup()} onKeyDownCapture={event => {
@@ -187,10 +188,10 @@ export function App() {
   }} onKeyDown={event => { if (event.key === 'Escape' && !event.defaultPrevented && !pending && !settingsOpen) setRevisions(null); }}>
     <div className="app-shell" inert={pending !== null || settingsOpen}>
       <header className="cad-header"><div className="brand"><span className="brand-mark">W</span><strong>WELD ENGINEERING</strong></div>
-        <label className="project-title">{t.title}<input maxLength={200} value={project.title} disabled={blocked} onChange={e => changeProject({ ...project, title: e.target.value })}/></label>
-        <div className="header-controls"><button disabled={blocked || settingsLoading} onClick={() => setSettingsOpen(true)}>{t.settings}</button><button onClick={() => setLang(lang === 'ru' ? 'en' : 'ru')}>{lang === 'ru' ? 'EN' : 'RU'}</button><button onClick={() => setDark(!dark)}>{dark ? t.light : t.dark}</button></div>
+        <label className="project-title">{t.title}<input maxLength={200} value={project.title} disabled={blocked || gestureActive} onChange={e => changeProject({ ...project, title: e.target.value })}/></label>
+        <div className="header-controls"><button disabled={blocked || settingsLoading || gestureActive} onClick={() => setSettingsOpen(true)}>{t.settings}</button><button onClick={() => setLang(lang === 'ru' ? 'en' : 'ru')}>{lang === 'ru' ? 'EN' : 'RU'}</button><button onClick={() => setDark(!dark)}>{dark ? t.light : t.dark}</button></div>
       </header>
-      <fieldset disabled={blocked} className="toolbar" aria-label={t.mainToolbar}>
+      <fieldset disabled={blocked || gestureActive} className="toolbar" aria-label={t.mainToolbar}>
         <div className="tool-group"><button onClick={() => request({ run: () => replace({ ...newProject(), title: t.newProject }, false) })}>{t.new}</button>
           <button onClick={() => run(saveCurrent)}>{t.save}</button><button onClick={() => run(async () => setRevisions(await backend.list()))}>{t.open}</button>
           <button onClick={() => inputFile.current?.click()}>{t.import}</button><button onClick={() => run(exportProject)}>{t.export}</button></div>
@@ -214,7 +215,7 @@ export function App() {
           onWeld={selectWeld} onLoads={() => setInspector('loads')} onResults={() => setResultsOpen(true)} t={t}/>
         <div className="dock-title">{t.properties}</div>
         <div className="property-scroll" key={formKey}>
-          <section hidden={inspector !== 'weld'} aria-label={t.weldProperties}><WeldProperties segments={project.input.segments} selected={selected} disabled={blocked} t={t}
+          <section hidden={inspector !== 'weld'} aria-label={t.weldProperties}><WeldProperties segments={project.input.segments} selected={selected} disabled={blocked || gestureActive} t={t}
             onChange={segments => edit({ ...project.input, segments })} onRemove={() => { edit({ ...project.input, segments: project.input.segments.filter((_, i) => i !== selected) }); selectWeld(Math.max(0, selected - 1)); }}/>
             {project.input.segments[selected] && <IntermittentEditor key={selected} disabled={blocked || gestureActive} t={t} onApply={params => run(async () => {
               ensureFinite(); const epoch = inputEpoch.current;
@@ -222,7 +223,7 @@ export function App() {
               if (epoch === inputEpoch.current) { history.current.breakGroup(); edit(input); }
             })}/>}
           </section>
-          <section className="loads" hidden={inspector !== 'loads'} aria-label={t.loads}><div className="property-heading">{t.loads}</div><fieldset disabled={blocked}>
+          <section className="loads" hidden={inspector !== 'loads'} aria-label={t.loads}><div className="property-heading">{t.loads}</div><fieldset disabled={blocked || gestureActive}>
         <div className="case-controls"><label>{t.loadCase}<select value={project.casebook?.active_id ?? ''} onChange={e => changeCase(activateCase(project, e.target.value))}>
           {!project.casebook && <option value="">LC1</option>}{project.casebook?.cases.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}</select></label>
           {project.casebook && <label>{t.caseTitle}<input maxLength={100} value={project.casebook.cases.find(c => c.id === project.casebook?.active_id)?.title ?? ''} onChange={e => changeProject({ ...project, casebook: { ...project.casebook!, cases: project.casebook!.cases.map(c => c.id === project.casebook?.active_id ? { ...c, title: e.target.value } : c) } })}/></label>}
@@ -247,7 +248,7 @@ export function App() {
             const original = dragSnapshot.current; if (!original) return;
             inputEpoch.current += 1; const input = { ...current.current.project.input, segments: original.snapshot.project.input.segments };
             const same = sameValue(input, original.snapshot.project.input);
-            const restored = { ...current.current, historical: same && original.snapshot.historical, project: same ? original.snapshot.project : editInput(current.current.project, input) };
+            const restored = { ...current.current, historical: same && original.snapshot.historical, project: same ? { ...original.snapshot.project, title: current.current.project.title } : editInput(current.current.project, input) };
             history.current.restore(original.checkpoint); history.current.record(original.snapshot, restored); showSnapshot(restored);
           }} onDragFinish={() => { dragSnapshot.current = null; setGestureActive(false); history.current.breakGroup(); }}/>
       </section>} results={<section className="results" aria-label={t.results}>

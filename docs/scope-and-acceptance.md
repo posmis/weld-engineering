@@ -1,3 +1,5 @@
+> Полный текущий статус: [completion-status.md](completion-status.md). Новые модули: [load cases](load-cases.md), [прерывистые швы](intermittent-welds.md), [PDF](pdf-reports.md), [REST/OpenAPI](api-reference.md). Их последний результат Windows смотрите в этих документах.
+
 > Актуализация: первый desktop workflow и application service описаны в [iteration-01.md](iteration-01.md), [desktop-workflow.md](desktop-workflow.md) и [application-contract.md](application-contract.md). Исходное состояние ниже сохранено как контекст; нормативная прочность по-прежнему недоступна.
 
 # Полная матрица разработки и приёмки
@@ -26,9 +28,9 @@
 | Windows desktop | Классический CAD/CAE workbench: инструменты, дерево/свойства, viewport и dock результатов; RU/EN/темы, Windows checks пройдены | Tauri 2, React/TS/CSS, русский UI, English resources, темы | Windows build; реальное сообщение GUI↔Rust; не имитация результата |
 | 2D рабочее поле | SVG layout, числовое/pointer/keyboard редактирование реализованы; остальные функции planned | Сечение и отдельный layout, числовое/мышиное редактирование, нагрузки | Диаграмма совпадает с данными, воспроизводимый ввод |
 | Результаты | Реальные математические результаты; strength unsupported | Verified pass/fail, insufficient, unsupported, not validated | Ни один unsupported результат не отображается зелёным pass |
-| Отчёты PDF | Не реализованы | Исходные данные, версии, формулы, подстановка, ссылки, рисунки | Открываемый PDF с кириллицей и воспроизводимыми значениями |
-| REST/OpenAPI | Только проект документа | Versioned local API, validation, limits, маршруты | Проверка request/response по реальному OpenAPI и smoke tests |
-| Inventor | Только проект документа | Стабильные CAD-независимые схемы, C# guide | Примеры единиц/координат; add-in сейчас НЕ реализовывать |
+| Отчёты PDF | Реализованы PDF с кириллицей/формулами/JSON-вложением, Windows native проверка ожидается | Исходные данные, версии, формулы, подстановка, ссылки, рисунки | Открываемый PDF с кириллицей и воспроизводимыми значениями |
+| REST/OpenAPI | Реализован opt-in loopback с OpenAPI, проверка текущей Windows итерации ожидается | Versioned local API, validation, limits, маршруты | Проверка request/response по реальному OpenAPI и smoke tests |
+| Inventor | Guide координат/единиц и C# HTTP client, add-in не создаётся | Стабильные CAD-независимые схемы, C# guide | Примеры единиц/координат; add-in сейчас НЕ реализовывать |
 | Сборки/релизы | Windows CI пройден, EXE доступен как CI artifact; релиза нет | Pin toolchain/dependencies, Windows packaging, воспроизводимость | Фактический успешный Windows CI; публикация релиза только по разрешению |
 
 ## Условие «модуль завершён»

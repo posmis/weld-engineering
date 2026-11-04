@@ -3,8 +3,10 @@ using System.Net.Http.Json;
 using System.Text.Json;
 
 // Transport example only. It does not require Inventor and is not an add-in.
-var tokenPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "WeldEngineering", "api-1421.token");
-using var http = new HttpClient { BaseAddress = new Uri("http://127.0.0.1:1421"), Timeout = TimeSpan.FromSeconds(20) };
+var port = args.Length == 0 ? 1421 : int.Parse(args[0]);
+if (port < 1 || port > 65535) throw new ArgumentOutOfRangeException(nameof(port));
+var tokenPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "WeldEngineering", $"api-{port}.token");
+using var http = new HttpClient { BaseAddress = new Uri($"http://127.0.0.1:{port}"), Timeout = TimeSpan.FromSeconds(20) };
 http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", (await File.ReadAllTextAsync(tokenPath)).Trim());
 var input = new {
     schema_version = 1,

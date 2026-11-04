@@ -56,13 +56,13 @@ jobs:
         run: npm run tauri build -- --no-bundle --ci
       - name: Build standalone Windows API
         run: cargo build --locked --release -p weld-api
-      - name: Exercise loopback API over HTTP
-        shell: pwsh
-        working-directory: .\
-        run: ./scripts/windows-api-smoke.ps1
       - name: Compile future CAD C# transport example
         working-directory: .\
         run: dotnet build examples/inventor-client/WeldClient.csproj --configuration Release
+      - name: Exercise loopback API over HTTP and validate OpenAPI contracts
+        shell: pwsh
+        working-directory: .\
+        run: ./scripts/windows-api-smoke.ps1
       - uses: actions/cache/save@v4
         if: steps.desktop-cache.outputs.cache-hit != 'true'
         with:

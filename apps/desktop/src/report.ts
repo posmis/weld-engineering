@@ -64,8 +64,15 @@ export async function createReport(project: Project, fontBytes: Uint8Array, summ
     line(`Ix / Iy / Ixy / J [mm⁴]: ${vector([g.ix_mm4, g.iy_mm4, g.ixy_mm4, g.polar_mm4])}`);
     line(`Результирующий момент в центре [N·mm]: ${vector(r.moment_at_centroid_n_mm)}`);
     if (r.analysis_status !== 'computed') line('НАГРУЖЕНИЕ НЕ ПОДДЕРЖИВАЕТСЯ. Напряжения не выдаются.');
-    if (r.traction_mpa) line(`Равномерные τx / τy / σz [MPa]: ${vector(r.traction_mpa)}`);
+    if (r.traction_mpa) {
+      line(`Равномерные τx / τy / σz [MPa]: ${vector(r.traction_mpa)}`);
+      line('Метод: t = F/A. Подстановка компонентов:');
+      r.traction_mpa.forEach((value, i) => line(`${['τx', 'τy', 'σz'][i]} = (${number(r.input_snapshot.force_n[i])} N) / (${number(g.area_mm2)} mm²) = ${number(value)} MPa`));
+    }
     if (r.distribution) {
+      line('Метод в координатах относительно центра: τx=Fx/A−Mz·y/J; τy=Fy/A+Mz·x/J; σz=Fz/A+bx·x+by·y.');
+      line('Коэффициенты изгиба: Iy·bx+Ixy·by=−My; Ixy·bx+Ix·by=Mx.');
+      line(`Подстановка: (${number(g.iy_mm4)})·bx+(${number(g.ixy_mm4)})·by=−(${number(r.moment_at_centroid_n_mm[1])}); (${number(g.ixy_mm4)})·bx+(${number(g.ix_mm4)})·by=(${number(r.moment_at_centroid_n_mm[0])}). Единицы: mm⁴ и N·mm.`);
       line(`σz min / max [MPa]: ${vector(r.distribution.normal_range_mpa)}; |τ| max=${number(r.distribution.max_shear_mpa)} MPa`);
       line(`Контроль равновесия=${number(r.distribution.equilibrium_error)}; rcond изгиба=${r.distribution.bending_rcond === null ? 'не применимо' : number(r.distribution.bending_rcond)}`);
       line('Участок / конец | τx / τy / σz [MPa]');
@@ -84,6 +91,7 @@ export async function createReport(project: Project, fontBytes: Uint8Array, summ
   heading('Исходный документ и ограничения');
   line('К PDF прикреплён weld-project.json: исходные данные и сохранённые снимки. Откройте вложение в PDF-просмотрщике с поддержкой вложений и импортируйте JSON в Weld Engineering.');
   line('Номинальные компоненты относятся к общей плоскости XY, нормаль Z. Они не являются локальными напряжениями горла шва или нормативным эквивалентным напряжением.');
+  line('Вывод и границы математической модели: https://github.com/posmis/weld-engineering/blob/main/docs/nominal-bending-torsion.md');
   line('Подпись и проверка инженера: __________________________________');
   const pages = pdf.getPages();
   pages.forEach((p, i) => p.drawText(`Weld Engineering | ${i + 1} / ${pages.length} | Прочность не проверена`, { x: 42, y: 24, font, size: 8, color: rgb(0.4, 0.4, 0.4) }));

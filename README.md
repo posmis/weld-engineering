@@ -2,13 +2,18 @@
 
 Система проектирования сварных соединений для машиностроения. Целевая платформа: Windows 10/11 x64.
 
-**Состояние:** реализованы исходники Windows-приложения Tauri 2/React, независимый Rust application service и сохранение ревизий проектов в SQLite. Доступны геометрия линейных сечений, перенос нагрузки и номинальное F/A при нулевом моменте. Нормативная проверка прочности, PDF и функциональный прочностной MVP ещё не реализованы.
+**Состояние:** Windows CAD/CAE-приложение Tauri 2/React с независимым Rust-сервисом, SQLite/JSON, номинальными F/A, изгибом и полярным кручением. Добавлены независимые нагрузочные случаи и сводка, прерывистые участки, русскоязычный PDF с исходным JSON, отдельный loopback REST/OpenAPI и C# пример интеграции. Полный продукт ещё не завершён: нормативная прочность, материалы, подбор, усталость и технологические/специальные проверки требуют подтверждённых методов и инженерной валидации. [Точное состояние всех этапов](docs/completion-status.md).
 
 - [Контекст для продолжения разработки](docs/development-handoff.md)
 - [Матрица всего продукта и приёмки](docs/scope-and-acceptance.md)
 - [Требования](docs/product-requirements.md)
 - [Архитектура](docs/architecture.md)
 - [Запуск Windows-приложения и рабочий сценарий](docs/desktop-workflow.md)
+- [Нагрузочные случаи](docs/load-cases.md)
+- [Прерывистые швы](docs/intermittent-welds.md)
+- [Отчёты PDF](docs/pdf-reports.md)
+- [Локальный API и OpenAPI](docs/api-reference.md)
+- [Интеграция Inventor/C#](docs/inventor-integration.md)
 - [Контракт application service](docs/application-contract.md)
 - [Начало работы](docs/getting-started.md)
 - [Исследование стандартов](docs/standards-research.md)
