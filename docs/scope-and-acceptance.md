@@ -23,7 +23,7 @@
 | Application service | Versioned Serde service реализован и проверен | Serde contracts, versioning, structured errors, лимиты | Integration tests без GUI, неизвестные версии отклоняются |
 | SQLite и проекты | Миграция v1, revisions, snapshots и JSON реализованы | Миграции, материалы/методы/источники, неизменяемые snapshots | Round trip, rollback, повреждённый ввод, сохранение старого результата |
 | Редактор швов | Перенос, привязки, шаг; undo/redo и навигация; [последний этап](editor-history-navigation.md) | Стандартные соединения, точное разбиение и объединение участков | Windows unit/UI/native tests; сохранение вектора и ширины при переносе; перезапуск настроек |
-| Windows desktop | Tauri/React, RU/EN и темы; EXE и native smoke пройдены | Tauri 2, React/TS/CSS, русский UI, English resources, темы | Windows build; реальное сообщение GUI↔Rust; не имитация результата |
+| Windows desktop | Классический CAD/CAE workbench: инструменты, дерево/свойства, viewport и dock результатов; RU/EN/темы, Windows checks пройдены | Tauri 2, React/TS/CSS, русский UI, English resources, темы | Windows build; реальное сообщение GUI↔Rust; не имитация результата |
 | 2D рабочее поле | SVG layout, числовое/pointer/keyboard редактирование реализованы; остальные функции planned | Сечение и отдельный layout, числовое/мышиное редактирование, нагрузки | Диаграмма совпадает с данными, воспроизводимый ввод |
 | Результаты | Реальные математические результаты; strength unsupported | Verified pass/fail, insufficient, unsupported, not validated | Ни один unsupported результат не отображается зелёным pass |
 | Отчёты PDF | Не реализованы | Исходные данные, версии, формулы, подстановка, ссылки, рисунки | Открываемый PDF с кириллицей и воспроизводимыми значениями |
