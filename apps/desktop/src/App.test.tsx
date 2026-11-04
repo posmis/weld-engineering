@@ -177,3 +177,25 @@ test('import does not replace unsaved input until the user confirms', async () =
   expect((screen.getByLabelText('Название проекта') as HTMLInputElement).value).toBe('Импортированный проект');
   expect(screen.getByText('Есть несохранённые изменения')).toBeTruthy();
 });
+
+test('a late calculation for a cancelled drag cannot overwrite the restored saved result', async () => {
+  let resolveRequest!: (value: CalculationResult) => void;
+  vi.mocked(backend.calculate).mockResolvedValueOnce(result()).mockImplementationOnce(() => new Promise(resolve => { resolveRequest = resolve; }));
+  vi.mocked(backend.save).mockResolvedValue('revision');
+  const { container } = render(<App />);
+  await act(async () => { fireEvent.click(screen.getByText('Рассчитать')); });
+  await act(async () => { fireEvent.click(screen.getByText('Сохранить ревизию')); });
+  const svg = container.querySelector('svg')!;
+  Object.defineProperty(svg, 'getScreenCTM', { value: () => ({ a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 }) });
+  pointer(screen.getByRole('button', { name: 'S1 Начало' }), 'pointerdown', 80, 200);
+  pointer(svg, 'pointermove', 124, 156);
+  fireEvent.click(screen.getByText('Рассчитать'));
+  const request = vi.mocked(backend.calculate).mock.calls[1][0];
+  fireEvent.keyDown(svg, { key: 'Escape' });
+  await act(async () => { resolveRequest({ ...result(), input_snapshot: request, engine_version: 'stale-response' }); });
+  expect((screen.getByLabelText('S1 X1') as HTMLInputElement).value).toBe('-50');
+  expect(screen.queryByText(/Engine stale-response/)).toBeNull();
+  expect(screen.queryByText('Есть несохранённые изменения')).toBeNull();
+  await act(async () => { fireEvent.click(screen.getByText('Сохранить ревизию')); });
+  expect(vi.mocked(backend.save).mock.calls[1][0].last_calculation).toEqual(result());
+});

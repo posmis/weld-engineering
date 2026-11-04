@@ -37,6 +37,7 @@ export function App() {
   const dirtyRef = useRef(dirty), busyRef = useRef(busy), allowClose = useRef(false);
   dirtyRef.current = dirty; busyRef.current = busy;
   const dragSnapshot = useRef<{ project: Project; historical: boolean } | null>(null);
+  const inputEpoch = useRef(0);
   const [pending, setPending] = useState<{ run: () => void | Promise<void> } | null>(null);
   useEffect(() => {
     const suppressMenu = (event: Event) => event.preventDefault();
@@ -76,6 +77,7 @@ export function App() {
     try { await action(); } catch (e) { setError(describe(e)); } finally { setBusy(false); }
   }
   function edit(input: CalculationInput) {
+    inputEpoch.current += 1;
     setProject(p => ({ ...p, input, last_calculation: null }));
     setHistorical(false); setMessage(''); setError('');
   }
@@ -84,6 +86,7 @@ export function App() {
     edit({ ...project.input, [field]: vector });
   }
   function replace(p: Project, snapshot: boolean, imported = false) {
+    inputEpoch.current += 1; dragSnapshot.current = null;
     baseline.current = imported ? '' : JSON.stringify(p);
     setProject(p); setHistorical(snapshot && p.last_calculation !== null); setSelected(0); setFormKey(k => k + 1); setRevisions(null);
   }
@@ -122,7 +125,12 @@ export function App() {
       <button onClick={() => run(async () => setRevisions(await backend.list()))}>{t.open}</button>
       <button onClick={() => inputFile.current?.click()}>{t.import}</button><button onClick={() => run(exportProject)}>{t.export}</button>
       <label className="project-title">{t.title}<input maxLength={200} value={project.title} onChange={e => setProject({ ...project, title: e.target.value })}/></label>
-      <button className="primary" onClick={() => run(async () => { ensureFinite(); const value = await backend.calculate(project.input); setProject(p => ({ ...p, last_calculation: value })); setHistorical(false); })}>{busy ? t.busy : t.calculate}</button>
+      <button className="primary" onClick={() => run(async () => {
+        ensureFinite(); const epoch = inputEpoch.current; const value = await backend.calculate(project.input);
+        // Editing or cancelling a drag can happen while a request is in flight.
+        if (epoch !== inputEpoch.current) return;
+        setProject(p => ({ ...p, last_calculation: value })); setHistorical(false);
+      })}>{busy ? t.busy : t.calculate}</button>
     </fieldset>
     <input ref={inputFile} type="file" accept=".json,application/json" hidden onChange={e => {
       const file = e.target.files?.[0]; e.target.value = '';
@@ -138,7 +146,7 @@ export function App() {
       <section className="geometry panel"><div className="section-title"><h2>01 / {t.geometry}</h2><span>XY · mm</span></div>
         <LayoutEditor input={project.input} centre={result?.geometry.centroid_mm} selected={selected} onSelect={setSelected} onChange={segments => edit({ ...project.input, segments })} disabled={busy || pending !== null} t={t}
           onDragStart={() => { dragSnapshot.current = { project, historical }; }}
-          onDragCancel={() => { const original = dragSnapshot.current; if (original) { setProject(original.project); setHistorical(original.historical); } }}
+          onDragCancel={() => { const original = dragSnapshot.current; if (original) { inputEpoch.current += 1; setProject(original.project); setHistorical(original.historical); } }}
           onDragFinish={() => { dragSnapshot.current = null; }}/>
 
         <p className="hint">{t.choose}</p>
