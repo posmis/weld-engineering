@@ -1,0 +1,294 @@
+//! GUI-independent application boundary. No normative acceptance method is enabled.
+pub mod projects;
+
+use serde::{Deserialize, Serialize};
+use weld_core::{Millimetres, NewtonMillimetres, Newtons, Point2, Segment};
+
+pub const SCHEMA_VERSION: u32 = 1;
+pub const MAX_SEGMENTS: usize = 256;
+pub const MAX_DOCUMENT_BYTES: usize = 1_048_576;
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AppError {
+    pub code: String,
+    pub field: Option<String>,
+}
+impl AppError {
+    pub fn new(code: &str, field: Option<&str>) -> Self {
+        Self {
+            code: code.into(),
+            field: field.map(str::to_owned),
+        }
+    }
+}
+impl From<weld_core::Error> for AppError {
+    fn from(error: weld_core::Error) -> Self {
+        let code = match error {
+            weld_core::Error::NonFinite => "non_finite",
+            weld_core::Error::NonPositiveDimension => "non_positive_dimension",
+            weld_core::Error::EmptyGroup => "empty_group",
+            weld_core::Error::ZeroLength => "zero_length",
+            weld_core::Error::NumericalRange => "numerical_range",
+            weld_core::Error::UnsupportedMethod => "unsupported_method",
+        };
+        Self::new(code, None)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SegmentInput {
+    pub start_mm: [f64; 2],
+    pub end_mm: [f64; 2],
+    pub effective_width_mm: f64,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum ApplicationPoint {
+    Centroid,
+    Point { point_mm: [f64; 3] },
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CalculationInput {
+    pub schema_version: u32,
+    pub segments: Vec<SegmentInput>,
+    pub force_n: [f64; 3],
+    pub couple_n_mm: [f64; 3],
+    pub application: ApplicationPoint,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct GeometryResult {
+    pub length_mm: f64,
+    pub area_mm2: f64,
+    pub centroid_mm: [f64; 2],
+    pub ix_mm4: f64,
+    pub iy_mm4: f64,
+    pub ixy_mm4: f64,
+    pub polar_mm4: f64,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AnalysisStatus {
+    Computed,
+    UnsupportedLoading,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum StrengthStatus {
+    UnsupportedCalculation,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ValidationStatus {
+    NotIndependentlyValidated,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CalculationResult {
+    pub schema_version: u32,
+    pub engine_version: String,
+    pub method_id: String,
+    pub input_snapshot: CalculationInput,
+    pub geometry: GeometryResult,
+    pub moment_at_centroid_n_mm: [f64; 3],
+    pub traction_mpa: Option<[f64; 3]>,
+    pub analysis_status: AnalysisStatus,
+    pub strength_status: StrengthStatus,
+    pub validation_status: ValidationStatus,
+    pub warnings: Vec<String>,
+}
+
+fn point(p: [f64; 2]) -> Result<Point2, AppError> {
+    Ok(Point2 {
+        x: Millimetres::new(p[0])?,
+        y: Millimetres::new(p[1])?,
+    })
+}
+
+/// Exact rational predicates for the finite binary coordinates supplied by the
+/// caller. No geometric tolerance or rounding can turn a crossing into a pass.
+/// AABB rejection keeps disjoint pairs out of the more expensive predicates.
+fn check_layout(segments: &[SegmentInput]) -> Result<(), AppError> {
+    use num_rational::BigRational;
+    use std::cmp::Ordering;
+    type ExactPoint = [BigRational; 2];
+    let exact: Vec<[ExactPoint; 2]> = segments
+        .iter()
+        .map(|s| {
+            [s.start_mm, s.end_mm].map(|p| {
+                p.map(|x| BigRational::from_float(x).expect("coordinates already checked finite"))
+            })
+        })
+        .collect();
+    let orientation = |p: &ExactPoint, q: &ExactPoint, r: &ExactPoint| {
+        let value = (&q[0] - &p[0]) * (&r[1] - &p[1]) - (&q[1] - &p[1]) * (&r[0] - &p[0]);
+        value.cmp(&BigRational::from_integer(0.into()))
+    };
+    let opposite = |a: Ordering, b: Ordering| {
+        (a == Ordering::Less && b == Ordering::Greater)
+            || (a == Ordering::Greater && b == Ordering::Less)
+    };
+    let within = |p: [f64; 2], s: &SegmentInput| {
+        (0..2).all(|axis| {
+            p[axis] >= s.start_mm[axis].min(s.end_mm[axis])
+                && p[axis] <= s.start_mm[axis].max(s.end_mm[axis])
+        })
+    };
+    for (i, a) in segments.iter().enumerate() {
+        for (j, b) in segments.iter().enumerate().skip(i + 1) {
+            if (0..2).any(|axis| {
+                a.start_mm[axis].min(a.end_mm[axis]) > b.start_mm[axis].max(b.end_mm[axis])
+                    || b.start_mm[axis].min(b.end_mm[axis]) > a.start_mm[axis].max(a.end_mm[axis])
+            }) {
+                continue;
+            }
+            let [p, q] = &exact[i];
+            let [s, t] = &exact[j];
+            let o1 = orientation(p, q, s);
+            let o2 = orientation(p, q, t);
+            let o3 = orientation(s, t, p);
+            let o4 = orientation(s, t, q);
+            if [o1, o2, o3, o4].iter().all(|o| *o == Ordering::Equal) {
+                let axis = usize::from(a.start_mm[0] == a.end_mm[0]);
+                let low = a.start_mm[axis]
+                    .min(a.end_mm[axis])
+                    .max(b.start_mm[axis].min(b.end_mm[axis]));
+                let high = a.start_mm[axis]
+                    .max(a.end_mm[axis])
+                    .min(b.start_mm[axis].max(b.end_mm[axis]));
+                if high > low {
+                    return Err(AppError::new("overlapping_segments", Some("segments")));
+                }
+                continue;
+            }
+            let intersects = (opposite(o1, o2) && opposite(o3, o4))
+                || (o1 == Ordering::Equal && within(b.start_mm, a))
+                || (o2 == Ordering::Equal && within(b.end_mm, a))
+                || (o3 == Ordering::Equal && within(a.start_mm, b))
+                || (o4 == Ordering::Equal && within(a.end_mm, b));
+            let shared_endpoint = [a.start_mm, a.end_mm]
+                .iter()
+                .any(|p| *p == b.start_mm || *p == b.end_mm);
+            if intersects && !shared_endpoint {
+                return Err(AppError::new("crossing_segments", Some("segments")));
+            }
+        }
+    }
+    Ok(())
+}
+
+pub fn validate_input(input: &CalculationInput) -> Result<Vec<Segment>, AppError> {
+    if input.schema_version != SCHEMA_VERSION {
+        return Err(AppError::new("unsupported_schema", Some("schema_version")));
+    }
+    if input.segments.is_empty() || input.segments.len() > MAX_SEGMENTS {
+        return Err(AppError::new("segment_count", Some("segments")));
+    }
+    let segments: Vec<Segment> = input
+        .segments
+        .iter()
+        .map(|s| {
+            Ok(Segment {
+                start: point(s.start_mm)?,
+                end: point(s.end_mm)?,
+                effective_width: Millimetres::new(s.effective_width_mm)?,
+            })
+        })
+        .collect::<Result<_, AppError>>()?;
+    for s in &segments {
+        if s.effective_width.value() <= 0.0 {
+            return Err(AppError::new("non_positive_dimension", Some("segments")));
+        }
+        if s.start.x == s.end.x && s.start.y == s.end.y {
+            return Err(AppError::new("zero_length", Some("segments")));
+        }
+    }
+    for value in input.force_n.iter().chain(input.couple_n_mm.iter()) {
+        if !value.is_finite() {
+            return Err(AppError::new("non_finite", None));
+        }
+    }
+    if let ApplicationPoint::Point { point_mm } = input.application {
+        if point_mm.iter().any(|x| !x.is_finite()) {
+            return Err(AppError::new("non_finite", Some("application")));
+        }
+    }
+    check_layout(&input.segments)?;
+    Ok(segments)
+}
+
+pub fn calculate(input: &CalculationInput) -> Result<CalculationResult, AppError> {
+    let segments = validate_input(input)?;
+    let geometry = weld_core::properties(&segments)?;
+    let f = input.force_n.map(Newtons::new);
+    let force = [f[0].clone()?, f[1].clone()?, f[2].clone()?];
+    let m = input.couple_n_mm.map(NewtonMillimetres::new);
+    let couple = [m[0].clone()?, m[1].clone()?, m[2].clone()?];
+    let centroid = [
+        geometry.centroid.x,
+        geometry.centroid.y,
+        Millimetres::new(0.0)?,
+    ];
+    let application = match input.application {
+        ApplicationPoint::Centroid => centroid,
+        ApplicationPoint::Point { point_mm } => [
+            Millimetres::new(point_mm[0])?,
+            Millimetres::new(point_mm[1])?,
+            Millimetres::new(point_mm[2])?,
+        ],
+    };
+    let moment = weld_core::moment_about(force, couple, application, centroid)?
+        .map(NewtonMillimetres::value);
+    // Exact zero only: do not silently discard a small applied moment.
+    let supported = moment.iter().all(|x| *x == 0.0);
+    let traction = if supported {
+        let value = weld_core::centred_direct_traction(&segments, force)?;
+        Some([
+            value.shear_x.value(),
+            value.shear_y.value(),
+            value.normal_z.value(),
+        ])
+    } else {
+        None
+    };
+    let mut warnings = vec![
+        "nominal_model_only".into(),
+        "no_strength_acceptance".into(),
+        "not_independently_validated".into(),
+    ];
+    if !supported {
+        warnings.push("moments_not_supported".into());
+    }
+    Ok(CalculationResult {
+        schema_version: SCHEMA_VERSION,
+        engine_version: env!("CARGO_PKG_VERSION").into(),
+        method_id: "uniform-direct-traction-v1".into(),
+        input_snapshot: input.clone(),
+        geometry: GeometryResult {
+            length_mm: geometry.length.value(),
+            area_mm2: geometry.area.value(),
+            centroid_mm: [geometry.centroid.x.value(), geometry.centroid.y.value()],
+            ix_mm4: geometry.ix.value(),
+            iy_mm4: geometry.iy.value(),
+            ixy_mm4: geometry.ixy.value(),
+            polar_mm4: geometry.polar.value(),
+        },
+        moment_at_centroid_n_mm: moment,
+        traction_mpa: traction,
+        analysis_status: if supported {
+            AnalysisStatus::Computed
+        } else {
+            AnalysisStatus::UnsupportedLoading
+        },
+        strength_status: StrengthStatus::UnsupportedCalculation,
+        validation_status: ValidationStatus::NotIndependentlyValidated,
+        warnings,
+    })
+}

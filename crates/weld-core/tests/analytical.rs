@@ -70,7 +70,6 @@ fn rejects_invalid_inputs_and_unverified_strength() {
     assert_eq!(assess_strength(), Err(Error::UnsupportedMethod));
 }
 
-
 #[test]
 fn direct_traction_matches_independent_force_balance() {
     // A = 2 mm * 100 mm = 200 mm², so F/A = (2, -1, 3) MPa.
@@ -84,8 +83,7 @@ fn direct_traction_matches_independent_force_balance() {
 #[test]
 fn direct_traction_obeys_linear_load_and_area_invariants() {
     for sign in [-1.0, 0.0, 1.0] {
-        let f = [400.0 * sign, -200.0 * sign, 600.0 * sign]
-            .map(|v| Newtons::new(v).unwrap());
+        let f = [400.0 * sign, -200.0 * sign, 600.0 * sign].map(|v| Newtons::new(v).unwrap());
         let a = centred_direct_traction(&[line(0.0, 0.0)], f).unwrap();
         let mut wider = line(0.0, 0.0);
         wider.effective_width = mm(4.0);
@@ -103,5 +101,53 @@ fn direct_traction_does_not_hide_invalid_section() {
     assert!(matches!(
         centred_direct_traction(&[], f),
         Err(Error::EmptyGroup)
+    ));
+}
+
+#[test]
+fn quarter_rotation_exchanges_second_moments_and_preserves_polar() {
+    let horizontal = line(20.0, 10.0);
+    let rotate = |p: Point2| point(-p.y.value(), p.x.value());
+    let vertical = Segment {
+        start: rotate(horizontal.start),
+        end: rotate(horizontal.end),
+        effective_width: horizontal.effective_width,
+    };
+    let a = properties(&[horizontal]).unwrap();
+    let b = properties(&[vertical]).unwrap();
+    near(a.ix.value(), b.iy.value());
+    near(a.iy.value(), b.ix.value());
+    near(a.polar.value(), b.polar.value());
+    near(b.centroid.x.value(), -a.centroid.y.value());
+    near(b.centroid.y.value(), a.centroid.x.value());
+}
+
+#[test]
+fn translating_reference_and_application_preserves_moment() {
+    let f = [3.0, 5.0, 7.0].map(|v| Newtons::new(v).unwrap());
+    let m = [NewtonMillimetres::new(0.0).unwrap(); 3];
+    let a = moment_about(f, m, [mm(10.0), mm(20.0), mm(30.0)], [mm(0.0); 3]).unwrap();
+    let b = moment_about(
+        f,
+        m,
+        [mm(110.0), mm(-30.0), mm(37.0)],
+        [mm(100.0), mm(-50.0), mm(7.0)],
+    )
+    .unwrap();
+    for i in 0..3 {
+        near(a[i].value(), b[i].value());
+    }
+}
+
+#[test]
+fn underflowing_segment_area_cannot_silently_disappear_from_group() {
+    let tiny = Segment {
+        start: point(0.0, 0.0),
+        end: point(1e-200, 0.0),
+        effective_width: mm(1e-200),
+    };
+    assert!(matches!(
+        properties(&[line(0.0, 0.0), tiny]),
+        Err(Error::NumericalRange)
     ));
 }

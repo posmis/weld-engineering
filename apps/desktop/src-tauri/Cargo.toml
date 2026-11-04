@@ -1,0 +1,12 @@
+[package]
+name = "weld-desktop"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+weld-application = { path = "../../../crates/weld-application" }

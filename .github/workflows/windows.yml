@@ -1,15 +1,60 @@
-name: Windows core validation
+name: Windows validation
 on: [push, pull_request, workflow_dispatch]
 permissions:
   contents: read
+concurrency:
+  group: windows-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   core:
     runs-on: windows-2022
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Install stable Rust
+      - name: Install pinned Rust
         shell: pwsh
-        run: rustup toolchain install stable --profile minimal --component rustfmt --component clippy
-      - run: cargo +stable fmt --all -- --check
-      - run: cargo +stable clippy --workspace --all-targets -- -D warnings
-      - run: cargo +stable test --workspace
+        run: rustup toolchain install 1.99.1 --profile minimal --component rustfmt --component clippy
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --locked -p weld-core -p weld-application --all-targets -- -D warnings
+      - run: cargo test --locked -p weld-core -p weld-application
+  desktop:
+    runs-on: windows-2022
+    timeout-minutes: 35
+    defaults:
+      run:
+        working-directory: apps/desktop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: apps/desktop/package-lock.json
+      - name: Install pinned Rust
+        run: rustup toolchain install 1.99.1 --profile minimal
+      - uses: actions/cache/restore@v4
+        id: desktop-cache
+        with:
+          path: target
+          key: ${{ runner.os }}-desktop-rust-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}
+          restore-keys: ${{ runner.os }}-desktop-rust-
+      - run: npm ci --no-audit --no-fund
+      - run: npm test
+      - run: npm run build
+      - name: Build Windows desktop executable
+        run: npm run tauri build -- --no-bundle --ci
+      - uses: actions/cache/save@v4
+        if: steps.desktop-cache.outputs.cache-hit != 'true'
+        with:
+          path: target
+          key: ${{ steps.desktop-cache.outputs.cache-primary-key }}
+      - name: Exercise real desktop calculation and SQLite workflow
+        shell: pwsh
+        working-directory: .
+        run: ./scripts/windows-desktop-smoke.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: weld-engineering-windows-x64
+          path: target/release/weld-desktop.exe
+          if-no-files-found: error
+          retention-days: 7

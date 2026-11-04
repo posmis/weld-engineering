@@ -1,0 +1,69 @@
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
+#[cfg(not(target_os = "windows"))]
+compile_error!("Initial Weld Engineering desktop development targets Windows only.");
+
+use std::sync::Mutex;
+use tauri::Manager;
+use weld_application::{
+    calculate,
+    projects::{Project, ProjectStore, Revision},
+    AppError, CalculationInput, CalculationResult,
+};
+
+type Store = Mutex<ProjectStore>;
+#[tauri::command]
+fn calculate_joint(input: CalculationInput) -> Result<CalculationResult, AppError> {
+    calculate(&input)
+}
+#[tauri::command]
+fn save_project(project: Project, store: tauri::State<'_, Store>) -> Result<String, AppError> {
+    store
+        .lock()
+        .map_err(|_| AppError::new("database_error", None))?
+        .save(&project)
+}
+#[tauri::command]
+fn list_projects(store: tauri::State<'_, Store>) -> Result<Vec<Revision>, AppError> {
+    store
+        .lock()
+        .map_err(|_| AppError::new("database_error", None))?
+        .list()
+}
+#[tauri::command]
+fn open_project(id: String, store: tauri::State<'_, Store>) -> Result<Project, AppError> {
+    store
+        .lock()
+        .map_err(|_| AppError::new("database_error", None))?
+        .load(&id)
+}
+#[tauri::command]
+fn import_project(text: String) -> Result<Project, AppError> {
+    Project::from_json(&text)
+}
+#[tauri::command]
+fn export_project(project: Project) -> Result<String, AppError> {
+    project.to_json()
+}
+
+fn main() {
+    tauri::Builder::default()
+        .setup(|app| {
+            let directory = app.path().app_data_dir()?;
+            std::fs::create_dir_all(&directory)?;
+            let store = ProjectStore::open(&directory.join("projects.sqlite"))
+                .map_err(|_| std::io::Error::other("Cannot initialize project database"))?;
+            app.manage(Mutex::new(store));
+            Ok(())
+        })
+        .invoke_handler(tauri::generate_handler![
+            calculate_joint,
+            save_project,
+            list_projects,
+            open_project,
+            import_project,
+            export_project
+        ])
+        .run(tauri::generate_context!())
+        .expect("Failed to run Weld Engineering");
+}

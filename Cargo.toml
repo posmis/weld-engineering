@@ -1,5 +1,6 @@
 [workspace]
-members = ["crates/weld-core"]
+members = ["crates/weld-core", "crates/weld-application", "apps/desktop/src-tauri"]
+default-members = ["crates/weld-core", "crates/weld-application"]
 resolver = "2"
 
 [workspace.package]

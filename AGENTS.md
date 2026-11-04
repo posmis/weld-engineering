@@ -6,8 +6,10 @@ The user explicitly prohibits pushing GOST documents, books, and their copies an
 
 ## Target and validation
 
-Initial development targets Windows 10/11 x64. The product requirements prohibit implementation and testing for other operating systems during the initial development. Do not report tests as passed unless they actually ran. The existing Windows workflow has not yet been executed.
+Initial development targets Windows 10/11 x64. The product requirements prohibit implementation and testing for other operating systems during the initial development. Do not report tests as passed unless they actually ran. Windows CI has been executed for the initial desktop iteration; see docs/iteration-01.md for exact commits and outcomes. Always check the current commit rather than assuming its checks passed.
 
 ## Continuing development
 
 Read docs/development-handoff.md and docs/scope-and-acceptance.md before extending functionality. They preserve the full task context, actual implementation status, evidence, planned stages and acceptance requirements. Never treat an unexecuted Windows workflow as a passed check.
+
+Read docs/desktop-workflow.md and docs/application-contract.md for the implemented desktop and service interfaces. The app never returns normative strength acceptance.

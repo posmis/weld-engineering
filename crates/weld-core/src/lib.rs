@@ -79,6 +79,9 @@ pub fn properties(segments: &[Segment]) -> Result<Properties, Error> {
             return Err(Error::ZeroLength);
         }
         let weight = a * l;
+        if !l.is_finite() || !weight.is_finite() || weight <= 0.0 {
+            return Err(Error::NumericalRange);
+        }
         let cx = s.start.x.value() * 0.5 + s.end.x.value() * 0.5;
         let cy = s.start.y.value() * 0.5 + s.end.y.value() * 0.5;
         length += l;
