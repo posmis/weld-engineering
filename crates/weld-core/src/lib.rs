@@ -1,5 +1,7 @@
 //! Experimental mathematical primitives. No normative strength assessment.
 
+pub mod nominal;
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Error {
     NonFinite,
@@ -8,6 +10,7 @@ pub enum Error {
     ZeroLength,
     NumericalRange,
     UnsupportedMethod,
+    IllConditionedSection,
 }
 
 macro_rules! unit {

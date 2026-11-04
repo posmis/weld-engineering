@@ -31,3 +31,7 @@ Project содержит schema_version, title, input и nullable last_calculati
 `get_editor_settings()` и `save_editor_settings(settings)` работают с отдельной строкой `editor_v1` в таблице `application_settings`. Поля: `schema_version=1`, положительные конечные `movement_step_mm`, `grid_step_mm`, `snap_tolerance_px` в диапазоне 1–64, булевы `snap_grid`, `snap_endpoints`, `snap_midpoints`, `snap_axes`. Неверные значения возвращают `invalid_settings`, неизвестные поля отклоняются. Отсутствующая строка даёт значения по умолчанию; повреждённая строка не перезаписывается автоматически.
 
 SQLite `user_version=2`: миграция с v1 добавляет только таблицу настроек, сохраняя исходные документы ревизий. JSON schema проектов остаётся v1. Настройки редактора не входят в расчётный снимок.
+
+### Номинальные моменты
+
+Актуальное расширение CalculationResult: [nominal-bending-torsion.md](nominal-bending-torsion.md). Ненулевые моменты теперь могут возвращать computed с `method_id=elastic-line-traction-v1`, `traction_mpa=null` и опциональным `distribution`. Старый uniform computed остаётся прежним. UnsupportedLoading никогда не содержит ни uniform traction, ни distribution. Ill-conditioned изгиб помечается предупреждением ill_conditioned_section; численный отказ — AppError numerical_range. Исторические результаты без поля distribution открываются без пересчёта.

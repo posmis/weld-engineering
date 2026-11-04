@@ -32,7 +32,7 @@ fn service_returns_real_components_without_strength_acceptance() {
 }
 
 #[test]
-fn eccentricity_is_transformed_and_unsupported_stresses_are_absent() {
+fn eccentricity_is_transformed_and_torsion_returns_a_distribution() {
     let mut request = input();
     request.force_n = [0.0, 10.0, 0.0];
     request.application = ApplicationPoint::Point {
@@ -40,8 +40,9 @@ fn eccentricity_is_transformed_and_unsupported_stresses_are_absent() {
     };
     let result = calculate(&request).unwrap();
     assert_eq!(result.moment_at_centroid_n_mm, [0.0, 0.0, 1000.0]);
-    assert_eq!(result.analysis_status, AnalysisStatus::UnsupportedLoading);
+    assert_eq!(result.analysis_status, AnalysisStatus::Computed);
     assert!(result.traction_mpa.is_none());
+    assert!(result.distribution.is_some());
     request.application = ApplicationPoint::Centroid;
     request.couple_n_mm[2] = 1e-30;
     assert!(calculate(&request).unwrap().traction_mpa.is_none());

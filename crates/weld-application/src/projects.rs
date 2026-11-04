@@ -65,10 +65,20 @@ impl Project {
                     .is_none_or(|v| v.iter().all(|x| x.is_finite()));
             let consistent = match result.analysis_status {
                 crate::AnalysisStatus::Computed => {
-                    result.traction_mpa.is_some()
-                        && result.moment_at_centroid_n_mm.iter().all(|x| *x == 0.0)
+                    (result.traction_mpa.is_some()
+                        && result.distribution.is_none()
+                        && result.moment_at_centroid_n_mm.iter().all(|x| *x == 0.0))
+                        || (result.traction_mpa.is_none()
+                            && result.moment_at_centroid_n_mm.iter().any(|x| *x != 0.0)
+                            && result.method_id == "elastic-line-traction-v1"
+                            && result
+                                .distribution
+                                .as_ref()
+                                .is_some_and(|d| d.valid_for(result)))
                 }
-                crate::AnalysisStatus::UnsupportedLoading => result.traction_mpa.is_none(),
+                crate::AnalysisStatus::UnsupportedLoading => {
+                    result.traction_mpa.is_none() && result.distribution.is_none()
+                }
             };
             if !finite
                 || !consistent

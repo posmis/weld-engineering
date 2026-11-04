@@ -317,3 +317,45 @@ test('wheel zoom anchors at the cursor, pan cancels with Escape, and navigation 
   expect(screen.queryByText('Есть несохранённые изменения')).toBeNull();
   expect((screen.getByRole('button', { name: 'Отменить' }) as HTMLButtonElement).disabled).toBe(true);
 });
+
+function bendingResult(): CalculationResult {
+  const value = result();
+  value.method_id = 'elastic-line-traction-v1'; value.traction_mpa = null;
+  value.input_snapshot.segments = [20, -20].map(y => ({ start_mm: [-50, y], end_mm: [50, y], effective_width_mm: 2 }));
+  value.input_snapshot.couple_n_mm = [160000, 0, 0];
+  value.geometry = { length_mm: 200, area_mm2: 400, centroid_mm: [0, 0], ix_mm4: 160000, iy_mm4: 400 * 10000 / 12, ixy_mm4: 0, polar_mm4: 160000 + 400 * 10000 / 12 };
+  value.moment_at_centroid_n_mm = [160000, 0, 0];
+  value.distribution = { segments: [{ start_mpa: [0, 0, 21.5], end_mpa: [0, 0, 21.5] }, { start_mpa: [0, 0, -18.5], end_mpa: [0, 0, -18.5] }],
+    normal_range_mpa: [-18.5, 21.5], max_shear_mpa: 0, bending_rcond: .48, equilibrium_error: 0 };
+  return value;
+}
+
+test('bending distribution selects matching weld profiles and is invalidated and restored through undo', async () => {
+  const value = bendingResult(); vi.mocked(backend.calculate).mockResolvedValue(value);
+  await renderApp(); fireEvent.click(screen.getByText('Добавить участок'));
+  for (const [label, v] of Object.entries({ 'S1 Y1': 20, 'S1 Y2': 20, 'S2 X1': -50, 'S2 X2': 50, 'S2 Y1': -20, 'S2 Y2': -20, 'couple_n_mm x': 160000 })) {
+    fireEvent.change(screen.getByLabelText(label), { target: { value: String(v) } });
+  }
+  await act(async () => { fireEvent.click(screen.getByText('Рассчитать')); });
+  expect(backend.calculate).toHaveBeenCalledWith(value.input_snapshot);
+  expect(screen.getByText('Номинальное распределение напряжений')).toBeTruthy();
+  expect(screen.queryByText('Номинальные компоненты F/A')).toBeNull();
+  expect(screen.getByRole('img', { name: 'График напряжений вдоль участка' })).toBeTruthy();
+  fireEvent.change(screen.getByLabelText('Участок распределения'), { target: { value: '1' } });
+  expect(screen.getByRole('table', { name: 'Напряжения в концах участка' }).textContent).toContain('-18,5');
+  fireEvent.change(screen.getByLabelText('S2 a'), { target: { value: '3' } });
+  expect(screen.queryByText('Номинальное распределение напряжений')).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Отменить' }));
+  expect(screen.getByText('Номинальное распределение напряжений')).toBeTruthy();
+  expect(screen.getByText('Проверка прочности недоступна')).toBeTruthy();
+  expect(backend.calculate).toHaveBeenCalledTimes(1);
+});
+
+test('ill-conditioned bending shows its reason and no stress profile or nominal components', async () => {
+  const value = result(); value.traction_mpa = null; value.moment_at_centroid_n_mm = [1000, 0, 0]; value.analysis_status = 'unsupported_loading';
+  value.warnings = ['ill_conditioned_section']; vi.mocked(backend.calculate).mockResolvedValue(value);
+  await renderApp(); await act(async () => { fireEvent.click(screen.getByText('Рассчитать')); });
+  expect(screen.getByText(/Изгиб не рассчитан: сечение вырождено/)).toBeTruthy();
+  expect(screen.queryByRole('img', { name: 'График напряжений вдоль участка' })).toBeNull();
+  expect(screen.queryByText('Номинальные компоненты F/A')).toBeNull();
+});

@@ -32,6 +32,7 @@ impl From<weld_core::Error> for AppError {
             weld_core::Error::ZeroLength => "zero_length",
             weld_core::Error::NumericalRange => "numerical_range",
             weld_core::Error::UnsupportedMethod => "unsupported_method",
+            weld_core::Error::IllConditionedSection => "ill_conditioned_section",
         };
         Self::new(code, None)
     }
@@ -92,6 +93,21 @@ pub enum ValidationStatus {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
+pub struct SegmentTraction {
+    pub start_mpa: [f64; 3],
+    pub end_mpa: [f64; 3],
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct NominalDistribution {
+    pub segments: Vec<SegmentTraction>,
+    pub normal_range_mpa: [f64; 2],
+    pub max_shear_mpa: f64,
+    pub bending_rcond: Option<f64>,
+    pub equilibrium_error: f64,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct CalculationResult {
     pub schema_version: u32,
     pub engine_version: String,
@@ -100,10 +116,56 @@ pub struct CalculationResult {
     pub geometry: GeometryResult,
     pub moment_at_centroid_n_mm: [f64; 3],
     pub traction_mpa: Option<[f64; 3]>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub distribution: Option<NominalDistribution>,
     pub analysis_status: AnalysisStatus,
     pub strength_status: StrengthStatus,
     pub validation_status: ValidationStatus,
     pub warnings: Vec<String>,
+}
+
+impl NominalDistribution {
+    /// Structural snapshot validation only: never recalculates historical mechanics.
+    pub fn valid_for(&self, result: &CalculationResult) -> bool {
+        use weld_core::nominal::PRECISION_LIMIT;
+        if self.segments.len() != result.input_snapshot.segments.len()
+            || self.segments.is_empty()
+            || !self.equilibrium_error.is_finite()
+            || !(0.0..=PRECISION_LIMIT).contains(&self.equilibrium_error)
+            || !self.max_shear_mpa.is_finite()
+            || self.max_shear_mpa < 0.0
+            || !self.normal_range_mpa.iter().all(|v| v.is_finite())
+        {
+            return false;
+        }
+        let bending = result.moment_at_centroid_n_mm[..2]
+            .iter()
+            .any(|v| *v != 0.0);
+        match self.bending_rcond {
+            Some(rcond)
+                if bending && rcond.is_finite() && rcond > PRECISION_LIMIT && rcond <= 1.0 => {}
+            None if !bending => {}
+            _ => return false,
+        }
+        let mut low = f64::INFINITY;
+        let mut high = f64::NEG_INFINITY;
+        let mut shear: f64 = 0.0;
+        for segment in &self.segments {
+            for value in [segment.start_mpa, segment.end_mpa] {
+                if value.iter().any(|v| !v.is_finite()) {
+                    return false;
+                }
+                low = low.min(value[2]);
+                high = high.max(value[2]);
+                shear = shear.max(value[0].hypot(value[1]));
+            }
+        }
+        low == self.normal_range_mpa[0]
+            && high == self.normal_range_mpa[1]
+            && shear.is_finite()
+            && (shear - self.max_shear_mpa).abs()
+                <= 16.0 * f64::EPSILON * shear.max(self.max_shear_mpa)
+    }
 }
 
 fn point(p: [f64; 2]) -> Result<Point2, AppError> {
@@ -245,11 +307,11 @@ pub fn calculate(input: &CalculationInput) -> Result<CalculationResult, AppError
             Millimetres::new(point_mm[2])?,
         ],
     };
-    let moment = weld_core::moment_about(force, couple, application, centroid)?
-        .map(NewtonMillimetres::value);
+    let typed_moment = weld_core::moment_about(force, couple, application, centroid)?;
+    let moment = typed_moment.map(NewtonMillimetres::value);
     // Exact zero only: do not silently discard a small applied moment.
-    let supported = moment.iter().all(|x| *x == 0.0);
-    let traction = if supported {
+    let direct_only = moment.iter().all(|x| *x == 0.0);
+    let traction = if direct_only {
         let value = weld_core::centred_direct_traction(&segments, force)?;
         Some([
             value.shear_x.value(),
@@ -259,18 +321,50 @@ pub fn calculate(input: &CalculationInput) -> Result<CalculationResult, AppError
     } else {
         None
     };
+    let mut ill_conditioned = false;
+    let distribution = if direct_only {
+        None
+    } else {
+        match weld_core::nominal::nominal_traction(&segments, force, typed_moment) {
+            Ok(value) => Some(NominalDistribution {
+                segments: value
+                    .segments
+                    .into_iter()
+                    .map(|s| SegmentTraction {
+                        start_mpa: s.start.map(weld_core::Megapascals::value),
+                        end_mpa: s.end.map(weld_core::Megapascals::value),
+                    })
+                    .collect(),
+                normal_range_mpa: value.normal_range.map(weld_core::Megapascals::value),
+                max_shear_mpa: value.max_shear.value(),
+                bending_rcond: value.bending_rcond,
+                equilibrium_error: value.equilibrium_error,
+            }),
+            Err(weld_core::Error::IllConditionedSection) => {
+                ill_conditioned = true;
+                None
+            }
+            Err(error) => return Err(error.into()),
+        }
+    };
+    let supported = direct_only || distribution.is_some();
     let mut warnings = vec![
         "nominal_model_only".into(),
         "no_strength_acceptance".into(),
         "not_independently_validated".into(),
     ];
-    if !supported {
-        warnings.push("moments_not_supported".into());
+    if ill_conditioned {
+        warnings.push("ill_conditioned_section".into());
     }
     Ok(CalculationResult {
         schema_version: SCHEMA_VERSION,
         engine_version: env!("CARGO_PKG_VERSION").into(),
-        method_id: "uniform-direct-traction-v1".into(),
+        method_id: if direct_only {
+            "uniform-direct-traction-v1"
+        } else {
+            "elastic-line-traction-v1"
+        }
+        .into(),
         input_snapshot: input.clone(),
         geometry: GeometryResult {
             length_mm: geometry.length.value(),
@@ -283,6 +377,7 @@ pub fn calculate(input: &CalculationInput) -> Result<CalculationResult, AppError
         },
         moment_at_centroid_n_mm: moment,
         traction_mpa: traction,
+        distribution,
         analysis_status: if supported {
             AnalysisStatus::Computed
         } else {

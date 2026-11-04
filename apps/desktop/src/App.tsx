@@ -4,6 +4,7 @@ import { backend } from './backend';
 import { newProject, type CalculationInput, type Project, type Revision, type Vec3 } from './contracts';
 import { defaultSettings, type EditorSettings } from './editorMovement';
 import { SettingsDialog } from './SettingsDialog';
+import { NominalResults } from './NominalResults';
 import { LayoutEditor } from './LayoutEditor';
 import { UnsavedDialog } from './UnsavedDialog';
 import { desktopWindow } from './desktopWindow';
@@ -230,7 +231,7 @@ export function App() {
             <dt>{t.centre} X / Y</dt><dd>{result.geometry.centroid_mm.map(display).join(' / ')} <small>mm</small></dd>
             {(['ix_mm4', 'iy_mm4', 'ixy_mm4', 'polar_mm4'] as const).map((key, i) => <div className="result-row" key={key}><dt>{['Ix', 'Iy', 'Ixy', 'J'][i]}</dt><dd>{display(result.geometry[key])} <small>mm⁴</small></dd></div>)}</dl>
           <h3>{t.momentCentre}</h3><p className="values">{result.moment_at_centroid_n_mm.map(display).join(' / ')} N·mm</p>
-          {result.traction_mpa ? <><h3>{t.traction}</h3><dl>{result.traction_mpa.map((value, i) => <div className="result-row" key={i}><dt>{['τx', 'τy', 'σz'][i]}</dt><dd>{display(value)} <small>MPa</small></dd></div>)}</dl></> : <p className="validation">{t.momentNotice}</p>}
+          {result.traction_mpa ? <><h3>{t.traction}</h3><dl>{result.traction_mpa.map((value, i) => <div className="result-row" key={i}><dt>{['τx', 'τy', 'σz'][i]}</dt><dd>{display(value)} <small>MPa</small></dd></div>)}</dl></> : result.distribution ? <NominalResults distribution={result.distribution} selected={selected} onSelect={setSelected} t={t}/> : <p className="validation">{result.warnings.includes('ill_conditioned_section') ? t.illConditioned : t.momentNotice}</p>}
           <p className="engine">{result.method_id}<br/>Engine {result.engine_version} · schema {result.schema_version}</p>
         </>}
       </section>

@@ -44,8 +44,23 @@ function Read-Field([string]$Name) {
         return $null
     } "current value of $Name"
 }
+function Set-Field([string]$Name, [string]$Value) {
+    $field = Wait-Until { Find-Name $Name ([System.Windows.Automation.ControlType]::Edit) } "editable field $Name"
+    $field.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue($Value)
+}
+function Open-LatestRevision {
+    Click-Name 'Открыть ревизию'
+    $revision = Wait-Until {
+        $condition = [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Button)
+        foreach ($button in $script:window.FindAll([System.Windows.Automation.TreeScope]::Descendants, $condition)) {
+            if ($button.Current.Name.StartsWith('Новый проект ·')) { return $button }
+        }
+        return $null
+    } 'latest saved revision'
+    $revision.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+}
 function Click-Name([string]$Name) {
-    $element = Wait-Until { Find-Name $Name } "control $Name"
+    $element = Wait-Until { $control = Find-Name $Name; if ($control -and $control.Current.IsEnabled) { return $control }; return $null } "enabled control $Name"
     $pattern = $null
     if ($element.TryGetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern, [ref]$pattern)) {
         $pattern.Invoke()
@@ -175,6 +190,21 @@ try {
     $revision.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
     $null = Wait-Until { Find-Name 'Номинальные компоненты F/A' } 'restored original result'
     $null = Wait-Until { Find-Name 'Открыт сохранённый снимок. Результат не пересчитан; для нового расчёта нажмите «Рассчитать». Импортированные данные требуют проверки.' } 'snapshot provenance warning'
+    Set-Field 'couple_n_mm x' '160000'
+    Click-Name 'Рассчитать'
+    $null = Wait-Until { Find-Name 'Изгиб не рассчитан: сечение вырождено или плохо обусловлено. Задайте пространственно разнесённые в плоскости XY участки.' } 'singular bending produces a clear reason without stresses'
+    Click-Name 'Добавить участок'
+    Set-Field 'S1 X1' '-50'; Set-Field 'S1 X2' '50'; Set-Field 'S1 Y1' '20'; Set-Field 'S1 Y2' '20'
+    Set-Field 'S2 X1' '-50'; Set-Field 'S2 X2' '50'; Set-Field 'S2 Y1' '-20'; Set-Field 'S2 Y2' '-20'
+    Click-Name 'Рассчитать'
+    $null = Wait-Until { Find-Name 'Номинальное распределение напряжений' } 'real Rust nominal bending distribution'
+    $null = Wait-Until { Find-Name '-18,5 / 21,5' } 'independent analytical bending range for two parallel welds'
+    Set-Field 'couple_n_mm z' '1000'
+    Click-Name 'Рассчитать'
+    $null = Wait-Until { Find-Name 'Номинальное распределение напряжений' } 'combined bending and torsion distribution'
+    if (Find-Name 'Номинальные компоненты F/A') { throw 'A varying distribution was displayed as uniform F/A' }
+    Click-Name 'Сохранить ревизию'
+    $null = Wait-Until { Find-Name 'Ревизия сохранена' } 'distribution stored in SQLite'
     $null = [WeldDesktopInput]::PostMessage($handle, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero)
     if (-not $process.WaitForExit(10000)) { throw 'Clean native close did not complete' }
     if ($process.ExitCode -ne 0) { throw "Desktop closed with exit $($process.ExitCode)" }
@@ -188,10 +218,14 @@ try {
     $step = Wait-Until { Find-Name 'Шаг перемещения, mm' ([System.Windows.Automation.ControlType]::Edit) } 'reopened movement step setting'
     if ($step.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.Value -ne '5') { throw 'Movement step was not persisted across process restart' }
     Click-Name 'Отмена'
+    Open-LatestRevision
+    $null = Wait-Until { Find-Name 'Номинальное распределение напряжений' } 'distribution snapshot restored after full process restart'
+    $null = Wait-Until { Find-Name '-18,5 / 21,5' } 'stored analytical bending range preserved'
+    $null = Wait-Until { Find-Name 'Открыт сохранённый снимок. Результат не пересчитан; для нового расчёта нажмите «Рассчитать». Импортированные данные требуют проверки.' } 'distribution provenance without automatic recalculation'
     $handle = [IntPtr]$script:window.Current.NativeWindowHandle
     $null = [WeldDesktopInput]::PostMessage($handle, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero)
     if (-not $process.WaitForExit(10000)) { throw 'Restarted desktop did not close cleanly' }
-    Write-Output 'PASS: undo/redo, saved result restoration, viewport zoom and pan; settings persistence and whole-weld movement; application context menu -> real endpoint drag and cancel -> native unsaved close guard -> Rust calculation -> SQLite save -> snapshot reopen -> clean close.'
+    Write-Output 'PASS: nominal bending/torsion, singular section refusal, distribution snapshot restart; undo/redo, saved result restoration, viewport zoom and pan; settings persistence and whole-weld movement; application context menu -> real endpoint drag and cancel -> native unsaved close guard -> Rust calculation -> SQLite save -> snapshot reopen -> clean close.'
  } catch {
     if ($script:window) {
         $elements = $script:window.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)

@@ -14,3 +14,11 @@
 .view-controls button[aria-pressed=true] { background: var(--accent); color: var(--panel); }
 .drawing.pan-mode, .drawing.pan-mode .hit, .drawing.pan-mode circle { cursor: grab; }
 .drawing { touch-action: none; }
+
+.stress-choice { display: grid; grid-template-columns: 1fr 85px; align-items: center; gap: 8px; margin: 8px 0; }
+select { font: inherit; min-width: 0; padding: 5px; color: var(--text); background: var(--input); border: 1px solid var(--line); }
+.stress-chart { width: 100%; height: auto; color: var(--text); }
+.stress-chart text { fill: var(--text); font-size: 12px; }
+.stress-chart circle { fill: var(--accent); }
+.stress-profile { fill: none; stroke: var(--accent); stroke-width: 2; }
+.nominal-results td { font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
