@@ -23,7 +23,7 @@
 | Application service | Versioned Serde service реализован и проверен | Serde contracts, versioning, structured errors, лимиты | Integration tests без GUI, неизвестные версии отклоняются |
 | SQLite и проекты | Миграция v1, revisions, snapshots и JSON реализованы | Миграции, материалы/методы/источники, неизменяемые snapshots | Round trip, rollback, повреждённый ввод, сохранение старого результата |
 | Windows desktop | Tauri/React, RU/EN и темы; EXE и native smoke пройдены | Tauri 2, React/TS/CSS, русский UI, English resources, темы | Windows build; реальное сообщение GUI↔Rust; не имитация результата |
-| 2D рабочее поле | SVG layout и числовое редактирование реализованы; остальные функции planned | Сечение и отдельный layout, числовое/мышиное редактирование, нагрузки | Диаграмма совпадает с данными, воспроизводимый ввод |
+| 2D рабочее поле | SVG layout, числовое/pointer/keyboard редактирование реализованы; остальные функции planned | Сечение и отдельный layout, числовое/мышиное редактирование, нагрузки | Диаграмма совпадает с данными, воспроизводимый ввод |
 | Результаты | Реальные математические результаты; strength unsupported | Verified pass/fail, insufficient, unsupported, not validated | Ни один unsupported результат не отображается зелёным pass |
 | Отчёты PDF | Не реализованы | Исходные данные, версии, формулы, подстановка, ссылки, рисунки | Открываемый PDF с кириллицей и воспроизводимыми значениями |
 | REST/OpenAPI | Только проект документа | Versioned local API, validation, limits, маршруты | Проверка request/response по реальному OpenAPI и smoke tests |

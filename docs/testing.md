@@ -1,3 +1,5 @@
+> Последняя итерация: [iteration-02.md](iteration-02.md). Для c5530cf в main прошли 21 Rust-тест, 12 frontend-тестов в каждом из трёх процессов, dev-check, release build и расширенный native smoke с ПКМ/drag/защитой закрытия. Ниже — результаты первой итерации.
+
 # Выполненные проверки
 
 Проверенный код: 445f954, [Windows CI 41836367640](https://github.com/posmis/weld-engineering/actions/runs/41836367640), 2026-11-04.
