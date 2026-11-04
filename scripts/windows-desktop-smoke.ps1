@@ -87,6 +87,20 @@ try {
     $null = Wait-Until { [double]::Parse($valuePattern.Current.Value, [Globalization.CultureInfo]::InvariantCulture) -eq ($before + 5) } 'configured whole-weld keyboard step'
     $endValue = (Find-Name 'S1 X2').GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern)
     if ($endValue.Current.Value -ne '55') { throw 'Whole weld did not move both endpoints together' }
+    $before = [double]::Parse($valuePattern.Current.Value, [Globalization.CultureInfo]::InvariantCulture)
+    $beforeEnd = [double]::Parse($endValue.Current.Value, [Globalization.CultureInfo]::InvariantCulture)
+    $lineBounds = (Find-Name 'Переместить шов S1').Current.BoundingRectangle
+    $lineX = [int]($lineBounds.X + $lineBounds.Width / 2)
+    $lineY = [int]($lineBounds.Y + $lineBounds.Height / 2)
+    $null = [WeldDesktopInput]::SetCursorPos($lineX, $lineY)
+    [WeldDesktopInput]::mouse_event(0x0002, 0, 0, 0, [UIntPtr]::Zero)
+    Start-Sleep -Milliseconds 100
+    $null = [WeldDesktopInput]::SetCursorPos($lineX + 30, $lineY - 20)
+    $null = Wait-Until { [double]::Parse($valuePattern.Current.Value, [Globalization.CultureInfo]::InvariantCulture) -ne $before } 'whole-weld mouse translation'
+    [WeldDesktopInput]::mouse_event(0x0004, 0, 0, 0, [UIntPtr]::Zero)
+    $movedStart = [double]::Parse($valuePattern.Current.Value, [Globalization.CultureInfo]::InvariantCulture)
+    $movedEnd = [double]::Parse($endValue.Current.Value, [Globalization.CultureInfo]::InvariantCulture)
+    if ([Math]::Abs(($movedStart - $before) - ($movedEnd - $beforeEnd)) -gt 1e-9) { throw 'Mouse translation changed the weld vector' }
     Click-Name 'Рассчитать'
     $null = Wait-Until { Find-Name 'Номинальные компоненты F/A' } 'real Rust calculation result in WebView'
     $null = Wait-Until { Find-Name 'Проверка прочности недоступна' } 'unsupported strength status'

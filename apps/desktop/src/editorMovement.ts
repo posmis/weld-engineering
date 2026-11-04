@@ -24,6 +24,7 @@ export function moveWeld(segments: SegmentInput[], index: number, handle: Handle
   const s = segments[index];
   let delta: Point = rawDelta.map(v => round(v, settings.movement_step_mm)) as Point;
   let snap: Point | null = null;
+  let snappedAnchor = 0;
   const anchors = handle === 'whole' ? [s.start_mm, s.end_mm] : [s[handle]];
   if (!bypass) {
     const targets: Point[] = segments.flatMap((other, i) => i === index ? [] : [
@@ -31,9 +32,9 @@ export function moveWeld(segments: SegmentInput[], index: number, handle: Handle
       ...(settings.snap_midpoints ? [[other.start_mm[0] / 2 + other.end_mm[0] / 2, other.start_mm[1] / 2 + other.end_mm[1] / 2] as Point] : []),
     ]);
     let nearest = settings.snap_tolerance_px / pixelsPerMm;
-    for (const anchor of anchors) for (const target of targets) {
+    for (const [anchorIndex, anchor] of anchors.entries()) for (const target of targets) {
       const distance = Math.hypot(anchor[0] + rawDelta[0] - target[0], anchor[1] + rawDelta[1] - target[1]);
-      if (distance <= nearest) { nearest = distance; delta = [target[0] - anchor[0], target[1] - anchor[1]]; snap = target; }
+      if (distance <= nearest) { nearest = distance; delta = [target[0] - anchor[0], target[1] - anchor[1]]; snap = target; snappedAnchor = anchorIndex; }
     }
     if (!snap) {
       const anchor = anchors[0];
@@ -49,6 +50,13 @@ export function moveWeld(segments: SegmentInput[], index: number, handle: Handle
     }
   }
   const segment = handle === 'whole' ? translate(s, delta) : { ...s, [handle]: snap ?? s[handle].map((v, i) => v + delta[i]) };
+  if (segment && handle === 'whole' && snap) {
+    // Preserve exact shared coordinates: subtract/add round trips can miss the target by an ULP.
+    const vector: Point = [s.end_mm[0] - s.start_mm[0], s.end_mm[1] - s.start_mm[1]];
+    if (snappedAnchor === 0) { segment.start_mm = [...snap]; segment.end_mm = [snap[0] + vector[0], snap[1] + vector[1]]; }
+    else { segment.end_mm = [...snap]; segment.start_mm = [snap[0] - vector[0], snap[1] - vector[1]]; }
+    if (vector.some((v, i) => v !== 0 && segment.end_mm[i] === segment.start_mm[i])) return null;
+  }
   if (!segment || ![...segment.start_mm, ...segment.end_mm].every(Number.isFinite)) return null;
   return { segment, snap };
 }

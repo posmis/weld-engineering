@@ -37,3 +37,11 @@ test('unrepresentable translations are refused instead of collapsing the weld', 
   expect(translate(weld, [1e30, 0])).toBeNull();
   expect(translate(weld, [Infinity, 0])).toBeNull();
 });
+
+test('whole-weld snapping assigns the shared endpoint exactly across floating point subtraction', () => {
+  const moving: SegmentInput = { ...weld, start_mm: [.4, 0], end_mm: [100.4, 0] };
+  const target: SegmentInput = { ...weld, start_mm: [.1, 20], end_mm: [200, 20] };
+  const moved = moveWeld([moving, target], 0, 'whole', [-.3, 20], defaultSettings, 5)!;
+  expect(moved.segment.start_mm).toEqual(target.start_mm);
+  expect(moved.segment.end_mm[0] - moved.segment.start_mm[0]).toBeCloseTo(100);
+});
