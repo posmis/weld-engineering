@@ -18,7 +18,7 @@
         "minWidth": 1050,
         "minHeight": 720,
         "devtools": false,
-        "fullscreen": true,
+        "fullscreen": false,
         "maximized": true
       }
     ],

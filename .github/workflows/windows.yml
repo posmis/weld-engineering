@@ -69,5 +69,6 @@ jobs:
           path: |
             target/release/weld-desktop.exe
             target/windows-ui-smoke.png
+            target/windows-results-smoke.png
           if-no-files-found: error
           retention-days: 7

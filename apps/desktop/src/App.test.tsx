@@ -7,8 +7,8 @@ import { desktopWindow } from './desktopWindow';
 import { newProject, type CalculationResult } from './contracts';
 
 vi.mock('./backend', () => ({ backend: { getEditorSettings: vi.fn(), saveEditorSettings: vi.fn(), calculate: vi.fn(), save: vi.fn(), list: vi.fn(), open: vi.fn(), import: vi.fn(), export: vi.fn() } }));
-vi.mock('./desktopWindow', () => ({ desktopWindow: { listenClose: vi.fn(), close: vi.fn(), setFullscreen: vi.fn() } }));
-beforeEach(() => { vi.mocked(desktopWindow.setFullscreen).mockResolvedValue(undefined); vi.mocked(backend.getEditorSettings).mockResolvedValue({ ...defaultSettings }); vi.mocked(backend.saveEditorSettings).mockResolvedValue(undefined); vi.mocked(desktopWindow.listenClose).mockResolvedValue(() => {}); vi.mocked(desktopWindow.close).mockResolvedValue(undefined); });
+vi.mock('./desktopWindow', () => ({ desktopWindow: { listenClose: vi.fn(), close: vi.fn() } }));
+beforeEach(() => { vi.mocked(backend.getEditorSettings).mockResolvedValue({ ...defaultSettings }); vi.mocked(backend.saveEditorSettings).mockResolvedValue(undefined); vi.mocked(desktopWindow.listenClose).mockResolvedValue(() => {}); vi.mocked(desktopWindow.close).mockResolvedValue(undefined); });
 afterEach(() => { cleanup(); vi.resetAllMocks(); });
 function result(): CalculationResult {
   return { schema_version: 1, engine_version: 'test', method_id: 'uniform-direct-traction-v1', input_snapshot: newProject().input,
@@ -201,10 +201,9 @@ test('a late calculation for a cancelled drag cannot overwrite the restored save
   expect(vi.mocked(backend.save).mock.calls[1][0].last_calculation).toEqual(result());
 });
 
-async function renderApp({ fullscreen = false } = {}) {
+async function renderApp() {
   let rendered!: ReturnType<typeof render>;
   await act(async () => { rendered = render(<App />); });
-  if (!fullscreen) await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'К нагрузкам и результатам' })); });
   return rendered;
 }
 
@@ -335,6 +334,7 @@ test('bending distribution selects matching weld profiles and is invalidated and
   const value = bendingResult(); vi.mocked(backend.calculate).mockResolvedValue(value);
   await renderApp(); fireEvent.click(screen.getByText('Добавить участок'));
   for (const [label, v] of Object.entries({ 'S1 Y1': 20, 'S1 Y2': 20, 'S2 X1': -50, 'S2 X2': 50, 'S2 Y1': -20, 'S2 Y2': -20, 'couple_n_mm x': 160000 })) {
+    const weld = /^S(\d+) /.exec(label); if (weld) fireEvent.click(screen.getByRole('treeitem', { name: `Шов S${weld[1]}` }));
     fireEvent.change(screen.getByLabelText(label), { target: { value: String(v) } });
   }
   await act(async () => { fireEvent.click(screen.getByText('Рассчитать')); });
@@ -393,37 +393,50 @@ test('measured wide canvas fills the available width and resize cancels a gestur
   } finally { cleanup(); vi.unstubAllGlobals(); }
 });
 
-test('starts in the full-screen editor and returns to loads without losing geometry or history', async () => {
-  await renderApp({ fullscreen: true });
-  expect(document.documentElement.classList.contains('editing-fullscreen')).toBe(true);
-  expect(screen.queryByRole('button', { name: 'Рассчитать' })).toBeNull();
-  expect(screen.queryByRole('textbox', { name: 'S1 X1' })).toBeNull();
-  fireEvent.click(screen.getByRole('button', { name: /^Координаты швов/ }));
-  fireEvent.change(screen.getByRole('textbox', { name: 'S1 X1' }), { target: { value: '-40' } });
-  fireEvent.click(screen.getByRole('button', { name: /^Координаты швов/ }));
-  expect(screen.queryByRole('textbox', { name: 'S1 X1' })).toBeNull();
-  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'К нагрузкам и результатам' })); });
-  expect(desktopWindow.setFullscreen).toHaveBeenCalledWith(false);
-  expect(document.documentElement.classList.contains('editing-fullscreen')).toBe(false);
-  expect((screen.getByRole('textbox', { name: 'S1 X1' }) as HTMLInputElement).value).toBe('-40');
-  expect(screen.getByRole('button', { name: 'Рассчитать' })).toBeTruthy();
-  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Редактор на весь экран' })); });
-  expect(desktopWindow.setFullscreen).toHaveBeenCalledWith(true);
-  fireEvent.click(screen.getByRole('button', { name: 'Отменить' }));
-  fireEvent.click(screen.getByRole('button', { name: /^Координаты швов/ }));
-  expect((screen.getByRole('textbox', { name: 'S1 X1' }) as HTMLInputElement).value).toBe('-50');
-  expect(backend.calculate).not.toHaveBeenCalled();
+
+test('CAD tree selects weld properties and loads while the drawing remains available', async () => {
+  await renderApp();
+  expect(screen.getByRole('tree', { name: 'Модель и расчёт' })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'К нагрузкам и результатам' })).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Добавить участок' }));
+  expect(screen.getByRole('treeitem', { name: 'Шов S2' }).getAttribute('aria-selected')).toBe('true');
+  expect(screen.getByRole('textbox', { name: 'S2 X1' })).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'S1 Начало' }));
+  expect(screen.getByRole('treeitem', { name: 'Шов S1' }).getAttribute('aria-selected')).toBe('true');
+  expect(screen.getByRole('textbox', { name: 'S1 X1' })).toBeTruthy();
+  fireEvent.click(screen.getByRole('treeitem', { name: 'Нагрузки' }));
+  expect(screen.getByRole('textbox', { name: 'force_n z' })).toBeTruthy();
+  expect(screen.getByRole('group', { name: 'XY weld layout' })).toBeTruthy();
 });
 
-test('Escape first cancels a drag and only the following Escape leaves the full-screen editor', async () => {
-  const { container } = await renderApp({ fullscreen: true }); const svg = container.querySelector('svg')!;
-  Object.defineProperty(svg, 'getScreenCTM', { value: () => ({ a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 }) });
-  pointer(screen.getByRole('button', { name: 'S1 Начало' }), 'pointerdown', 80, 200);
-  pointer(svg, 'pointermove', 124, 156);
-  fireEvent.keyDown(svg, { key: 'Escape' });
-  expect(screen.getByRole('button', { name: 'К нагрузкам и результатам' })).toBeTruthy();
-  expect(desktopWindow.setFullscreen).not.toHaveBeenCalled();
-  await act(async () => { fireEvent.keyDown(svg, { key: 'Escape' }); });
-  expect(desktopWindow.setFullscreen).toHaveBeenCalledWith(false);
-  expect((screen.getByRole('textbox', { name: 'S1 X1' }) as HTMLInputElement).value).toBe('-50');
+test('result dock opens after calculation and resizing or hiding it preserves the saved model', async () => {
+  vi.mocked(backend.calculate).mockResolvedValue(result()); vi.mocked(backend.save).mockResolvedValue('revision');
+  await renderApp();
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Рассчитать' })); });
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Сохранить ревизию' })); });
+  expect(screen.getByRole('button', { name: 'Панель результатов' }).getAttribute('aria-pressed')).toBe('true');
+  fireEvent.keyDown(screen.getByRole('separator', { name: 'Ширина панели модели' }), { key: 'ArrowRight' });
+  expect(screen.getByRole('separator', { name: 'Ширина панели модели' }).getAttribute('aria-valuenow')).toBe('336');
+  fireEvent.keyDown(screen.getByRole('separator', { name: 'Высота панели результатов' }), { key: 'ArrowUp' });
+  expect(screen.getByRole('separator', { name: 'Высота панели результатов' }).getAttribute('aria-valuenow')).toBe('276');
+  expect((screen.getByLabelText('S1 X1') as HTMLInputElement).value).toBe('-50');
+  expect(screen.queryByText('Есть несохранённые изменения')).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Скрыть результаты' }));
+  expect(screen.queryByRole('heading', { name: 'Номинальные компоненты F/A' })).toBeNull();
+  fireEvent.click(screen.getByRole('treeitem', { name: 'Результаты' }));
+  expect(screen.getByRole('heading', { name: 'Номинальные компоненты F/A' })).toBeTruthy();
+  fireEvent.click(screen.getByRole('tab', { name: 'Схема швов' }));
+  expect(screen.getByText('Эффективная площадь')).toBeTruthy();
+  expect(backend.calculate).toHaveBeenCalledTimes(1);
+});
+
+test('tree arrow keys navigate visible nodes and collapsed branches do not receive focus', async () => {
+  await renderApp(); const branch = screen.getByRole('treeitem', { name: 'Сварные швы' });
+  act(() => branch.focus()); fireEvent.keyDown(branch, { key: 'ArrowLeft' });
+  fireEvent.keyDown(branch, { key: 'ArrowDown' });
+  expect(document.activeElement).toBe(screen.getByRole('treeitem', { name: 'Нагрузки' }));
+  fireEvent.click(document.activeElement!);
+  expect(screen.getByRole('textbox', { name: 'force_n x' })).toBeTruthy();
+  act(() => branch.focus()); fireEvent.keyDown(branch, { key: 'ArrowRight' }); fireEvent.keyDown(branch, { key: 'ArrowDown' });
+  expect(document.activeElement).toBe(screen.getByRole('treeitem', { name: 'Шов S1' }));
 });
