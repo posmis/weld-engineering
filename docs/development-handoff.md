@@ -1,3 +1,5 @@
+> Расчётный этап: добавлена аффинная номинальная модель изгиба и полярного кручения, контроль равновесия, график и snapshots распределений. Вывод, ограничения и результаты Windows: [nominal-bending-torsion.md](nominal-bending-torsion.md). Нормативная оценка прочности не включена.
+
 > Последний этап: история проекта (100 действий, отмена/повтор), zoom у курсора и панорамирование. Состояние и Windows-проверки — [editor-history-navigation.md](editor-history-navigation.md). Форматы проекта и базы не менялись.
 
 > Редактор: добавлены постоянные настройки шага/привязок и перенос шва целиком. Руководство — [desktop-workflow.md](desktop-workflow.md), контракт настроек и миграция SQLite v2 — [application-contract.md](application-contract.md). Точные результаты Windows-проверки этой доработки — [editor-movement.md](editor-movement.md).
