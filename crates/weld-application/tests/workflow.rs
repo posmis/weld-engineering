@@ -162,3 +162,18 @@ fn future_database_migration_does_not_modify_the_database() {
     drop(connection);
     std::fs::remove_file(path).unwrap();
 }
+
+#[test]
+fn corrupted_snapshot_cannot_expose_stresses_for_unsupported_loading() {
+    let mut project = Project {
+        schema_version: 1,
+        title: "Test".into(),
+        input: input(),
+        last_calculation: Some(calculate(&input()).unwrap()),
+    };
+    project.last_calculation.as_mut().unwrap().analysis_status = AnalysisStatus::UnsupportedLoading;
+    assert_eq!(project.validate().unwrap_err().code, "invalid_snapshot");
+    project.last_calculation = Some(calculate(&input()).unwrap());
+    project.last_calculation.as_mut().unwrap().geometry.area_mm2 = f64::NAN;
+    assert_eq!(project.validate().unwrap_err().code, "invalid_snapshot");
+}

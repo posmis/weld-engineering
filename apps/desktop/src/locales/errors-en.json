@@ -14,5 +14,6 @@
   "database_error": "Local project database error.",
   "unsupported_database_schema": "Database created by a newer application version.",
   "clock_error": "System clock error.",
-  "project_not_found": "Revision not found."
+  "project_not_found": "Revision not found.",
+  "invalid_snapshot": "Stored result contains invalid or contradictory data."
 }

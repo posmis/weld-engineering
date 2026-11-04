@@ -44,6 +44,42 @@ impl Project {
             if result.schema_version != SCHEMA_VERSION || result.input_snapshot != self.input {
                 return Err(AppError::new("snapshot_mismatch", Some("last_calculation")));
             }
+            let g = &result.geometry;
+            let numbers = [
+                g.length_mm,
+                g.area_mm2,
+                g.centroid_mm[0],
+                g.centroid_mm[1],
+                g.ix_mm4,
+                g.iy_mm4,
+                g.ixy_mm4,
+                g.polar_mm4,
+            ];
+            let finite = numbers
+                .iter()
+                .chain(result.moment_at_centroid_n_mm.iter())
+                .all(|v| v.is_finite())
+                && result
+                    .traction_mpa
+                    .as_ref()
+                    .is_none_or(|v| v.iter().all(|x| x.is_finite()));
+            let consistent = match result.analysis_status {
+                crate::AnalysisStatus::Computed => {
+                    result.traction_mpa.is_some()
+                        && result.moment_at_centroid_n_mm.iter().all(|x| *x == 0.0)
+                }
+                crate::AnalysisStatus::UnsupportedLoading => result.traction_mpa.is_none(),
+            };
+            if !finite
+                || !consistent
+                || g.area_mm2 <= 0.0
+                || g.length_mm <= 0.0
+                || g.ix_mm4 < 0.0
+                || g.iy_mm4 < 0.0
+                || g.polar_mm4 < 0.0
+            {
+                return Err(AppError::new("invalid_snapshot", Some("last_calculation")));
+            }
         }
         Ok(())
     }

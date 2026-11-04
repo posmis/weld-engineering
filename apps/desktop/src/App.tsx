@@ -117,7 +117,7 @@ export function App() {
         <p className="hint">{t.choose}</p>
         <fieldset disabled={busy}><div className="table-scroll"><table><thead><tr><th>#</th><th>X₁</th><th>Y₁</th><th>X₂</th><th>Y₂</th><th title={t.width}>a, mm</th><th/></tr></thead>
           <tbody>{project.input.segments.map((s, i) => <tr key={i} className={selected === i ? 'active' : ''} onClick={() => setSelected(i)}>
-            <th>S{i + 1}</th>{([0, 1, 2, 3, 4] as const).map(k => <td key={k}><NumberField label={`S${i + 1} ${['X1', 'Y1', 'X2', 'Y2', 'a'][k]}`} value={k < 2 ? s.start_mm[k] : k < 4 ? s.end_mm[k - 2] : s.effective_width_mm} onChange={value => {
+            <th>S{i + 1}</th>{[0, 1, 2, 3, 4].map(k => <td key={k}><NumberField label={`S${i + 1} ${['X1', 'Y1', 'X2', 'Y2', 'a'][k]}`} value={k < 2 ? s.start_mm[k] : k < 4 ? s.end_mm[k - 2] : s.effective_width_mm} onChange={value => {
               const segments = project.input.segments.map((seg, j) => {
                 if (j !== i) return seg; const changed = { ...seg, start_mm: [...seg.start_mm] as [number, number], end_mm: [...seg.end_mm] as [number, number] };
                 if (k < 2) changed.start_mm[k] = value; else if (k < 4) changed.end_mm[k - 2] = value; else changed.effective_width_mm = value; return changed;
