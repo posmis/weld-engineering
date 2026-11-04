@@ -225,3 +225,13 @@ fn overflow_and_unrepresentable_tiny_loads_never_become_a_computed_zero_field() 
         Err(Error::NumericalRange)
     ));
 }
+
+#[test]
+fn a_tiny_moment_is_kept_or_refused_and_never_hidden_by_a_large_background() {
+    let s = parallel(20.0);
+    assert!(solve(&s, [0.0; 3], [0.0, 0.0, 1e-30]).is_ok());
+    assert!(matches!(
+        solve(&s, [0.0, 0.0, 400.0], [1e-320, 0.0, 0.0]),
+        Err(Error::NumericalRange)
+    ));
+}

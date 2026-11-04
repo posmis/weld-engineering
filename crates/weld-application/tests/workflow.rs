@@ -45,7 +45,9 @@ fn eccentricity_is_transformed_and_torsion_returns_a_distribution() {
     assert!(result.distribution.is_some());
     request.application = ApplicationPoint::Centroid;
     request.couple_n_mm[2] = 1e-30;
-    assert!(calculate(&request).unwrap().traction_mpa.is_none());
+    // A 1e-30 torsional increment cannot be represented on a 0.05 MPa background.
+    // Refuse it instead of silently returning a uniform field.
+    assert_eq!(calculate(&request).unwrap_err().code, "numerical_range");
 }
 
 #[test]
