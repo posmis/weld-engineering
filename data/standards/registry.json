@@ -1,0 +1,129 @@
+{
+  "schema_version": 1,
+  "verified_standards": [],
+  "research_candidates": [
+    {
+      "designation": "ГОСТ 5264-80",
+      "verification_status": "status_verified_content_pending",
+      "legal_status": "effective",
+      "normative_calculation_enabled": false,
+      "source_document": null,
+      "clauses": [],
+      "amendments": null,
+      "source_url": "https://nd.gostinfo.ru/document/4162273.aspx"
+    },
+    {
+      "designation": "ГОСТ 14771-76",
+      "verification_status": "status_verified_content_pending",
+      "legal_status": "effective",
+      "normative_calculation_enabled": false,
+      "source_document": null,
+      "clauses": [],
+      "amendments": null,
+      "source_url": "https://nd.gostinfo.ru/document/4166237.aspx"
+    },
+    {
+      "designation": "ГОСТ 8713-79",
+      "verification_status": "unverified",
+      "legal_status": "unknown",
+      "normative_calculation_enabled": false,
+      "source_document": null,
+      "clauses": [],
+      "amendments": null
+    },
+    {
+      "designation": "ГОСТ 16037-80",
+      "verification_status": "unverified",
+      "legal_status": "unknown",
+      "normative_calculation_enabled": false,
+      "source_document": null,
+      "clauses": [],
+      "amendments": null
+    },
+    {
+      "designation": "ГОСТ EN 1011-6-2017",
+      "verification_status": "official_catalog_status_verified",
+      "legal_status": "superseded",
+      "normative_calculation_enabled": false,
+      "source_document": null,
+      "clauses": [],
+      "amendments": null,
+      "source_url": "https://nd.gostinfo.ru/document/6432788.aspx",
+      "replacement": "ГОСТ EN 1011-6-2025"
+    },
+    {
+      "designation": "ГОСТ EN 1011-6-2025",
+      "verification_status": "status_verified_content_pending",
+      "legal_status": "effective",
+      "normative_calculation_enabled": false,
+      "source_document": null,
+      "clauses": [],
+      "amendments": null,
+      "source_url": "https://nd.gostinfo.ru/document/8104227.aspx"
+    }
+  ],
+  "en_1011_parts_to_investigate": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8
+  ],
+  "status_verified_standards": [
+    {
+      "designation": "ГОСТ 5264-80",
+      "jurisdiction": "RU",
+      "status": "effective",
+      "status_verification": "official_operator_catalog_checked",
+      "checked_on": "2026-11-04",
+      "source_url": "https://nd.gostinfo.ru/document/4162273.aspx",
+      "effective_date": "1981-07-01",
+      "normative_calculation_enabled": false,
+      "parameter_verification": "not_completed",
+      "amendment_completeness": "catalog_identified_not_fully_content_checked"
+    },
+    {
+      "designation": "ГОСТ 14771-76",
+      "jurisdiction": "RU",
+      "status": "effective",
+      "status_verification": "official_operator_catalog_checked",
+      "checked_on": "2026-11-04",
+      "source_url": "https://nd.gostinfo.ru/document/4166237.aspx",
+      "effective_date": "1977-07-01",
+      "normative_calculation_enabled": false,
+      "parameter_verification": "not_completed",
+      "amendment_completeness": "catalog_identified_not_fully_content_checked"
+    },
+    {
+      "designation": "ГОСТ EN 1011-6-2025",
+      "jurisdiction": "RU",
+      "status": "effective",
+      "status_verification": "official_operator_catalog_checked",
+      "checked_on": "2026-11-04",
+      "source_url": "https://nd.gostinfo.ru/document/8104227.aspx",
+      "effective_date": "2026-01-01",
+      "normative_calculation_enabled": false,
+      "parameter_verification": "not_completed",
+      "amendment_completeness": "catalog_identified_not_fully_content_checked"
+    }
+  ],
+  "correction_records": [
+    {
+      "standard": "ГОСТ EN 1011-6-2025",
+      "source_url": "https://nd.gostinfo.ru/document/8499149.aspx",
+      "registered_on": "2026-06-04",
+      "effective_date": "2026-06-17",
+      "publication": "ИУС 6-2026",
+      "pages": 1,
+      "full_text_obtained": true,
+      "checked_on": "2026-11-04",
+      "full_text_source": "https://meganorm.ru/mega_doc/norm_update_01082026/popravka_popravki/0/popravka_k_gost_EN_1011-6-2025_svarka_rekomendatsii_po.html",
+      "content_verification": "secondary_source_read_official_metadata_matched",
+      "official_full_text_checked": false,
+      "summary": "Добавление Таджикистана (TJ, Таджикстандарт) в таблицу согласования предисловия"
+    }
+  ]
+}

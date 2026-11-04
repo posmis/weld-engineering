@@ -1,0 +1,34 @@
+[
+  {
+    "source_url": "https://archive.nptel.ac.in/content/storage2/courses/112107090/module6/lecture1/lecture1.pdf",
+    "sha256": "565f5402bcdfb8858e4aa78d84fbf82a6f9b29e727783b6a251a0e0088a4a769",
+    "local_cache": "/workspace/research-sources/source0.pdf",
+    "obtained_on": "2026-11-04",
+    "kind": "educational_not_normative",
+    "normative_calculation_enabled": false
+  },
+  {
+    "source_url": "https://archive.nptel.ac.in/content/storage2/courses/112107090/module6/lecture4/lecture4.pdf",
+    "sha256": "681b8460b60cc4ba8e72fcb540e06f95584fba1465f0970ebd76f8cce3f23b75",
+    "local_cache": "/workspace/research-sources/source1.pdf",
+    "obtained_on": "2026-11-04",
+    "kind": "educational_not_normative",
+    "normative_calculation_enabled": false
+  },
+  {
+    "source_url": "https://elib.osu.ru/bitstream/123456789/13712/1/36310_20170426.pdf",
+    "sha256": "b0f8cbc219e7c7bf33c3cf0a26632945bac180d28aa7efdca108ad8e56a972ec",
+    "local_cache": "/workspace/research-sources/source2.pdf",
+    "obtained_on": "2026-11-04",
+    "kind": "educational_not_normative",
+    "normative_calculation_enabled": false
+  },
+  {
+    "source_url": "https://elib2.altstu.ru/uploads/open_mat/2022/Mandrov_RasPrSS_ump.pdf",
+    "sha256": "3c3d29dd46a372828cbd71e99b044db7a120117c8b5d2fae34e0dd15cdf8a89f",
+    "local_cache": "/workspace/research-sources/source3.pdf",
+    "obtained_on": "2026-11-04",
+    "kind": "educational_not_normative",
+    "normative_calculation_enabled": false
+  }
+]

@@ -1,0 +1,29 @@
+[
+  {
+    "filename": "ГОСТ 5264-80 Ручная дуговая сварка.pdf",
+    "designation": "ГОСТ 5264-80",
+    "sha256": "9ef3bf392c77ac493d0d4aceb0f47194a3ce6e27ec74648267f533a7181b6a0e",
+    "origin": "user_upload",
+    "review": "initial_text_inspection",
+    "official_current_status_verified": false,
+    "normative_calculation_enabled": false
+  },
+  {
+    "filename": "4294850476.pdf",
+    "designation": "ГОСТ 14771-76",
+    "sha256": "c1cebfc0c3771839e4e719f9e70c7ba09586da158bb39bf1f684f723f092611c",
+    "origin": "user_upload",
+    "review": "initial_text_inspection",
+    "official_current_status_verified": false,
+    "normative_calculation_enabled": false
+  },
+  {
+    "filename": "86416.pdf",
+    "designation": "ГОСТ EN 1011-6-2025",
+    "sha256": "6967f26b663e385672c217c5e236e301c20efd77c830383e75012225a2a79841",
+    "origin": "user_upload",
+    "review": "initial_text_inspection",
+    "official_current_status_verified": false,
+    "normative_calculation_enabled": false
+  }
+]

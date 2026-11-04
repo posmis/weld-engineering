@@ -1,0 +1,15 @@
+name: Windows core validation
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  core:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install stable Rust
+        shell: pwsh
+        run: rustup toolchain install stable --profile minimal --component rustfmt --component clippy
+      - run: cargo +stable fmt --all -- --check
+      - run: cargo +stable clippy --workspace --all-targets -- -D warnings
+      - run: cargo +stable test --workspace
