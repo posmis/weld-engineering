@@ -31,13 +31,15 @@ jobs:
           cache: npm
           cache-dependency-path: apps/desktop/package-lock.json
       - name: Install pinned Rust
-        run: rustup toolchain install 1.99.1 --profile minimal
+        run: rustup toolchain install 1.99.1 --profile minimal --component rustfmt --component clippy
       - uses: actions/cache/restore@v4
         id: desktop-cache
         with:
           path: target
-          key: ${{ runner.os }}-desktop-rust-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}
-          restore-keys: ${{ runner.os }}-desktop-rust-
+          key: ${{ runner.os }}-desktop-rust-v2-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-desktop-rust-v2-
+            ${{ runner.os }}-desktop-rust-
       - run: npm ci --no-audit --no-fund
       - name: Verify frontend tests in three fresh processes
         shell: pwsh
