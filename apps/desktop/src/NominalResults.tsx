@@ -14,15 +14,15 @@ export function NominalResults({ distribution, selected, onSelect, t }: {
   const extent = Math.max(Math.abs(start), Math.abs(end)) || 1;
   const y = (v: number) => 100 - (v / extent) * 65;
   return <div className="nominal-results"><h3>{t.nominalDistribution}</h3><p className="hint">{t.nominalHelp}</p>
-    <dl><dt>{t.normalRange}</dt><dd>{distribution.normal_range_mpa.map(display).join(' / ')} <small>MPa</small></dd>
-      <dt>{t.maxShear}</dt><dd>{display(distribution.max_shear_mpa)} <small>MPa</small></dd></dl>
+    <dl className="metric-grid"><div className="metric"><dt>{t.normalRange}</dt><dd>{distribution.normal_range_mpa.map(display).join(' / ')} <small>MPa</small></dd></div>
+      <div className="metric"><dt>{t.maxShear}</dt><dd>{display(distribution.max_shear_mpa)} <small>MPa</small></dd></div></dl>
     <label className="stress-choice">{t.stressSegment}<select aria-label={t.stressSegment} value={index} onChange={e => onSelect(Number(e.target.value))}>
       {distribution.segments.map((_, i) => <option key={i} value={i}>S{i + 1}</option>)}
     </select></label>
     <label className="stress-choice">{t.stressComponent}<select aria-label={t.stressComponent} value={component} onChange={e => setComponent(Number(e.target.value))}>
       {['τx', 'τy', 'σz'].map((name, i) => <option key={name} value={i}>{name}</option>)}
     </select></label>
-    <svg className="stress-chart" viewBox="0 0 340 210" role="img" aria-label={t.distributionChart}>
+    <div className="stress-detail"><svg className="stress-chart" viewBox="0 0 340 210" role="img" aria-label={t.distributionChart}>
       <path d="M45 20V180H320 M45 100H320" className="axis"/>
       <path d={`M45 ${y(start)} L315 ${y(end)}`} className="stress-profile"/>
       <circle cx="45" cy={y(start)} r="4"/><circle cx="315" cy={y(end)} r="4"/>
@@ -34,7 +34,7 @@ export function NominalResults({ distribution, selected, onSelect, t }: {
     </svg>
     <table aria-label={t.stressValues}><thead><tr><th>S{index + 1}</th><th>τx, MPa</th><th>τy, MPa</th><th>σz, MPa</th></tr></thead>
       <tbody>{[segment.start_mpa, segment.end_mpa].map((value, i) => <tr key={i}><th>{i === 0 ? t.startPoint : t.endPoint}</th>{value.map((v, j) => <td key={j}>{display(v)}</td>)}</tr>)}</tbody></table>
-    <p className="hint">{t.equilibriumError}: {distribution.equilibrium_error.toExponential(2)}
+    </div><p className="hint">{t.equilibriumError}: {distribution.equilibrium_error.toExponential(2)}
       {distribution.bending_rcond !== null && <><br/>{t.bendingCondition}: {distribution.bending_rcond.toExponential(2)}</>}</p>
   </div>;
 }

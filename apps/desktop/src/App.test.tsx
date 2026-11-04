@@ -359,3 +359,35 @@ test('ill-conditioned bending shows its reason and no stress profile or nominal 
   expect(screen.queryByRole('img', { name: 'График напряжений вдоль участка' })).toBeNull();
   expect(screen.queryByText('Номинальные компоненты F/A')).toBeNull();
 });
+
+test('measured wide canvas fills the available width and resize cancels a gesture without losing its saved result', async () => {
+  let width = 1200, height = 320, resize!: () => void;
+  vi.stubGlobal('ResizeObserver', class {
+    callback: ResizeObserverCallback;
+    constructor(callback: ResizeObserverCallback) { this.callback = callback; }
+    observe(target: Element) {
+      Object.defineProperty(target, 'clientWidth', { configurable: true, get: () => width });
+      Object.defineProperty(target, 'clientHeight', { configurable: true, get: () => height });
+      resize = () => this.callback([], this as unknown as ResizeObserver); resize();
+    }
+    disconnect() {}
+  });
+  try {
+    vi.mocked(backend.calculate).mockResolvedValue(result()); vi.mocked(backend.save).mockResolvedValue('revision');
+    const { container } = await renderApp(); const svg = container.querySelector('svg')!;
+    Object.defineProperty(svg, 'getScreenCTM', { value: () => ({ a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 }) });
+    expect(svg.getAttribute('viewBox')).toBe('0 0 1200 320');
+    expect(Number(screen.getByRole('button', { name: 'S1 Конец' }).getAttribute('cx'))).toBe(1120);
+    await act(async () => { fireEvent.click(screen.getByText('Рассчитать')); });
+    await act(async () => { fireEvent.click(screen.getByText('Сохранить ревизию')); });
+    pointer(screen.getByRole('button', { name: 'Переместить шов S1' }), 'pointerdown', 600, 160);
+    pointer(svg, 'pointermove', 704, 56);
+    expect((screen.getByLabelText('S1 X1') as HTMLInputElement).value).toBe('-40');
+    width = 1800; height = 360; act(() => resize());
+    expect(svg.getAttribute('viewBox')).toBe('0 0 1800 360');
+    expect((screen.getByLabelText('S1 X1') as HTMLInputElement).value).toBe('-50');
+    expect(screen.getByText('Номинальные компоненты F/A')).toBeTruthy();
+    expect(screen.queryByText('Есть несохранённые изменения')).toBeNull();
+    expect(Number(screen.getByRole('button', { name: 'S1 Конец' }).getAttribute('cx'))).toBeCloseTo(1720);
+  } finally { cleanup(); vi.unstubAllGlobals(); }
+});

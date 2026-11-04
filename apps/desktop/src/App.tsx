@@ -196,7 +196,6 @@ export function App() {
           onDragFinish={() => { dragSnapshot.current = null; setGestureActive(false); history.current.breakGroup(); }}/>
 
 
-        <p className="hint">{t.choose}</p>
         <fieldset disabled={busy || pending !== null}><div className="table-scroll"><table><thead><tr><th>#</th><th>X₁</th><th>Y₁</th><th>X₂</th><th>Y₂</th><th title={t.width}>a, mm</th><th/></tr></thead>
           <tbody>{project.input.segments.map((s, i) => <tr key={i} className={selected === i ? 'active' : ''} onClick={() => setSelected(i)}>
             <th>S{i + 1}</th>{[0, 1, 2, 3, 4].map(k => <td key={k}><NumberField label={`S${i + 1} ${['X1', 'Y1', 'X2', 'Y2', 'a'][k]}`} value={k < 2 ? s.start_mm[k] : k < 4 ? s.end_mm[k - 2] : s.effective_width_mm} onChange={value => {
@@ -228,11 +227,11 @@ export function App() {
       <section className="panel results"><div className="section-title"><h2>03 / {t.results}</h2></div>
         <div className="unsupported">{t.unsupported}</div><p className="hint">{t.safety}</p>
         {!result ? <p className="empty">{t.noResult}</p> : <><p className="validation">{t.validation}</p>
-          <dl><dt>{t.length}</dt><dd>{display(result.geometry.length_mm)} <small>mm</small></dd><dt>{t.area}</dt><dd>{display(result.geometry.area_mm2)} <small>mm²</small></dd>
-            <dt>{t.centre} X / Y</dt><dd>{result.geometry.centroid_mm.map(display).join(' / ')} <small>mm</small></dd>
-            {(['ix_mm4', 'iy_mm4', 'ixy_mm4', 'polar_mm4'] as const).map((key, i) => <div className="result-row" key={key}><dt>{['Ix', 'Iy', 'Ixy', 'J'][i]}</dt><dd>{display(result.geometry[key])} <small>mm⁴</small></dd></div>)}</dl>
+          <dl className="metric-grid"><div className="metric"><dt>{t.length}</dt><dd>{display(result.geometry.length_mm)} <small>mm</small></dd></div><div className="metric"><dt>{t.area}</dt><dd>{display(result.geometry.area_mm2)} <small>mm²</small></dd></div>
+            <div className="metric"><dt>{t.centre} X / Y</dt><dd>{result.geometry.centroid_mm.map(display).join(' / ')} <small>mm</small></dd></div>
+            {(['ix_mm4', 'iy_mm4', 'ixy_mm4', 'polar_mm4'] as const).map((key, i) => <div className="metric" key={key}><dt>{['Ix', 'Iy', 'Ixy', 'J'][i]}</dt><dd>{display(result.geometry[key])} <small>mm⁴</small></dd></div>)}</dl>
           <h3>{t.momentCentre}</h3><p className="values">{result.moment_at_centroid_n_mm.map(display).join(' / ')} N·mm</p>
-          {result.traction_mpa ? <><h3>{t.traction}</h3><dl>{result.traction_mpa.map((value, i) => <div className="result-row" key={i}><dt>{['τx', 'τy', 'σz'][i]}</dt><dd>{display(value)} <small>MPa</small></dd></div>)}</dl></> : result.distribution ? <NominalResults distribution={result.distribution} selected={selected} onSelect={setSelected} t={t}/> : <p className="validation">{result.warnings.includes('ill_conditioned_section') ? t.illConditioned : t.momentNotice}</p>}
+          {result.traction_mpa ? <><h3>{t.traction}</h3><dl className="metric-grid">{result.traction_mpa.map((value, i) => <div className="metric" key={i}><dt>{['τx', 'τy', 'σz'][i]}</dt><dd>{display(value)} <small>MPa</small></dd></div>)}</dl></> : result.distribution ? <NominalResults distribution={result.distribution} selected={selected} onSelect={setSelected} t={t}/> : <p className="validation">{result.warnings.includes('ill_conditioned_section') ? t.illConditioned : t.momentNotice}</p>}
           <p className="engine">{result.method_id}<br/>Engine {result.engine_version} · schema {result.schema_version}</p>
         </>}
       </section>

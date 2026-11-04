@@ -99,6 +99,24 @@ try {
     $null = Wait-Until { $result = Find-Name 'Задайте геометрию и выполните расчёт.'; $result -and -not $result.Current.IsOffscreen } 'results reached by vertical document scroll'
     if (-not (Find-Name 'S1 Начало').Current.IsOffscreen) { throw 'Geometry and results are still shown side by side' }
     Show-Drawing
+    $canvasBounds = (Find-Name 'XY weld layout').Current.BoundingRectangle
+    $windowBounds = $script:window.Current.BoundingRectangle
+    $startBounds = (Find-Name 'S1 Начало').Current.BoundingRectangle
+    $endBounds = (Find-Name 'S1 Конец').Current.BoundingRectangle
+    if ($canvasBounds.Width -lt ($windowBounds.Width - 160)) { throw 'Workspace is still constrained to a narrow central column' }
+    if (($endBounds.X - $startBounds.X) -lt ($canvasBounds.Width * .75)) { throw 'Fit still letterboxes the weld into a small fixed drawing' }
+    if ($startBounds.Width -lt 14) { throw 'Endpoint handles are too small to grab' }
+    if ((Find-Name 'S1 X1').Current.BoundingRectangle.Height -lt 40) { throw 'Numeric inputs are too small' }
+    # Capture only the default synthetic project, never local reference publications.
+    try {
+        Add-Type -AssemblyName System.Drawing
+        $image = [System.Drawing.Bitmap]::new([int]$windowBounds.Width, [int]$windowBounds.Height)
+        $graphics = [System.Drawing.Graphics]::FromImage($image)
+        try {
+            $graphics.CopyFromScreen([int]$windowBounds.X, [int]$windowBounds.Y, 0, 0, $image.Size)
+            $image.Save((Join-Path $PSScriptRoot '../target/windows-ui-smoke.png'), [System.Drawing.Imaging.ImageFormat]::Png)
+        } finally { $graphics.Dispose(); $image.Dispose() }
+    } catch { Write-Warning "Optional screenshot unavailable: $_" }
     $bounds = (Find-Name 'XY weld layout').Current.BoundingRectangle
     $null = [WeldDesktopInput]::SetCursorPos([int]($bounds.X + $bounds.Width * 0.8), [int]($bounds.Y + $bounds.Height * 0.75))
     [WeldDesktopInput]::mouse_event(0x0008, 0, 0, 0, [UIntPtr]::Zero)
@@ -149,7 +167,7 @@ try {
     $null = [WeldDesktopInput]::SetCursorPos($lineX, $lineY)
     [WeldDesktopInput]::mouse_event(0x0002, 0, 0, 0, [UIntPtr]::Zero)
     Start-Sleep -Milliseconds 100
-    $null = [WeldDesktopInput]::SetCursorPos($lineX + 30, $lineY - 20)
+    $null = [WeldDesktopInput]::SetCursorPos($lineX + [int]($lineBounds.Width * .06), $lineY - 20)
     $null = Wait-Until { [double]::Parse((Read-Field 'S1 X1'), [Globalization.CultureInfo]::InvariantCulture) -ne $before } 'whole-weld mouse translation'
     [WeldDesktopInput]::mouse_event(0x0004, 0, 0, 0, [UIntPtr]::Zero)
     $movedStart = [double]::Parse((Read-Field 'S1 X1'), [Globalization.CultureInfo]::InvariantCulture)
@@ -179,9 +197,9 @@ try {
     if (Find-Name 'Есть несохранённые изменения') { throw 'Undo to saved snapshot did not restore clean state' }
     Click-Name 'Вписать схему'
     Show-Drawing
-    $endBounds = (Find-Name 'S1 Конец').Current.BoundingRectangle
+    $null = Wait-Until { Find-Name '100%' } 'canvas fitted at full available width'
     Click-Name 'Приблизить схему'
-    $null = Wait-Until { (Find-Name 'S1 Конец').Current.BoundingRectangle.X -gt ($endBounds.X + 5) } 'native zoom changes the viewport'
+    $null = Wait-Until { Find-Name '125%' } 'native zoom changes the viewport'
     Click-Name 'Вписать схему'
     Click-Name 'Панорамирование'
     $beforePan = (Find-Name 'S1 Конец').Current.BoundingRectangle.X
@@ -247,7 +265,7 @@ try {
     $handle = [IntPtr]$script:window.Current.NativeWindowHandle
     $null = [WeldDesktopInput]::PostMessage($handle, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero)
     if (-not $process.WaitForExit(10000)) { throw 'Restarted desktop did not close cleanly' }
-    Write-Output 'PASS: vertically scrolling welds-loads-results layout; nominal bending/torsion, singular section refusal, distribution snapshot restart; undo/redo, saved result restoration, viewport zoom and pan; settings persistence and whole-weld movement; application context menu -> real endpoint drag and cancel -> native unsaved close guard -> Rust calculation -> SQLite save -> snapshot reopen -> clean close.'
+    Write-Output 'PASS: full-width responsive canvas and readable controls; vertically scrolling welds-loads-results layout; nominal bending/torsion, singular section refusal, distribution snapshot restart; undo/redo, saved result restoration, viewport zoom and pan; settings persistence and whole-weld movement; application context menu -> real endpoint drag and cancel -> native unsaved close guard -> Rust calculation -> SQLite save -> snapshot reopen -> clean close.'
  } catch {
     if ($script:window) {
         $elements = $script:window.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)

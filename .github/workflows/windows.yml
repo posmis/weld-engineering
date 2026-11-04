@@ -66,6 +66,8 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: weld-engineering-windows-x64
-          path: target/release/weld-desktop.exe
+          path: |
+            target/release/weld-desktop.exe
+            target/windows-ui-smoke.png
           if-no-files-found: error
           retention-days: 7

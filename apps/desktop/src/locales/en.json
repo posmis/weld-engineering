@@ -96,5 +96,7 @@
   "stressValues": "Segment endpoint stresses",
   "equilibriumError": "Load reproduction error",
   "bendingCondition": "Principal inertia ratio",
-  "illConditioned": "Bending not computed: the section is singular or ill-conditioned. Provide segments spread across the XY plane."
+  "illConditioned": "Bending not computed: the section is singular or ill-conditioned. Provide segments spread across the XY plane.",
+  "editorHelp": "Layout controls and keyboard shortcuts",
+  "stepShort": "Step"
 }
