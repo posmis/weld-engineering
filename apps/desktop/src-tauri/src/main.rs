@@ -54,6 +54,30 @@ fn main() {
             let store = ProjectStore::open(&directory.join("projects.sqlite"))
                 .map_err(|_| std::io::Error::other("Cannot initialize project database"))?;
             app.manage(Mutex::new(store));
+            if let Some(window) = app.get_webview_window("main") {
+                #[cfg(debug_assertions)]
+                let developer_tools =
+                    std::env::var_os("WELD_DEVTOOLS").is_some_and(|value| value == "1");
+                #[cfg(not(debug_assertions))]
+                let developer_tools = false;
+                window.with_webview(move |view| {
+                    // WebView2 settings are applied to this UI-thread-owned controller.
+                    let configured = unsafe {
+                        view.controller().CoreWebView2().and_then(|webview| {
+                            let settings = webview.Settings()?;
+                            settings.SetAreDefaultContextMenusEnabled(false)?;
+                            settings.SetAreDevToolsEnabled(developer_tools)?;
+                            if developer_tools {
+                                webview.OpenDevToolsWindow()?;
+                            }
+                            Ok(())
+                        })
+                    };
+                    if let Err(error) = configured {
+                        eprintln!("Cannot configure desktop WebView settings: {error}");
+                    }
+                })?;
+            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

@@ -1,6 +1,16 @@
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
+Add-Type @'
+using System;
+using System.Runtime.InteropServices;
+public static class WeldDesktopInput {
+    [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);
+    [DllImport("user32.dll")] public static extern void mouse_event(uint flags, uint dx, uint dy, uint data, UIntPtr extra);
+    [DllImport("user32.dll")] public static extern void keybd_event(byte key, byte scan, uint flags, UIntPtr extra);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern bool PostMessage(IntPtr window, uint message, IntPtr wParam, IntPtr lParam);
+}
+'@
 $process = $null
 $script:window = $null
 
@@ -31,9 +41,46 @@ try {
         $condition = [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $process.Id)
         [System.Windows.Automation.AutomationElement]::RootElement.FindFirst([System.Windows.Automation.TreeScope]::Children, $condition)
     } 'native Tauri window'
+    $drawing = Wait-Until { Find-Name 'XY weld layout' } 'editable weld layout'
+    $bounds = $drawing.Current.BoundingRectangle
+    $null = [WeldDesktopInput]::SetCursorPos([int]($bounds.X + $bounds.Width * 0.8), [int]($bounds.Y + $bounds.Height * 0.75))
+    [WeldDesktopInput]::mouse_event(0x0008, 0, 0, 0, [UIntPtr]::Zero)
+    [WeldDesktopInput]::mouse_event(0x0010, 0, 0, 0, [UIntPtr]::Zero)
+    $null = Wait-Until { Find-Name 'Добавить участок здесь' } 'application context menu, not browser menu'
+    Click-Name 'Закрыть меню'
+    $endpoint = Wait-Until { Find-Name 'S1 Начало' } 'accessible endpoint handle'
+    $endpointBounds = $endpoint.Current.BoundingRectangle
+    $x = [int]($endpointBounds.X + $endpointBounds.Width / 2)
+    $y = [int]($endpointBounds.Y + $endpointBounds.Height / 2)
+    $null = [WeldDesktopInput]::SetCursorPos($x, $y)
+    [WeldDesktopInput]::mouse_event(0x0002, 0, 0, 0, [UIntPtr]::Zero)
+    Start-Sleep -Milliseconds 100
+    $null = [WeldDesktopInput]::SetCursorPos($x + 30, $y - 20)
+    $coordinate = Wait-Until { Find-Name 'S1 X1' } 'numeric coordinate field'
+    $valuePattern = $coordinate.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern)
+    $null = Wait-Until { $valuePattern.Current.Value -ne '-50' } 'mouse drag updates engineering input'
+    [WeldDesktopInput]::keybd_event(0x1B, 0, 0, [UIntPtr]::Zero)
+    [WeldDesktopInput]::keybd_event(0x1B, 0, 2, [UIntPtr]::Zero)
+    $null = Wait-Until { $valuePattern.Current.Value -eq '-50' } 'Escape restores drag input'
+    [WeldDesktopInput]::mouse_event(0x0004, 0, 0, 0, [UIntPtr]::Zero)
+
+    $endpointBounds = (Find-Name 'S1 Начало').Current.BoundingRectangle
+    $x = [int]($endpointBounds.X + $endpointBounds.Width / 2)
+    $y = [int]($endpointBounds.Y + $endpointBounds.Height / 2)
+    $null = [WeldDesktopInput]::SetCursorPos($x, $y)
+    [WeldDesktopInput]::mouse_event(0x0002, 0, 0, 0, [UIntPtr]::Zero)
+    Start-Sleep -Milliseconds 100
+    $null = [WeldDesktopInput]::SetCursorPos($x + 20, $y)
+    $null = Wait-Until { $valuePattern.Current.Value -ne '-50' } 'second drag updates engineering input'
+    [WeldDesktopInput]::mouse_event(0x0004, 0, 0, 0, [UIntPtr]::Zero)
     Click-Name 'Рассчитать'
     $null = Wait-Until { Find-Name 'Номинальные компоненты F/A' } 'real Rust calculation result in WebView'
     $null = Wait-Until { Find-Name 'Проверка прочности недоступна' } 'unsupported strength status'
+    $handle = [IntPtr]$script:window.Current.NativeWindowHandle
+    $null = [WeldDesktopInput]::PostMessage($handle, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero)
+    $null = Wait-Until { Find-Name 'Несохранённые изменения' } 'unsaved changes guard on native close'
+    Click-Name 'Отмена'
+    $null = Wait-Until { Find-Name 'Номинальные компоненты F/A' } 'original calculation preserved after cancel'
     Click-Name 'Сохранить ревизию'
     $null = Wait-Until { Find-Name 'Ревизия сохранена' } 'SQLite save confirmation'
     Click-Name 'Создать'
@@ -50,7 +97,10 @@ try {
     $revision.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
     $null = Wait-Until { Find-Name 'Номинальные компоненты F/A' } 'restored original result'
     $null = Wait-Until { Find-Name 'Открыт сохранённый снимок. Результат не пересчитан; для нового расчёта нажмите «Рассчитать». Импортированные данные требуют проверки.' } 'snapshot provenance warning'
-    Write-Output 'PASS: native window -> WebView -> Rust calculation -> SQLite save -> snapshot reopen.'
+    $null = [WeldDesktopInput]::PostMessage($handle, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero)
+    if (-not $process.WaitForExit(10000)) { throw 'Clean native close did not complete' }
+    if ($process.ExitCode -ne 0) { throw "Desktop closed with exit $($process.ExitCode)" }
+    Write-Output 'PASS: application context menu -> real endpoint drag and cancel -> native unsaved close guard -> Rust calculation -> SQLite save -> snapshot reopen -> clean close.'
  } catch {
     if ($script:window) {
         $elements = $script:window.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)

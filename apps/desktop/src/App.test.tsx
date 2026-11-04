@@ -1,10 +1,13 @@
-import { afterEach, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { App } from './App';
 import { backend } from './backend';
+import { desktopWindow } from './desktopWindow';
 import { newProject, type CalculationResult } from './contracts';
 
 vi.mock('./backend', () => ({ backend: { calculate: vi.fn(), save: vi.fn(), list: vi.fn(), open: vi.fn(), import: vi.fn(), export: vi.fn() } }));
+vi.mock('./desktopWindow', () => ({ desktopWindow: { listenClose: vi.fn(), close: vi.fn() } }));
+beforeEach(() => { vi.mocked(desktopWindow.listenClose).mockResolvedValue(() => {}); vi.mocked(desktopWindow.close).mockResolvedValue(undefined); });
 afterEach(() => { cleanup(); vi.resetAllMocks(); });
 function result(): CalculationResult {
   return { schema_version: 1, engine_version: 'test', method_id: 'uniform-direct-traction-v1', input_snapshot: newProject().input,
@@ -41,4 +44,136 @@ test('empty numeric input does not silently become zero or reach the calculation
   await act(async () => { fireEvent.click(screen.getByText('Рассчитать')); });
   expect(screen.getByRole('alert').textContent).toContain('Обнаружено неконечное число');
   expect(backend.calculate).not.toHaveBeenCalled();
+});
+
+test('right click uses editor commands and browser inspection shortcuts are suppressed without blocking copy', () => {
+  const { container } = render(<App />);
+  const field = screen.getByLabelText('S1 X1');
+  const context = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
+  fireEvent(field, context);
+  expect(context.defaultPrevented).toBe(true);
+  expect(screen.queryByRole('menu')).toBeNull();
+  const copy = new KeyboardEvent('keydown', { key: 'c', ctrlKey: true, bubbles: true, cancelable: true });
+  fireEvent(field, copy); expect(copy.defaultPrevented).toBe(false);
+  const inspect = new KeyboardEvent('keydown', { key: 'F12', bubbles: true, cancelable: true });
+  fireEvent(field, inspect); expect(inspect.defaultPrevented).toBe(true);
+  const svg = container.querySelector('svg')!;
+  Object.defineProperty(svg, 'getScreenCTM', { value: () => ({ a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 }) });
+  fireEvent.contextMenu(svg, { clientX: 300, clientY: 250 });
+  fireEvent.click(screen.getByRole('menuitem', { name: 'Добавить участок здесь' }));
+  expect(screen.getByLabelText('S2 X1')).toBeTruthy();
+  expect(screen.queryByRole('menu')).toBeNull();
+});
+
+function pointer(target: Element, type: string, x: number, y: number) {
+  const event = new MouseEvent(type, { bubbles: true, cancelable: true, button: 0, clientX: x, clientY: y });
+  Object.defineProperty(event, 'pointerId', { value: 1 });
+  fireEvent(target, event);
+}
+
+test('drag uses a stable equal-scale viewport and Escape restores the saved result and clean state', async () => {
+  vi.mocked(backend.calculate).mockResolvedValue(result());
+  vi.mocked(backend.save).mockResolvedValue('saved-revision');
+  const { container } = render(<App />);
+  await act(async () => { fireEvent.click(screen.getByText('Рассчитать')); });
+  await act(async () => { fireEvent.click(screen.getByText('Сохранить ревизию')); });
+  expect(screen.queryByText('Есть несохранённые изменения')).toBeNull();
+  const svg = container.querySelector('svg')!;
+  Object.defineProperty(svg, 'getScreenCTM', { value: () => ({ a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 }) });
+  pointer(screen.getByRole('button', { name: 'S1 Начало' }), 'pointerdown', 80, 200);
+  pointer(svg, 'pointermove', 124, 156);
+  expect(Number((screen.getByLabelText('S1 X1') as HTMLInputElement).value)).toBeCloseTo(-40);
+  expect(Number((screen.getByLabelText('S1 Y1') as HTMLInputElement).value)).toBeCloseTo(10);
+  pointer(svg, 'pointermove', 168, 112);
+  expect(Number((screen.getByLabelText('S1 X1') as HTMLInputElement).value)).toBeCloseTo(-30);
+  expect(Number((screen.getByLabelText('S1 Y1') as HTMLInputElement).value)).toBeCloseTo(20);
+  expect(screen.queryByText('Номинальные компоненты F/A')).toBeNull();
+  fireEvent.keyDown(svg, { key: 'Escape' });
+  expect((screen.getByLabelText('S1 X1') as HTMLInputElement).value).toBe('-50');
+  expect(screen.getByText('Номинальные компоненты F/A')).toBeTruthy();
+  expect(screen.queryByText('Есть несохранённые изменения')).toBeNull();
+  expect(backend.calculate).toHaveBeenCalledTimes(1);
+});
+
+test('keyboard endpoint edits update model coordinates and invalidate the result', async () => {
+  vi.mocked(backend.calculate).mockResolvedValue(result());
+  render(<App />);
+  await act(async () => { fireEvent.click(screen.getByText('Рассчитать')); });
+  fireEvent.keyDown(screen.getByRole('button', { name: 'S1 Начало' }), { key: 'ArrowRight' });
+  fireEvent.keyDown(screen.getByRole('button', { name: 'S1 Начало' }), { key: 'ArrowUp', shiftKey: true });
+  expect((screen.getByLabelText('S1 X1') as HTMLInputElement).value).toBe('-49');
+  expect((screen.getByLabelText('S1 Y1') as HTMLInputElement).value).toBe('10');
+  expect(screen.queryByText('Номинальные компоненты F/A')).toBeNull();
+});
+
+test('new project can be cancelled or discarded without an implicit save', async () => {
+  render(<App />);
+  fireEvent.change(screen.getByLabelText('Название проекта'), { target: { value: 'Не потерять' } });
+  fireEvent.click(screen.getByText('Создать'));
+  expect(screen.getByRole('alertdialog')).toBeTruthy();
+  fireEvent.click(screen.getByText('Отмена'));
+  expect((screen.getByLabelText('Название проекта') as HTMLInputElement).value).toBe('Не потерять');
+  expect(screen.queryByRole('alertdialog')).toBeNull();
+  fireEvent.click(screen.getByText('Создать'));
+  await act(async () => { fireEvent.click(screen.getByText('Не сохранять')); });
+  expect((screen.getByLabelText('Название проекта') as HTMLInputElement).value).toBe('Новый проект');
+  expect(backend.save).not.toHaveBeenCalled();
+});
+
+test('failed save keeps the unsaved project and dialog; successful save precedes replacement', async () => {
+  vi.mocked(backend.save).mockRejectedValueOnce({ code: 'database_error' }).mockResolvedValueOnce('revision');
+  render(<App />);
+  fireEvent.change(screen.getByLabelText('Название проекта'), { target: { value: 'Исходный проект' } });
+  fireEvent.click(screen.getByText('Создать'));
+  await act(async () => { fireEvent.click(screen.getByText('Сохранить и продолжить')); });
+  expect(screen.getByRole('alertdialog')).toBeTruthy();
+  expect(screen.getByRole('alert').textContent).toContain('Ошибка локальной базы проектов');
+  expect((screen.getByLabelText('Название проекта') as HTMLInputElement).value).toBe('Исходный проект');
+  await act(async () => { fireEvent.click(screen.getByText('Сохранить и продолжить')); });
+  expect(vi.mocked(backend.save).mock.calls[1][0].title).toBe('Исходный проект');
+  expect(screen.queryByRole('alertdialog')).toBeNull();
+  expect((screen.getByLabelText('Название проекта') as HTMLInputElement).value).toBe('Новый проект');
+});
+
+test('opening a revision waits for discard confirmation and never recalculates its stored result', async () => {
+  vi.mocked(backend.list).mockResolvedValue([{ id: 'revision', title: 'Другой проект', saved_at_unix_ms: '1' }]);
+  vi.mocked(backend.open).mockResolvedValue({ ...newProject(), title: 'Другой проект', last_calculation: result() });
+  render(<App />);
+  fireEvent.change(screen.getByLabelText('Название проекта'), { target: { value: 'Мои изменения' } });
+  await act(async () => { fireEvent.click(screen.getByText('Открыть ревизию')); });
+  fireEvent.click(screen.getByRole('button', { name: /^Другой проект ·/ }));
+  expect(backend.open).not.toHaveBeenCalled();
+  await act(async () => { fireEvent.click(screen.getByText('Не сохранять')); });
+  expect(backend.open).toHaveBeenCalledWith('revision');
+  expect(backend.calculate).not.toHaveBeenCalled();
+  expect(screen.getByText('Номинальные компоненты F/A')).toBeTruthy();
+});
+
+
+test('native window close is intercepted for unsaved data and confirmed explicitly', async () => {
+  render(<App />);
+  fireEvent.change(screen.getByLabelText('Название проекта'), { target: { value: 'Несохранённый' } });
+  const handler = vi.mocked(desktopWindow.listenClose).mock.calls[0][0];
+  const event = { preventDefault: vi.fn() };
+  act(() => handler(event));
+  expect(event.preventDefault).toHaveBeenCalledTimes(1);
+  fireEvent.click(screen.getByText('Отмена'));
+  expect(desktopWindow.close).not.toHaveBeenCalled();
+  act(() => handler(event));
+  await act(async () => { fireEvent.click(screen.getByText('Не сохранять')); });
+  expect(desktopWindow.close).toHaveBeenCalledTimes(1);
+});
+
+test('import does not replace unsaved input until the user confirms', async () => {
+  vi.mocked(backend.import).mockResolvedValue({ ...newProject(), title: 'Импортированный проект' });
+  const { container } = render(<App />);
+  fireEvent.change(screen.getByLabelText('Название проекта'), { target: { value: 'Несохранённый проект' } });
+  const file = new File(['{}'], 'project.json', { type: 'application/json' });
+  Object.defineProperty(file, 'text', { value: async () => '{}' });
+  fireEvent.change(container.querySelector('input[type=file]')!, { target: { files: [file] } });
+  expect(backend.import).not.toHaveBeenCalled();
+  expect((screen.getByLabelText('Название проекта') as HTMLInputElement).value).toBe('Несохранённый проект');
+  await act(async () => { fireEvent.click(screen.getByText('Не сохранять')); });
+  expect((screen.getByLabelText('Название проекта') as HTMLInputElement).value).toBe('Импортированный проект');
+  expect(screen.getByText('Есть несохранённые изменения')).toBeTruthy();
 });

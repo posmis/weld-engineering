@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { backend } from './backend';
 import { newProject, type CalculationInput, type Project, type Revision, type Vec3 } from './contracts';
+import { LayoutEditor } from './LayoutEditor';
+import { UnsavedDialog } from './UnsavedDialog';
+import { desktopWindow } from './desktopWindow';
 import ru from './locales/ru.json';
 import en from './locales/en.json';
 import errorsRu from './locales/errors-ru.json';
@@ -19,34 +22,6 @@ function NumberField({ value, label, onChange }: { value: number; label: string;
 const numberFormatter = new Intl.NumberFormat('ru-RU', { maximumSignificantDigits: 9 });
 const display = (n: number) => numberFormatter.format(n);
 
-function Layout({ input, centre, selected, onSelect, invalidText }: {
-  input: CalculationInput; centre?: [number, number]; selected: number; onSelect: (n: number) => void; invalidText: string;
-}) {
-  const points = input.segments.flatMap(s => [s.start_mm, s.end_mm]);
-  if (!points.length || points.some(p => p.some(v => !Number.isFinite(v)))) return <div className="drawing empty">{invalidText}</div>;
-  // Coordinates below are viewport transformations only; all engineering results come from Rust.
-  const xs = points.map(p => p[0]), ys = points.map(p => p[1]);
-  const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
-  const span = Math.max(maxX - minX, maxY - minY, 1);
-  const x = (v: number) => 70 + (v - minX) / span * 440;
-  const y = (v: number) => 350 - (v - minY) / span * 280;
-  const valid = [span, minX, minY, maxX, maxY].every(Number.isFinite);
-  if (!valid) return <div className="drawing empty">{invalidText}</div>;
-  return <svg className="drawing" viewBox="0 0 600 410" aria-label="XY weld layout" role="img">
-    <defs><pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M 20 0 L 0 0 0 20" fill="none" stroke="currentColor" strokeWidth=".3"/></pattern></defs>
-    <rect width="600" height="410" fill="url(#grid)" className="grid"/>
-    <path d="M25 375h45m-45 0v-45" className="axis"/><text x="74" y="380">X</text><text x="20" y="322">Y</text>
-    {input.segments.map((s, i) => <g key={i} className={i === selected ? 'segment selected' : 'segment'} onClick={() => onSelect(i)}>
-      <line x1={x(s.start_mm[0])} y1={y(s.start_mm[1])} x2={x(s.end_mm[0])} y2={y(s.end_mm[1])} className="hit"/>
-      <line x1={x(s.start_mm[0])} y1={y(s.start_mm[1])} x2={x(s.end_mm[0])} y2={y(s.end_mm[1])}/>
-      <circle cx={x(s.start_mm[0])} cy={y(s.start_mm[1])} r="4"/><circle cx={x(s.end_mm[0])} cy={y(s.end_mm[1])} r="4"/>
-      <text x={x((s.start_mm[0] + s.end_mm[0]) / 2)} y={y((s.start_mm[1] + s.end_mm[1]) / 2) - 12}>S{i + 1} · a={display(s.effective_width_mm)} mm</text>
-    </g>)}
-    {centre && <g className="centroid"><circle cx={x(centre[0])} cy={y(centre[1])} r="7"/><text x={x(centre[0]) + 12} y={y(centre[1]) + 22}>C</text></g>}
-    {input.application.kind === 'point' && input.application.point_mm.every(Number.isFinite) && <g className="application-point"><circle cx={x(input.application.point_mm[0])} cy={y(input.application.point_mm[1])} r="6"/><text x={x(input.application.point_mm[0]) + 12} y={y(input.application.point_mm[1]) - 10}>P</text></g>}
-  </svg>;
-}
-
 export function App() {
   const [lang, setLang] = useState<'ru' | 'en'>('ru'); const t = lang === 'ru' ? ru : en;
   const [dark, setDark] = useState(false);
@@ -57,6 +32,37 @@ export function App() {
   const [historical, setHistorical] = useState(false), [formKey, setFormKey] = useState(0);
   const inputFile = useRef<HTMLInputElement>(null);
   const result = project.last_calculation;
+  const baseline = useRef(JSON.stringify(newProject()));
+  const dirty = JSON.stringify(project) !== baseline.current;
+  const dirtyRef = useRef(dirty), busyRef = useRef(busy), allowClose = useRef(false);
+  dirtyRef.current = dirty; busyRef.current = busy;
+  const dragSnapshot = useRef<{ project: Project; historical: boolean } | null>(null);
+  const [pending, setPending] = useState<{ run: () => void | Promise<void> } | null>(null);
+  useEffect(() => {
+    const suppressMenu = (event: Event) => event.preventDefault();
+    const suppressBrowserKeys = (event: KeyboardEvent) => {
+      const ctrl = event.ctrlKey || event.metaKey;
+      if (event.key === 'F12' || event.key === 'F5' || (ctrl && event.key.toLowerCase() === 'r') ||
+          (ctrl && event.key.toLowerCase() === 'u') || (ctrl && event.shiftKey && ['i', 'j', 'c'].includes(event.key.toLowerCase()))) event.preventDefault();
+    };
+    const beforeUnload = (event: BeforeUnloadEvent) => { if (dirtyRef.current && !allowClose.current) { event.preventDefault(); event.returnValue = ''; } };
+    document.addEventListener('contextmenu', suppressMenu);
+    document.addEventListener('keydown', suppressBrowserKeys);
+    window.addEventListener('beforeunload', beforeUnload);
+    let disposed = false; let unlisten: (() => void) | undefined;
+    void desktopWindow.listenClose(event => {
+      if (allowClose.current || (!dirtyRef.current && !busyRef.current)) return;
+      event.preventDefault();
+      setPending({ run: async () => {
+        allowClose.current = true;
+        try { await desktopWindow.close(); } catch (error) { allowClose.current = false; throw error; }
+      } });
+    }).then(stop => { if (disposed) stop(); else unlisten = stop; }).catch(() => setError(document.documentElement.lang === 'en' ? en.windowError : ru.windowError));
+    return () => {
+      disposed = true; unlisten?.(); document.removeEventListener('contextmenu', suppressMenu);
+      document.removeEventListener('keydown', suppressBrowserKeys); window.removeEventListener('beforeunload', beforeUnload);
+    };
+  }, []);
   useEffect(() => { document.documentElement.lang = lang; }, [lang]);
   function describe(e: unknown) {
     if (typeof e === 'object' && e !== null && 'code' in e && typeof e.code === 'string') {
@@ -77,8 +83,24 @@ export function App() {
     const vector: Vec3 = [...project.input[field]]; vector[index] = value;
     edit({ ...project.input, [field]: vector });
   }
-  function replace(p: Project, snapshot: boolean) {
+  function replace(p: Project, snapshot: boolean, imported = false) {
+    baseline.current = imported ? '' : JSON.stringify(p);
     setProject(p); setHistorical(snapshot && p.last_calculation !== null); setSelected(0); setFormKey(k => k + 1); setRevisions(null);
+  }
+  function request(action: { run: () => void | Promise<void> }) {
+    setError(''); setMessage('');
+    if (dirtyRef.current) setPending(action);
+    else void run(async () => { await action.run(); });
+  }
+  async function saveCurrent() {
+    ensureFinite(); await backend.save(project); baseline.current = JSON.stringify(project); setMessage(t.saved);
+  }
+  function continuePending(save: boolean) {
+    const action = pending; if (!action) return;
+    void run(async () => {
+      if (save) await saveCurrent();
+      setPending(null); await action.run();
+    });
   }
   function ensureFinite() {
     const i = project.input;
@@ -92,11 +114,11 @@ export function App() {
     const a = document.createElement('a'); a.href = url; a.download = 'weld-project.json'; a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
-  return <div className={dark ? 'app dark' : 'app'}>
+  return <div className={dark ? 'app dark' : 'app'}><div inert={pending !== null}>
     <header><div className="brand"><span className="brand-mark">W</span><div><strong>WELD ENGINEERING</strong><small>{t.units}</small></div></div>
       <div className="header-controls"><button onClick={() => setLang(lang === 'ru' ? 'en' : 'ru')}>{lang === 'ru' ? 'EN' : 'RU'}</button><button onClick={() => setDark(!dark)}>{dark ? t.light : t.dark}</button></div></header>
-    <fieldset disabled={busy} className="toolbar"><button onClick={() => { replace({ ...newProject(), title: t.newProject }, false); setError(''); setMessage(''); }}>{t.new}</button>
-      <button onClick={() => run(async () => { ensureFinite(); await backend.save(project); setMessage(t.saved); })}>{t.save}</button>
+    <fieldset disabled={busy || pending !== null} className="toolbar"><button onClick={() => request({ run: () => replace({ ...newProject(), title: t.newProject }, false) })}>{t.new}</button>
+      <button onClick={() => run(saveCurrent)}>{t.save}</button>
       <button onClick={() => run(async () => setRevisions(await backend.list()))}>{t.open}</button>
       <button onClick={() => inputFile.current?.click()}>{t.import}</button><button onClick={() => run(exportProject)}>{t.export}</button>
       <label className="project-title">{t.title}<input maxLength={200} value={project.title} onChange={e => setProject({ ...project, title: e.target.value })}/></label>
@@ -104,19 +126,23 @@ export function App() {
     </fieldset>
     <input ref={inputFile} type="file" accept=".json,application/json" hidden onChange={e => {
       const file = e.target.files?.[0]; e.target.value = '';
-      if (file) void run(async () => { if (file.size > 1048576) throw { code: 'document_too_large' }; replace(await backend.import(await file.text()), true); });
+      if (file) request({ run: async () => { if (file.size > 1048576) throw { code: 'document_too_large' }; replace(await backend.import(await file.text()), true, true); } });
     }}/>
-    {error && <div className="notification error" role="alert">{t.error}: {error}</div>}
+    {error && !pending && <div className="notification error" role="alert">{t.error}: {error}</div>}
     {message && <div className="notification" role="status">{message}</div>}
     {historical && <div className="notification">{t.snapshot}</div>}
     {revisions && <section className="revisions"><div className="section-title"><h2>{t.revision}</h2><button onClick={() => setRevisions(null)}>{t.close}</button></div>
-      {revisions.length === 0 ? <p>{t.noProjects}</p> : revisions.map(r => <button key={r.id} disabled={busy} onClick={() => run(async () => replace(await backend.open(r.id), true))}>{r.title} · {new Date(Number(r.saved_at_unix_ms)).toLocaleString(lang)} · {r.id.slice(0, 8)}</button>)}
+      {revisions.length === 0 ? <p>{t.noProjects}</p> : revisions.map(r => <button key={r.id} disabled={busy || pending !== null} onClick={() => request({ run: async () => replace(await backend.open(r.id), true) })}>{r.title} · {new Date(Number(r.saved_at_unix_ms)).toLocaleString(lang)} · {r.id.slice(0, 8)}</button>)}
     </section>}
     <main key={formKey}>
       <section className="geometry panel"><div className="section-title"><h2>01 / {t.geometry}</h2><span>XY · mm</span></div>
-        <Layout input={project.input} centre={result?.geometry.centroid_mm} selected={selected} onSelect={setSelected} invalidText={t.bounds}/>
+        <LayoutEditor input={project.input} centre={result?.geometry.centroid_mm} selected={selected} onSelect={setSelected} onChange={segments => edit({ ...project.input, segments })} disabled={busy || pending !== null} t={t}
+          onDragStart={() => { dragSnapshot.current = { project, historical }; }}
+          onDragCancel={() => { const original = dragSnapshot.current; if (original) { setProject(original.project); setHistorical(original.historical); } }}
+          onDragFinish={() => { dragSnapshot.current = null; }}/>
+
         <p className="hint">{t.choose}</p>
-        <fieldset disabled={busy}><div className="table-scroll"><table><thead><tr><th>#</th><th>X₁</th><th>Y₁</th><th>X₂</th><th>Y₂</th><th title={t.width}>a, mm</th><th/></tr></thead>
+        <fieldset disabled={busy || pending !== null}><div className="table-scroll"><table><thead><tr><th>#</th><th>X₁</th><th>Y₁</th><th>X₂</th><th>Y₂</th><th title={t.width}>a, mm</th><th/></tr></thead>
           <tbody>{project.input.segments.map((s, i) => <tr key={i} className={selected === i ? 'active' : ''} onClick={() => setSelected(i)}>
             <th>S{i + 1}</th>{[0, 1, 2, 3, 4].map(k => <td key={k}><NumberField label={`S${i + 1} ${['X1', 'Y1', 'X2', 'Y2', 'a'][k]}`} value={k < 2 ? s.start_mm[k] : k < 4 ? s.end_mm[k - 2] : s.effective_width_mm} onChange={value => {
               const segments = project.input.segments.map((seg, j) => {
@@ -128,7 +154,7 @@ export function App() {
           <button disabled={project.input.segments.length >= 256} onClick={() => edit({ ...project.input, segments: [...project.input.segments, { start_mm: [0, 0], end_mm: [0, 100], effective_width_mm: 2 }] })}>{t.add}</button>
         </fieldset><p className="scope">{t.scope}</p>
       </section>
-      <section className="panel loads"><div className="section-title"><h2>02 / {t.loads}</h2></div><fieldset disabled={busy}>
+      <section className="panel loads"><div className="section-title"><h2>02 / {t.loads}</h2></div><fieldset disabled={busy || pending !== null}>
         {(['force_n', 'couple_n_mm'] as const).map(field => <div className="load-group" key={field}><h3>{field === 'force_n' ? t.force : t.couple} <span>{field === 'force_n' ? 'N' : 'N·mm'}</span></h3>
           {project.input[field].map((value, i) => <label className="component" key={i}>{field === 'force_n' ? 'F' : 'M'}{'xyz'[i]}<NumberField label={`${field} ${'xyz'[i]}`} value={value} onChange={n => setVector(field, i, n)}/></label>)}
         </div>)}
@@ -150,6 +176,9 @@ export function App() {
         </>}
       </section>
     </main>
-    <footer>Weld Engineering 0.1.0 <span>Windows · Rust calculation engine</span></footer>
+    <footer>Weld Engineering 0.1.0 <span className={dirty ? 'dirty-state' : ''}>{dirty ? t.dirty : 'Windows · Rust calculation engine'}</span></footer>
+    </div>
+    {pending && <UnsavedDialog title={t.unsaved} description={t.unsavedDescription} save={t.saveContinue} discard={t.discard} cancel={t.cancel} busy={busy} error={error}
+      onSave={() => continuePending(true)} onDiscard={() => continuePending(false)} onCancel={() => { setPending(null); setError(''); }}/>}
   </div>;
 }
