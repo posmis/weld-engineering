@@ -292,6 +292,26 @@ try {
     $null = Wait-Until { Find-Name '-21,5 / 18,5' } 'reverse load case uses its own distribution'
     Click-Name 'Сохранить ревизию'
     $null = Wait-Until { Find-Name 'Ревизия сохранена' } 'casebook saved'
+    Click-Name 'Отчёт PDF'
+    $dialog = Wait-Until {
+        [System.Windows.Automation.AutomationElement]::RootElement.FindFirst(
+            [System.Windows.Automation.TreeScope]::Children,
+            [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::NameProperty, 'Weld Engineering — PDF'))
+    } 'native PDF save dialog'
+    $filenameCondition = [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::AutomationIdProperty, '1001')
+    $filename = $dialog.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $filenameCondition)
+    if (-not $filename) { throw 'Native PDF filename input not found' }
+    $reportPath = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../target/weld-report-smoke.pdf'))
+    $filename.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue($reportPath)
+    $saveCondition = [System.Windows.Automation.AndCondition]::new(
+        [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::AutomationIdProperty, '1'),
+        [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Button))
+    $save = $dialog.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $saveCondition)
+    $save.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    $null = Wait-Until { Find-Name 'PDF-отчёт сохранён' } 'PDF generated and written by native adapter'
+    $reportBytes = [System.IO.File]::ReadAllBytes($reportPath)
+    if ($reportBytes.Length -lt 1000 -or [System.Text.Encoding]::ASCII.GetString($reportBytes, 0, 5) -ne '%PDF-') { throw 'Invalid PDF report output' }
+
 
     $handle = [IntPtr]$script:window.Current.NativeWindowHandle
     $null = [WeldDesktopInput]::PostMessage($handle, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero)

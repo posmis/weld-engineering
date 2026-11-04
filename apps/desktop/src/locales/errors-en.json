@@ -17,5 +17,7 @@
   "project_not_found": "Revision not found.",
   "invalid_snapshot": "Stored result contains invalid or contradictory data.",
   "window_error": "The window operation could not be completed.",
-  "invalid_cases": "Invalid load case collection."
+  "invalid_cases": "Invalid load case collection.",
+  "invalid_report": "Cannot prepare PDF report.",
+  "report_write_error": "Cannot write PDF report."
 }

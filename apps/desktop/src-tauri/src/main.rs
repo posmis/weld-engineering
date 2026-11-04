@@ -77,6 +77,26 @@ fn save_editor_settings(
         .map_err(|_| AppError::new("database_error", None))?
         .save_editor_settings(&settings)
 }
+#[tauri::command]
+async fn save_pdf_report(bytes: Vec<u8>) -> Result<bool, AppError> {
+    if bytes.len() > 16 * 1024 * 1024 || !bytes.starts_with(b"%PDF-") {
+        return Err(AppError::new("invalid_report", None));
+    }
+    tauri::async_runtime::spawn_blocking(move || {
+        let Some(path) = rfd::FileDialog::new()
+            .set_title("Weld Engineering — PDF")
+            .add_filter("PDF", &["pdf"])
+            .set_file_name("weld-report.pdf")
+            .save_file()
+        else {
+            return Ok(false);
+        };
+        std::fs::write(path, bytes).map_err(|_| AppError::new("report_write_error", None))?;
+        Ok(true)
+    })
+    .await
+    .map_err(|_| AppError::new("report_write_error", None))?
+}
 fn main() {
     tauri::Builder::default()
         .setup(|app| {
@@ -112,6 +132,7 @@ fn main() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            save_pdf_report,
             calculate_joint,
             calculate_load_cases,
             summarize_load_cases,

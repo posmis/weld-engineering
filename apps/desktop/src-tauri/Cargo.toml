@@ -10,3 +10,5 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 tauri = { version = "2", features = [] }
 weld-application = { path = "../../../crates/weld-application" }
+
+rfd = { version = "0.15", default-features = false }

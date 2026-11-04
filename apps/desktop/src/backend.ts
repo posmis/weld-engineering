@@ -4,6 +4,7 @@ import type { BatchResult, CaseSummary, CalculationInput, CalculationResult, Pro
 export const backend = {
   getEditorSettings: () => invoke<EditorSettings>('get_editor_settings'),
   saveEditorSettings: (settings: EditorSettings) => invoke<void>('save_editor_settings', { settings }),
+  savePdf: (bytes: Uint8Array) => invoke<boolean>('save_pdf_report', { bytes: Array.from(bytes) }),
   calculateCases: (project: Project) => invoke<BatchResult>('calculate_load_cases', { project }),
   summarizeCases: (project: Project) => invoke<CaseSummary>('summarize_load_cases', { project }),
   calculate: (input: CalculationInput) => invoke<CalculationResult>('calculate_joint', { input }),

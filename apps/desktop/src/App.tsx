@@ -167,6 +167,16 @@ export function App() {
     const a = document.createElement('a'); a.href = url; a.download = 'weld-project.json'; a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
+  async function exportPdf() {
+    ensureFinite();
+    // Validate the entire casebook, including historical snapshots, at the Rust boundary.
+    const validated: Project = JSON.parse(await backend.export(project));
+    const [{ createReport }, { default: fontUrl }] = await Promise.all([import('./report'), import('./assets/NotoSans-Regular.ttf?url')]);
+    const response = await fetch(fontUrl); if (!response.ok) throw { code: 'invalid_report' };
+    const summary = validated.casebook ? await backend.summarizeCases(validated) : null;
+    const bytes = await createReport(validated, new Uint8Array(await response.arrayBuffer()), summary);
+    if (await backend.savePdf(bytes)) setMessage(t.reportSaved);
+  }
   const blocked = busy || pending !== null;
   return <div className={dark ? 'app dark' : 'app'} onBlurCapture={() => history.current.breakGroup()} onKeyDownCapture={event => {
     if (!(event.ctrlKey || event.metaKey) || event.altKey || !['z', 'y'].includes(event.key.toLowerCase())) return;
@@ -185,7 +195,8 @@ export function App() {
           <button onClick={() => inputFile.current?.click()}>{t.import}</button><button onClick={() => run(exportProject)}>{t.export}</button></div>
         <div className="tool-group"><button disabled={!history.current.canUndo || gestureActive} onClick={() => travel('undo')} title="Ctrl+Z">{t.undo}</button>
           <button disabled={!history.current.canRedo || gestureActive} onClick={() => travel('redo')} title="Ctrl+Y / Ctrl+Shift+Z">{t.redo}</button><button disabled={project.input.segments.length >= 256 || gestureActive} onClick={addSegment}>{t.add}</button></div>
-        <div className="tool-group"><button className="primary" onClick={() => run(calculateCurrent)}>{busy ? t.busy : t.calculate}</button>
+        <div className="tool-group"><button onClick={() => run(exportPdf)}>{t.pdfReport}</button>
+          <button className="primary" onClick={() => run(calculateCurrent)}>{busy ? t.busy : t.calculate}</button>
           <button disabled={!project.casebook} onClick={() => run(calculateAll)}>{t.calculateAll}</button>
           <button aria-pressed={resultsOpen} disabled={gestureActive} onClick={() => setResultsOpen(!resultsOpen)}>{t.toggleResults}</button></div>
       </fieldset>

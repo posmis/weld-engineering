@@ -131,5 +131,7 @@
   "partialCases": "Incomplete summary",
   "caseNotComputed": "Not computed",
   "caseUnsupported": "Unsupported",
-  "caseComputed": "Computed"
+  "caseComputed": "Computed",
+  "pdfReport": "PDF report",
+  "reportSaved": "PDF report saved"
 }

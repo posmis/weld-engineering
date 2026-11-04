@@ -1,0 +1,92 @@
+import { PDFDocument, rgb, type PDFPage } from 'pdf-lib';
+import fontkit from '@pdf-lib/fontkit';
+import type { CalculationResult, CaseSummary, Project } from './contracts';
+
+/** Presentation only. All mechanical values and envelopes come from Rust snapshots. */
+export async function createReport(project: Project, fontBytes: Uint8Array, summary: CaseSummary | null, date = new Date()): Promise<Uint8Array> {
+  const pdf = await PDFDocument.create(); pdf.registerFontkit(fontkit);
+  const font = await pdf.embedFont(fontBytes, { subset: true });
+  pdf.setTitle(project.title); pdf.setAuthor('Weld Engineering'); pdf.setSubject('Номинальные напряжения. Нормативная прочность не проверена.'); pdf.setCreationDate(date);
+  const supported = new Set(font.getCharacterSet());
+  const safe = (text: string) => Array.from(text).map(c => supported.has(c.codePointAt(0)!) ? c : '?').join('');
+  const number = (value: number) => new Intl.NumberFormat('ru-RU', { maximumSignificantDigits: 10 }).format(value);
+  const vector = (values: number[]) => values.map(number).join(' / ');
+  let page: PDFPage; let y = 0;
+  function nextPage() { page = pdf.addPage([595.28, 841.89]); y = 793; }
+  function room(height: number) { if (y - height < 48) nextPage(); }
+  function line(text: string, size = 10, color = rgb(0.12, 0.18, 0.24)) {
+    const words = safe(text).replace(/[\r\n\t]/g, ' ').split(' '); let pending = '';
+    const write = (s: string) => { room(size + 7); page.drawText(s, { x: 42, y, font, size, color }); y -= size + 7; };
+    for (const word of words) {
+      if (font.widthOfTextAtSize(`${pending} ${word}`, size) > 510) { if (pending) write(pending); pending = ''; }
+      for (const char of word) {
+        if (font.widthOfTextAtSize(pending + char, size) > 510) { write(pending); pending = ''; }
+        pending += char;
+      }
+      pending += ' ';
+    }
+    if (pending) write(pending.trimEnd());
+  }
+  function heading(text: string) { room(48); y -= 10; line(text, 13); }
+  nextPage();
+  line('WELD ENGINEERING', 18); line(project.title, 15); line(`Отчёт сформирован: ${date.toISOString()}`);
+  line('Проверка прочности недоступна. Допускаемые напряжения и коэффициенты не назначены.', 10, rgb(0.65, 0.16, 0.12));
+  line('Номинальная статическая линейная модель эффективного сечения. Катет, провар и нормативная геометрия автоматически не определяются.');
+  line('Расчётное ядро не прошло независимую инженерную валидацию. computed означает только успешное выполнение математического расчёта.');
+  line('Снимки результатов могут быть историческими. Импортированные данные требуют проверки; PDF не подтверждает их подлинность.');
+  heading('Схема и общая геометрия');
+  const points = project.input.segments.flatMap(s => [s.start_mm, s.end_mm]);
+  const xs = points.map(p => p[0]), ys = points.map(p => p[1]);
+  const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
+  const extent = Math.max(maxX - minX, maxY - minY);
+  if (Number.isFinite(extent) && extent > 0) {
+    room(200); const scale = Math.min(470 / (maxX - minX || extent), 155 / (maxY - minY || extent));
+    const map = (p: [number, number]) => ({ x: 60 + (p[0] - minX) * scale, y: y - 175 + (p[1] - minY) * scale });
+    project.input.segments.forEach((segment, i) => {
+      const start = map(segment.start_mm), end = map(segment.end_mm);
+      page.drawLine({ start, end, thickness: 1.5, color: rgb(0.1, 0.36, 0.5) });
+      page.drawText(`S${i + 1}`, { x: start.x + 3, y: start.y + 4, size: 8, font });
+    }); y -= 195; line('XY · mm. Схема условная; ширина линии не изображает эффективную ширину a.');
+  } else line('Геометрия вне диапазона графического представления; используйте координаты ниже.');
+  line('Участок | X1 / Y1 → X2 / Y2 [mm] | эффективная ширина a [mm]');
+  project.input.segments.forEach((s, i) => line(`S${i + 1} | ${vector(s.start_mm)} → ${vector(s.end_mm)} | ${number(s.effective_width_mm)}`));
+  const cases = project.casebook?.cases ?? [{ id: 'single', title: 'LC1', ...project.input, last_calculation: project.last_calculation }];
+  for (const c of cases) {
+    heading(`Нагрузочный случай: ${c.title}`);
+    line(`F [N]: ${vector(c.force_n)}; свободный M [N·mm]: ${vector(c.couple_n_mm)}`);
+    line(c.application.kind === 'centroid' ? 'Сила приложена в центре эффективного сечения.' : `Точка приложения P [mm]: ${vector(c.application.point_mm)}`);
+    const r: CalculationResult | null = c.last_calculation;
+    if (!r) { line('НЕ РАССЧИТАН. Напряжения отсутствуют.'); continue; }
+    line(`Engine ${r.engine_version}; schema ${r.schema_version}; метод ${r.method_id}`);
+    line(`analysis_status=${r.analysis_status}; strength_status=${r.strength_status}; validation_status=${r.validation_status}`);
+    const g = r.geometry;
+    line(`L=${number(g.length_mm)} mm; A=${number(g.area_mm2)} mm²; центр X/Y=${vector(g.centroid_mm)} mm`);
+    line(`Ix / Iy / Ixy / J [mm⁴]: ${vector([g.ix_mm4, g.iy_mm4, g.ixy_mm4, g.polar_mm4])}`);
+    line(`Результирующий момент в центре [N·mm]: ${vector(r.moment_at_centroid_n_mm)}`);
+    if (r.analysis_status !== 'computed') line('НАГРУЖЕНИЕ НЕ ПОДДЕРЖИВАЕТСЯ. Напряжения не выдаются.');
+    if (r.traction_mpa) line(`Равномерные τx / τy / σz [MPa]: ${vector(r.traction_mpa)}`);
+    if (r.distribution) {
+      line(`σz min / max [MPa]: ${vector(r.distribution.normal_range_mpa)}; |τ| max=${number(r.distribution.max_shear_mpa)} MPa`);
+      line(`Контроль равновесия=${number(r.distribution.equilibrium_error)}; rcond изгиба=${r.distribution.bending_rcond === null ? 'не применимо' : number(r.distribution.bending_rcond)}`);
+      line('Участок / конец | τx / τy / σz [MPa]');
+      r.distribution.segments.forEach((s, i) => { line(`S${i + 1} / 1 | ${vector(s.start_mpa)}`); line(`S${i + 1} / 2 | ${vector(s.end_mpa)}`); });
+    }
+    if (r.warnings.length) line(`Предупреждения ядра: ${r.warnings.join(', ')}`);
+  }
+  if (summary) {
+    heading(`Сводка независимых случаев: ${summary.computed}/${summary.total}`);
+    line(summary.complete ? 'Все случаи рассчитаны.' : 'НЕПОЛНАЯ СВОДКА. Есть нерассчитанные или неподдерживаемые случаи.');
+    for (const [key, name] of [['normal_min', 'σz min'], ['normal_max', 'σz max'], ['shear_max', '|τ| max']] as const) {
+      const g = summary[key]; if (g) line(`${name}=${number(g.value_mpa)} MPa; случай ${cases.find(c => c.id === g.case_id)?.title ?? g.case_id}; S${g.segment_index + 1}; конец ${g.endpoint === 'start' ? '1' : '2'}`);
+    }
+    line('Случаи не являются сочетаниями нагрузок или усталостным спектром. Проверка прочности не выполнялась.');
+  }
+  heading('Исходный документ и ограничения');
+  line('К PDF прикреплён weld-project.json: исходные данные и сохранённые снимки. Откройте вложение в PDF-просмотрщике с поддержкой вложений и импортируйте JSON в Weld Engineering.');
+  line('Номинальные компоненты относятся к общей плоскости XY, нормаль Z. Они не являются локальными напряжениями горла шва или нормативным эквивалентным напряжением.');
+  line('Подпись и проверка инженера: __________________________________');
+  const pages = pdf.getPages();
+  pages.forEach((p, i) => p.drawText(`Weld Engineering | ${i + 1} / ${pages.length} | Прочность не проверена`, { x: 42, y: 24, font, size: 8, color: rgb(0.4, 0.4, 0.4) }));
+  await pdf.attach(new TextEncoder().encode(JSON.stringify(project, null, 2)), 'weld-project.json', { mimeType: 'application/json', description: 'Project inputs and original result snapshots', creationDate: date });
+  return pdf.save();
+}

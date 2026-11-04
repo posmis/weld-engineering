@@ -10,4 +10,4 @@ Project schema 1 расширена опциональным `casebook` (`schema
 
 Команды `calculate_load_cases(project)` и `summarize_load_cases(project)` адаптируют общие функции `cases::calculate_cases` и `cases::summarize_cases`. Сводка пересобирается из снимков, механика при открытии не пересчитывается. Исходные результаты не заменяются новым engine_version.
 
-Проверка текущего изменения: Windows CI; локальная Linux-сборка/тесты не выполняются по требованиям проекта. Конкретный результат CI будет записан после выполнения.
+Проверка: commit 4a3d3b6, Windows CI run 41899254686 — success (оба задания). Пройдены Rust cases tests, frontend tests в трёх свежих процессах, сборки и нативный сценарий двух случаев с противоположным Fz. Linux-сборка/тесты не выполнялись.

@@ -37,4 +37,4 @@ SQLite `user_version=2`: миграция с v1 добавляет только 
 Актуальное расширение CalculationResult: [nominal-bending-torsion.md](nominal-bending-torsion.md). Ненулевые моменты теперь могут возвращать computed с `method_id=elastic-line-traction-v1`, `traction_mpa=null` и опциональным `distribution`. Старый uniform computed остаётся прежним. UnsupportedLoading никогда не содержит ни uniform traction, ни distribution. Ill-conditioned изгиб помечается предупреждением ill_conditioned_section; численный отказ — AppError numerical_range. Исторические результаты без поля distribution открываются без пересчёта.
 
 
-Новая итерация: [независимые нагрузочные случаи](load-cases.md), пакетный расчёт и сводка компонентов с определяющими случаями. Нормативная прочность не включена. Windows CI для этой итерации пока ожидается.
+Новая итерация: [независимые нагрузочные случаи](load-cases.md), пакетный расчёт и сводка компонентов с определяющими случаями. Нормативная прочность не включена. Windows CI 41899254686 для 4a3d3b6: success. Нативная команда save_pdf_report(bytes) описана в [pdf-reports.md](pdf-reports.md).
