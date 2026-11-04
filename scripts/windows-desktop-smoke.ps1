@@ -95,6 +95,28 @@ try {
     } 'native Tauri window'
     $drawing = Wait-Until { Find-Name 'XY weld layout' } 'editable weld layout'
     $null = Wait-Until { $control = Find-Name 'Настройки приложения' ([System.Windows.Automation.ControlType]::Button); $control -and $control.Current.IsEnabled } 'editor settings loaded from SQLite'
+    $fullBounds = $script:window.Current.BoundingRectangle
+    $fullCanvas = (Find-Name 'XY weld layout').Current.BoundingRectangle
+    if ($fullCanvas.Height -lt ($fullBounds.Height * .65)) { throw 'Editor remains a short strip instead of filling the screen height' }
+    if ($fullCanvas.Width -lt ($fullBounds.Width - 50)) { throw 'Fullscreen editor does not use the screen width' }
+    if (Find-Name 'Рассчитать') { throw 'Loads and results still occupy the fullscreen editor' }
+    Click-Name 'Координаты швов (1)'
+    if ((Read-Field 'S1 X1') -ne '-50') { throw 'Fullscreen coordinate editor has incorrect input' }
+    Click-Name 'Координаты швов (1)'
+    $null = Wait-Until { (Find-Name 'XY weld layout').Current.BoundingRectangle.Height -ge $fullCanvas.Height } 'canvas expanded after closing coordinates'
+    $previewBounds = $script:window.Current.BoundingRectangle
+    # Capture only the default synthetic project, never local reference publications.
+    try {
+        Add-Type -AssemblyName System.Drawing
+        $image = [System.Drawing.Bitmap]::new([int]$previewBounds.Width, [int]$previewBounds.Height)
+        $graphics = [System.Drawing.Graphics]::FromImage($image)
+        try {
+            $graphics.CopyFromScreen([int]$previewBounds.X, [int]$previewBounds.Y, 0, 0, $image.Size)
+            $image.Save((Join-Path $PSScriptRoot '../target/windows-ui-smoke.png'), [System.Drawing.Imaging.ImageFormat]::Png)
+        } finally { $graphics.Dispose(); $image.Dispose() }
+    } catch { Write-Warning "Optional screenshot unavailable: $_" }
+    Click-Name 'К нагрузкам и результатам'
+    $null = Wait-Until { Find-Name 'Рассчитать' } 'return to project loads and results'
     Document-Key 0x23 # Ctrl+End: results follow welds and loads below the first screen.
     $null = Wait-Until { $result = Find-Name 'Задайте геометрию и выполните расчёт.'; $result -and -not $result.Current.IsOffscreen } 'results reached by vertical document scroll'
     if (-not (Find-Name 'S1 Начало').Current.IsOffscreen) { throw 'Geometry and results are still shown side by side' }
@@ -107,16 +129,6 @@ try {
     if (($endBounds.X - $startBounds.X) -lt ($canvasBounds.Width * .75)) { throw 'Fit still letterboxes the weld into a small fixed drawing' }
     if ($startBounds.Width -lt 14) { throw 'Endpoint handles are too small to grab' }
     if ((Find-Name 'S1 X1').Current.BoundingRectangle.Height -lt 40) { throw 'Numeric inputs are too small' }
-    # Capture only the default synthetic project, never local reference publications.
-    try {
-        Add-Type -AssemblyName System.Drawing
-        $image = [System.Drawing.Bitmap]::new([int]$windowBounds.Width, [int]$windowBounds.Height)
-        $graphics = [System.Drawing.Graphics]::FromImage($image)
-        try {
-            $graphics.CopyFromScreen([int]$windowBounds.X, [int]$windowBounds.Y, 0, 0, $image.Size)
-            $image.Save((Join-Path $PSScriptRoot '../target/windows-ui-smoke.png'), [System.Drawing.Imaging.ImageFormat]::Png)
-        } finally { $graphics.Dispose(); $image.Dispose() }
-    } catch { Write-Warning "Optional screenshot unavailable: $_" }
     $bounds = (Find-Name 'XY weld layout').Current.BoundingRectangle
     $null = [WeldDesktopInput]::SetCursorPos([int]($bounds.X + $bounds.Width * 0.8), [int]($bounds.Y + $bounds.Height * 0.75))
     [WeldDesktopInput]::mouse_event(0x0008, 0, 0, 0, [UIntPtr]::Zero)
@@ -254,6 +266,8 @@ try {
         [System.Windows.Automation.AutomationElement]::RootElement.FindFirst([System.Windows.Automation.TreeScope]::Children, $condition)
     } 'restarted native window'
     $null = Wait-Until { $control = Find-Name 'Настройки приложения' ([System.Windows.Automation.ControlType]::Button); $control -and $control.Current.IsEnabled } 'persisted preferences loaded'
+    Click-Name 'К нагрузкам и результатам'
+    $null = Wait-Until { Find-Name 'Рассчитать' } 'restart returns from default fullscreen editor'
     Click-Name 'Настройки приложения'
     $step = Wait-Until { Find-Name 'Шаг перемещения, mm' ([System.Windows.Automation.ControlType]::Edit) } 'reopened movement step setting'
     if ($step.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.Value -ne '5') { throw 'Movement step was not persisted across process restart' }
@@ -262,10 +276,15 @@ try {
     $null = Wait-Until { Find-Name 'Номинальное распределение напряжений' } 'distribution snapshot restored after full process restart'
     $null = Wait-Until { Find-Name '-18,5 / 21,5' } 'stored analytical bending range preserved'
     $null = Wait-Until { Find-Name 'Открыт сохранённый снимок. Результат не пересчитан; для нового расчёта нажмите «Рассчитать». Импортированные данные требуют проверки.' } 'distribution provenance without automatic recalculation'
+    Click-Name 'Редактор на весь экран'
+    $null = Wait-Until { Find-Name 'К нагрузкам и результатам' } 'reenter native fullscreen'
+    Click-Name 'К нагрузкам и результатам'
+    $null = Wait-Until { Find-Name 'Номинальное распределение напряжений' } 'fullscreen mode round trip preserves the loaded snapshot'
+    if (Find-Name 'Есть несохранённые изменения') { throw 'Fullscreen mode changed the saved project' }
     $handle = [IntPtr]$script:window.Current.NativeWindowHandle
     $null = [WeldDesktopInput]::PostMessage($handle, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero)
     if (-not $process.WaitForExit(10000)) { throw 'Restarted desktop did not close cleanly' }
-    Write-Output 'PASS: full-width responsive canvas and readable controls; vertically scrolling welds-loads-results layout; nominal bending/torsion, singular section refusal, distribution snapshot restart; undo/redo, saved result restoration, viewport zoom and pan; settings persistence and whole-weld movement; application context menu -> real endpoint drag and cancel -> native unsaved close guard -> Rust calculation -> SQLite save -> snapshot reopen -> clean close.'
+    Write-Output 'PASS: default native fullscreen editor, coordinate drawer, return to loads with unchanged snapshot; full-width responsive canvas and readable controls; vertically scrolling welds-loads-results layout; nominal bending/torsion, singular section refusal, distribution snapshot restart; undo/redo, saved result restoration, viewport zoom and pan; settings persistence and whole-weld movement; application context menu -> real endpoint drag and cancel -> native unsaved close guard -> Rust calculation -> SQLite save -> snapshot reopen -> clean close.'
  } catch {
     if ($script:window) {
         $elements = $script:window.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)

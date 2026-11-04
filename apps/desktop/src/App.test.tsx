@@ -7,8 +7,8 @@ import { desktopWindow } from './desktopWindow';
 import { newProject, type CalculationResult } from './contracts';
 
 vi.mock('./backend', () => ({ backend: { getEditorSettings: vi.fn(), saveEditorSettings: vi.fn(), calculate: vi.fn(), save: vi.fn(), list: vi.fn(), open: vi.fn(), import: vi.fn(), export: vi.fn() } }));
-vi.mock('./desktopWindow', () => ({ desktopWindow: { listenClose: vi.fn(), close: vi.fn() } }));
-beforeEach(() => { vi.mocked(backend.getEditorSettings).mockResolvedValue({ ...defaultSettings }); vi.mocked(backend.saveEditorSettings).mockResolvedValue(undefined); vi.mocked(desktopWindow.listenClose).mockResolvedValue(() => {}); vi.mocked(desktopWindow.close).mockResolvedValue(undefined); });
+vi.mock('./desktopWindow', () => ({ desktopWindow: { listenClose: vi.fn(), close: vi.fn(), setFullscreen: vi.fn() } }));
+beforeEach(() => { vi.mocked(desktopWindow.setFullscreen).mockResolvedValue(undefined); vi.mocked(backend.getEditorSettings).mockResolvedValue({ ...defaultSettings }); vi.mocked(backend.saveEditorSettings).mockResolvedValue(undefined); vi.mocked(desktopWindow.listenClose).mockResolvedValue(() => {}); vi.mocked(desktopWindow.close).mockResolvedValue(undefined); });
 afterEach(() => { cleanup(); vi.resetAllMocks(); });
 function result(): CalculationResult {
   return { schema_version: 1, engine_version: 'test', method_id: 'uniform-direct-traction-v1', input_snapshot: newProject().input,
@@ -201,9 +201,10 @@ test('a late calculation for a cancelled drag cannot overwrite the restored save
   expect(vi.mocked(backend.save).mock.calls[1][0].last_calculation).toEqual(result());
 });
 
-async function renderApp() {
+async function renderApp({ fullscreen = false } = {}) {
   let rendered!: ReturnType<typeof render>;
   await act(async () => { rendered = render(<App />); });
+  if (!fullscreen) await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'К нагрузкам и результатам' })); });
   return rendered;
 }
 
@@ -390,4 +391,39 @@ test('measured wide canvas fills the available width and resize cancels a gestur
     expect(screen.queryByText('Есть несохранённые изменения')).toBeNull();
     expect(Number(screen.getByRole('button', { name: 'S1 Конец' }).getAttribute('cx'))).toBeCloseTo(1720);
   } finally { cleanup(); vi.unstubAllGlobals(); }
+});
+
+test('starts in the full-screen editor and returns to loads without losing geometry or history', async () => {
+  await renderApp({ fullscreen: true });
+  expect(document.documentElement.classList.contains('editing-fullscreen')).toBe(true);
+  expect(screen.queryByRole('button', { name: 'Рассчитать' })).toBeNull();
+  expect(screen.queryByRole('textbox', { name: 'S1 X1' })).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: /^Координаты швов/ }));
+  fireEvent.change(screen.getByRole('textbox', { name: 'S1 X1' }), { target: { value: '-40' } });
+  fireEvent.click(screen.getByRole('button', { name: /^Координаты швов/ }));
+  expect(screen.queryByRole('textbox', { name: 'S1 X1' })).toBeNull();
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'К нагрузкам и результатам' })); });
+  expect(desktopWindow.setFullscreen).toHaveBeenCalledWith(false);
+  expect(document.documentElement.classList.contains('editing-fullscreen')).toBe(false);
+  expect((screen.getByRole('textbox', { name: 'S1 X1' }) as HTMLInputElement).value).toBe('-40');
+  expect(screen.getByRole('button', { name: 'Рассчитать' })).toBeTruthy();
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Редактор на весь экран' })); });
+  expect(desktopWindow.setFullscreen).toHaveBeenCalledWith(true);
+  fireEvent.click(screen.getByRole('button', { name: 'Отменить' }));
+  fireEvent.click(screen.getByRole('button', { name: /^Координаты швов/ }));
+  expect((screen.getByRole('textbox', { name: 'S1 X1' }) as HTMLInputElement).value).toBe('-50');
+  expect(backend.calculate).not.toHaveBeenCalled();
+});
+
+test('Escape first cancels a drag and only the following Escape leaves the full-screen editor', async () => {
+  const { container } = await renderApp({ fullscreen: true }); const svg = container.querySelector('svg')!;
+  Object.defineProperty(svg, 'getScreenCTM', { value: () => ({ a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 }) });
+  pointer(screen.getByRole('button', { name: 'S1 Начало' }), 'pointerdown', 80, 200);
+  pointer(svg, 'pointermove', 124, 156);
+  fireEvent.keyDown(svg, { key: 'Escape' });
+  expect(screen.getByRole('button', { name: 'К нагрузкам и результатам' })).toBeTruthy();
+  expect(desktopWindow.setFullscreen).not.toHaveBeenCalled();
+  await act(async () => { fireEvent.keyDown(svg, { key: 'Escape' }); });
+  expect(desktopWindow.setFullscreen).toHaveBeenCalledWith(false);
+  expect((screen.getByRole('textbox', { name: 'S1 X1' }) as HTMLInputElement).value).toBe('-50');
 });

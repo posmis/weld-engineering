@@ -98,5 +98,9 @@
   "bendingCondition": "Principal inertia ratio",
   "illConditioned": "Bending not computed: the section is singular or ill-conditioned. Provide segments spread across the XY plane.",
   "editorHelp": "Layout controls and keyboard shortcuts",
-  "stepShort": "Step"
+  "stepShort": "Step",
+  "expandEditor": "Fullscreen weld editor",
+  "closeEditor": "Loads and results",
+  "weldCoordinates": "Weld coordinates",
+  "editorSave": "Save"
 }

@@ -7,9 +7,9 @@ import type ru from './locales/ru.json';
 type Point = [number, number];
 type Drag = { pointerId: number; segment: number; end: Handle; original: SegmentInput[]; view: View; origin: Point; previousView: View | null };
 
-export function LayoutEditor({ input, centre, selected, onSelect, onChange, disabled, t, settings, onDragStart, onDragCancel, onDragFinish }: {
+export function LayoutEditor({ input, centre, selected, onSelect, onChange, disabled, t, settings, immersive = false, onDragStart, onDragCancel, onDragFinish }: {
   input: CalculationInput; centre?: Point; selected: number; onSelect: (n: number) => void;
-  onChange: (segments: SegmentInput[]) => void; disabled: boolean; t: typeof ru; settings: EditorSettings;
+  onChange: (segments: SegmentInput[]) => void; disabled: boolean; t: typeof ru; settings: EditorSettings; immersive?: boolean;
   onDragStart?: () => void; onDragCancel?: () => void; onDragFinish?: () => void;
 }) {
   const svg = useRef<SVGSVGElement>(null), menu = useRef<HTMLDivElement>(null);
@@ -194,7 +194,7 @@ export function LayoutEditor({ input, centre, selected, onSelect, onChange, disa
       {centre && <g className="centroid"><circle cx={x(centre[0])} cy={y(centre[1])} r="7"/><text x={x(centre[0]) + 12} y={y(centre[1]) + 22}>C</text></g>}
       {input.application.kind === 'point' && input.application.point_mm.every(Number.isFinite) && <g className="application-point"><circle cx={x(input.application.point_mm[0])} cy={y(input.application.point_mm[1])} r="6"/><text x={x(input.application.point_mm[0]) + 12} y={y(input.application.point_mm[1]) - 10}>P</text></g>}
     </svg>
-    <details className="editor-help"><summary>{t.editorHelp}</summary><p className="hint">{t.dragHelp}<br/>{t.navigationHelp}<br/>{t.choose}</p></details>
+    <details className="editor-help" hidden={immersive}><summary>{t.editorHelp}</summary><p className="hint">{t.dragHelp}<br/>{t.navigationHelp}<br/>{t.choose}</p></details>
     {context && !disabled && <div ref={menu} role="menu" aria-label={t.geometry} className="editor-context" style={{ left: context.x, top: context.y }}>
       <button role="menuitem" disabled={input.segments.length >= 256} onClick={() => { onChange([...input.segments, { start_mm: context.point, end_mm: [context.point[0] + 100, context.point[1]], effective_width_mm: 2 }]); setContext(null); }}>{t.addHere}</button>
       {context.segment !== undefined && <button role="menuitem" onClick={() => { onChange(input.segments.filter((_, i) => i !== context.segment)); onSelect(0); setContext(null); }}>{t.deleteSegment} S{context.segment + 1}</button>}

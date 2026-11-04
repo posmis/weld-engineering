@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ProjectHistory, sameValue, type EditorSnapshot } from './projectHistory';
 import { backend } from './backend';
 import { newProject, type CalculationInput, type Project, type Revision, type Vec3 } from './contracts';
@@ -32,6 +32,14 @@ export function App() {
   const [settingsOpen, setSettingsOpen] = useState(false), [settingsLoading, setSettingsLoading] = useState(true), [settingsWarning, setSettingsWarning] = useState(false);
   const settingsOpenRef = useRef(false); settingsOpenRef.current = settingsOpen;
   useEffect(() => { let active = true; void backend.getEditorSettings().then(value => { if (active) setSettings(value); }).catch(() => { if (active) setSettingsWarning(true); }).finally(() => { if (active) setSettingsLoading(false); }); return () => { active = false; }; }, []);
+  const [editorExpanded, setEditorExpanded] = useState(true), [coordinatesOpen, setCoordinatesOpen] = useState(false);
+  const loadsSection = useRef<HTMLElement>(null);
+  useLayoutEffect(() => {
+    document.documentElement.classList.toggle('editing-fullscreen', editorExpanded);
+    if (editorExpanded) document.querySelector<SVGSVGElement>('.drawing.editable')?.focus();
+    else { loadsSection.current?.focus({ preventScroll: true }); loadsSection.current?.scrollIntoView?.({ block: 'start' }); }
+    return () => document.documentElement.classList.remove('editing-fullscreen');
+  }, [editorExpanded]);
   const [dark, setDark] = useState(false);
   const [project, setProject] = useState<Project>(newProject);
   const [selected, setSelected] = useState(0), [busy, setBusy] = useState(false);
@@ -111,6 +119,17 @@ export function App() {
     if (!snapshot) return;
     inputEpoch.current += 1; showSnapshot(snapshot); setMessage(''); setError('');
   }
+  function changeEditorMode(expanded: boolean) {
+    if (busy || pending || settingsOpen || gestureActive) return;
+    void run(async () => {
+      await desktopWindow.setFullscreen(expanded);
+      setCoordinatesOpen(!expanded); setEditorExpanded(expanded);
+    });
+  }
+  function addSegment() {
+    if (project.input.segments.length >= 256) return;
+    edit({ ...project.input, segments: [...project.input.segments, { start_mm: [0, 0], end_mm: [0, 100], effective_width_mm: 2 }] });
+  }
   function setVector(field: 'force_n' | 'couple_n_mm', index: number, value: number) {
     const vector: Vec3 = [...project.input[field]]; vector[index] = value;
     edit({ ...project.input, [field]: vector });
@@ -147,16 +166,18 @@ export function App() {
     const a = document.createElement('a'); a.href = url; a.download = 'weld-project.json'; a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
-  return <div className={dark ? 'app dark' : 'app'} onBlurCapture={() => history.current.breakGroup()} onKeyDownCapture={event => {
+  return <div className={`${dark ? 'app dark' : 'app'}${editorExpanded ? ' editor-expanded' : ''}`} onKeyDown={event => {
+    if (event.key === 'Escape' && !event.defaultPrevented && editorExpanded && !pending && !settingsOpen && !(event.target as Element).closest('input,textarea,select')) { event.preventDefault(); changeEditorMode(false); }
+  }} onBlurCapture={() => history.current.breakGroup()} onKeyDownCapture={event => {
     if (!(event.ctrlKey || event.metaKey) || event.altKey || !['z', 'y'].includes(event.key.toLowerCase())) return;
     const target = event.target as HTMLElement;
     if (target.closest('input,textarea,[contenteditable="true"]')) return;
     event.preventDefault();
     travel(event.key.toLowerCase() === 'y' || event.shiftKey ? 'redo' : 'undo');
   }}><div inert={pending !== null || settingsOpen}>
-    <header><div className="brand"><span className="brand-mark">W</span><div><strong>WELD ENGINEERING</strong><small>{t.units}</small></div></div>
+    <header hidden={editorExpanded}><div className="brand"><span className="brand-mark">W</span><div><strong>WELD ENGINEERING</strong><small>{t.units}</small></div></div>
       <div className="header-controls"><button disabled={busy || settingsLoading} onClick={() => setSettingsOpen(true)}>{t.settings}</button><button onClick={() => setLang(lang === 'ru' ? 'en' : 'ru')}>{lang === 'ru' ? 'EN' : 'RU'}</button><button onClick={() => setDark(!dark)}>{dark ? t.light : t.dark}</button></div></header>
-    <fieldset disabled={busy || pending !== null} className="toolbar"><button onClick={() => request({ run: () => replace({ ...newProject(), title: t.newProject }, false) })}>{t.new}</button>
+    <fieldset disabled={busy || pending !== null} className="toolbar" hidden={editorExpanded}><button onClick={() => request({ run: () => replace({ ...newProject(), title: t.newProject }, false) })}>{t.new}</button>
       <button disabled={!history.current.canUndo || gestureActive} onClick={() => travel('undo')} title="Ctrl+Z">{t.undo}</button>
       <button disabled={!history.current.canRedo || gestureActive} onClick={() => travel('redo')} title="Ctrl+Y / Ctrl+Shift+Z">{t.redo}</button>
       <button onClick={() => run(saveCurrent)}>{t.save}</button>
@@ -169,16 +190,29 @@ export function App() {
       const file = e.target.files?.[0]; e.target.value = '';
       if (file) request({ run: async () => { if (file.size > 1048576) throw { code: 'document_too_large' }; replace(await backend.import(await file.text()), true, true); } });
     }}/>
-    {settingsWarning && <div className="notification" role="alert">{t.settingsLoadError}</div>}
-    {error && !pending && <div className="notification error" role="alert">{t.error}: {error}</div>}
-    {message && <div className="notification" role="status">{message}</div>}
-    {historical && <div className="notification">{t.snapshot}</div>}
-    {revisions && <section className="revisions"><div className="section-title"><h2>{t.revision}</h2><button onClick={() => setRevisions(null)}>{t.close}</button></div>
+    {settingsWarning && <div hidden={editorExpanded} className="notification" role="alert">{t.settingsLoadError}</div>}
+    {error && !pending && <div hidden={editorExpanded} className="notification error" role="alert">{t.error}: {error}</div>}
+    {message && <div hidden={editorExpanded} className="notification" role="status">{message}</div>}
+    {historical && <div hidden={editorExpanded} className="notification">{t.snapshot}</div>}
+    {revisions && <section className="revisions" hidden={editorExpanded}><div className="section-title"><h2>{t.revision}</h2><button onClick={() => setRevisions(null)}>{t.close}</button></div>
       {revisions.length === 0 ? <p>{t.noProjects}</p> : revisions.map(r => <button key={r.id} disabled={busy || pending !== null} onClick={() => request({ run: async () => replace(await backend.open(r.id), true) })}>{r.title} · {new Date(Number(r.saved_at_unix_ms)).toLocaleString(lang)} · {r.id.slice(0, 8)}</button>)}
     </section>}
     <main key={formKey}>
-      <section className="geometry panel"><div className="section-title"><h2>01 / {t.geometry}</h2><span>XY · mm</span></div>
-        <LayoutEditor input={project.input} centre={result?.geometry.centroid_mm} selected={selected} onSelect={setSelected} onChange={segments => edit({ ...project.input, segments })} disabled={busy || pending !== null || settingsOpen || settingsLoading} t={t} settings={settings}
+      <section className={`geometry panel${editorExpanded ? ' editor-fullscreen' : ''}`} aria-label={t.geometry}>
+        <div className="section-title"><h2>01 / {t.geometry}</h2><span>XY · mm</span>
+          {editorExpanded ? <fieldset className="editor-actions" disabled={busy || pending !== null}>
+            <button disabled={!history.current.canUndo || gestureActive} onClick={() => travel('undo')}>{t.undo}</button>
+            <button disabled={!history.current.canRedo || gestureActive} onClick={() => travel('redo')}>{t.redo}</button>
+            <button disabled={project.input.segments.length >= 256 || gestureActive} onClick={addSegment}>{t.add}</button>
+            <button onClick={() => run(saveCurrent)}>{t.editorSave}</button>
+            <button disabled={settingsLoading || gestureActive} onClick={() => setSettingsOpen(true)}>{t.settings}</button>
+            <button className="primary" disabled={gestureActive} onClick={() => changeEditorMode(false)}>{t.closeEditor}</button>
+          </fieldset> : <button className="primary" disabled={busy || pending !== null || gestureActive} onClick={() => changeEditorMode(true)}>{t.expandEditor}</button>}
+        </div>
+        {editorExpanded && error && !pending && <div className="editor-note error" role="alert">{t.error}: {error}</div>}
+        {editorExpanded && message && <div className="editor-note" role="status">{message}</div>}
+        {editorExpanded && settingsWarning && <div className="editor-note" role="alert">{t.settingsLoadError}</div>}
+        <LayoutEditor input={project.input} centre={result?.geometry.centroid_mm} selected={selected} onSelect={setSelected} onChange={segments => edit({ ...project.input, segments })} disabled={busy || pending !== null || settingsOpen || settingsLoading} t={t} settings={settings} immersive={editorExpanded}
           onDragStart={() => {
             history.current.breakGroup(); setGestureActive(true);
             dragSnapshot.current = { snapshot: current.current, checkpoint: history.current.checkpoint(), token: {} };
@@ -196,6 +230,8 @@ export function App() {
           onDragFinish={() => { dragSnapshot.current = null; setGestureActive(false); history.current.breakGroup(); }}/>
 
 
+        {editorExpanded && <button className="weld-coordinates-toggle" aria-expanded={coordinatesOpen} aria-controls="weld-inputs" disabled={busy || pending !== null || gestureActive} onClick={() => setCoordinatesOpen(!coordinatesOpen)}>{t.weldCoordinates} ({project.input.segments.length})</button>}
+        <div id="weld-inputs" className="weld-inputs" hidden={editorExpanded && !coordinatesOpen}>
         <fieldset disabled={busy || pending !== null}><div className="table-scroll"><table><thead><tr><th>#</th><th>X₁</th><th>Y₁</th><th>X₂</th><th>Y₂</th><th title={t.width}>a, mm</th><th/></tr></thead>
           <tbody>{project.input.segments.map((s, i) => <tr key={i} className={selected === i ? 'active' : ''} onClick={() => setSelected(i)}>
             <th>S{i + 1}</th>{[0, 1, 2, 3, 4].map(k => <td key={k}><NumberField label={`S${i + 1} ${['X1', 'Y1', 'X2', 'Y2', 'a'][k]}`} value={k < 2 ? s.start_mm[k] : k < 4 ? s.end_mm[k - 2] : s.effective_width_mm} onChange={value => {
@@ -205,10 +241,10 @@ export function App() {
               }); edit({ ...project.input, segments });
             }}/></td>)}<td><button title={t.remove} aria-label={`${t.remove} S${i + 1}`} onClick={() => { edit({ ...project.input, segments: project.input.segments.filter((_, j) => j !== i) }); setSelected(0); }}>×</button></td>
           </tr>)}</tbody></table></div>
-          <button disabled={project.input.segments.length >= 256} onClick={() => edit({ ...project.input, segments: [...project.input.segments, { start_mm: [0, 0], end_mm: [0, 100], effective_width_mm: 2 }] })}>{t.add}</button>
-        </fieldset><p className="scope">{t.scope}</p>
+          <button disabled={project.input.segments.length >= 256} onClick={addSegment}>{t.add}</button>
+        </fieldset><p className="scope" hidden={editorExpanded}>{t.scope}</p></div>
       </section>
-      <section className="panel loads"><div className="section-title"><h2>02 / {t.loads}</h2></div><fieldset disabled={busy || pending !== null}>
+      <section ref={loadsSection} tabIndex={-1} className="panel loads" hidden={editorExpanded}><div className="section-title"><h2>02 / {t.loads}</h2></div><fieldset disabled={busy || pending !== null}>
         {(['force_n', 'couple_n_mm'] as const).map(field => <div className="load-group" key={field}><h3>{field === 'force_n' ? t.force : t.couple} <span>{field === 'force_n' ? 'N' : 'N·mm'}</span></h3>
           {project.input[field].map((value, i) => <label className="component" key={i}>{field === 'force_n' ? 'F' : 'M'}{'xyz'[i]}<NumberField label={`${field} ${'xyz'[i]}`} value={value} onChange={n => setVector(field, i, n)}/></label>)}
         </div>)}
@@ -224,7 +260,7 @@ export function App() {
         showSnapshot({ ...current.current, project: { ...current.current.project, last_calculation: value }, historical: false });
       })}>{busy ? t.busy : t.calculate}</button>
       </fieldset><p className="hint">{t.source}</p></section>
-      <section className="panel results"><div className="section-title"><h2>03 / {t.results}</h2></div>
+      <section className="panel results" hidden={editorExpanded}><div className="section-title"><h2>03 / {t.results}</h2></div>
         <div className="unsupported">{t.unsupported}</div><p className="hint">{t.safety}</p>
         {!result ? <p className="empty">{t.noResult}</p> : <><p className="validation">{t.validation}</p>
           <dl className="metric-grid"><div className="metric"><dt>{t.length}</dt><dd>{display(result.geometry.length_mm)} <small>mm</small></dd></div><div className="metric"><dt>{t.area}</dt><dd>{display(result.geometry.area_mm2)} <small>mm²</small></dd></div>
@@ -236,7 +272,7 @@ export function App() {
         </>}
       </section>
     </main>
-    <footer>Weld Engineering 0.1.0 <span className={dirty ? 'dirty-state' : ''}>{dirty ? t.dirty : 'Windows · Rust calculation engine'}</span></footer>
+    <footer hidden={editorExpanded}>Weld Engineering 0.1.0 <span className={dirty ? 'dirty-state' : ''}>{dirty ? t.dirty : 'Windows · Rust calculation engine'}</span></footer>
     </div>
     {settingsOpen && <SettingsDialog settings={settings} t={t} onCancel={() => setSettingsOpen(false)} onSave={async value => {
       setBusy(true);
