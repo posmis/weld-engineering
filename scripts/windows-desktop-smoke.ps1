@@ -24,9 +24,13 @@ function Wait-Until([scriptblock]$Action, [string]$Description, [int]$Seconds = 
     }
     throw "Timed out: $Description"
 }
-function Find-Name([string]$Name) {
+function Find-Name([string]$Name, [System.Windows.Automation.ControlType]$Type = $null) {
     if (-not $script:window) { return $null }
     $condition = [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::NameProperty, $Name)
+    if ($Type) {
+        $typeCondition = [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ControlTypeProperty, $Type)
+        $condition = [System.Windows.Automation.AndCondition]::new($condition, $typeCondition)
+    }
     return $script:window.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $condition)
 }
 function Click-Name([string]$Name) {
@@ -42,7 +46,7 @@ try {
         [System.Windows.Automation.AutomationElement]::RootElement.FindFirst([System.Windows.Automation.TreeScope]::Children, $condition)
     } 'native Tauri window'
     $drawing = Wait-Until { Find-Name 'XY weld layout' } 'editable weld layout'
-    $null = Wait-Until { (Find-Name 'Настройки приложения').Current.IsEnabled } 'editor settings loaded from SQLite'
+    $null = Wait-Until { $control = Find-Name 'Настройки приложения' ([System.Windows.Automation.ControlType]::Button); $control -and $control.Current.IsEnabled } 'editor settings loaded from SQLite'
     $bounds = $drawing.Current.BoundingRectangle
     $null = [WeldDesktopInput]::SetCursorPos([int]($bounds.X + $bounds.Width * 0.8), [int]($bounds.Y + $bounds.Height * 0.75))
     [WeldDesktopInput]::mouse_event(0x0008, 0, 0, 0, [UIntPtr]::Zero)
@@ -75,10 +79,10 @@ try {
     $null = Wait-Until { $valuePattern.Current.Value -ne '-50' } 'second drag updates engineering input'
     [WeldDesktopInput]::mouse_event(0x0004, 0, 0, 0, [UIntPtr]::Zero)
     Click-Name 'Настройки приложения'
-    $step = Wait-Until { Find-Name 'Шаг перемещения, mm' } 'movement step setting'
+    $step = Wait-Until { Find-Name 'Шаг перемещения, mm' ([System.Windows.Automation.ControlType]::Edit) } 'movement step setting'
     $step.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue('5')
     Click-Name 'Сохранить настройки'
-    $null = Wait-Until { (Find-Name 'Настройки приложения').Current.IsEnabled } 'settings saved'
+    $null = Wait-Until { $control = Find-Name 'Настройки приложения' ([System.Windows.Automation.ControlType]::Button); $control -and $control.Current.IsEnabled } 'settings saved'
     $before = [double]::Parse($valuePattern.Current.Value, [Globalization.CultureInfo]::InvariantCulture)
     $whole = Find-Name 'Переместить шов S1'
     $whole.SetFocus()
@@ -133,9 +137,9 @@ try {
         $condition = [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $process.Id)
         [System.Windows.Automation.AutomationElement]::RootElement.FindFirst([System.Windows.Automation.TreeScope]::Children, $condition)
     } 'restarted native window'
-    $null = Wait-Until { $control = Find-Name 'Настройки приложения'; $control -and $control.Current.IsEnabled } 'persisted preferences loaded'
+    $null = Wait-Until { $control = Find-Name 'Настройки приложения' ([System.Windows.Automation.ControlType]::Button); $control -and $control.Current.IsEnabled } 'persisted preferences loaded'
     Click-Name 'Настройки приложения'
-    $step = Wait-Until { Find-Name 'Шаг перемещения, mm' } 'reopened movement step setting'
+    $step = Wait-Until { Find-Name 'Шаг перемещения, mm' ([System.Windows.Automation.ControlType]::Edit) } 'reopened movement step setting'
     if ($step.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.Value -ne '5') { throw 'Movement step was not persisted across process restart' }
     Click-Name 'Отмена'
     $handle = [IntPtr]$script:window.Current.NativeWindowHandle
