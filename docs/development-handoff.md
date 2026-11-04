@@ -1,3 +1,5 @@
+> Редактор: добавлены постоянные настройки шага/привязок и перенос шва целиком. Руководство — [desktop-workflow.md](desktop-workflow.md), контракт настроек и миграция SQLite v2 — [application-contract.md](application-contract.md). Точные результаты Windows-проверки этой доработки — [editor-movement.md](editor-movement.md).
+
 > Актуальное развитие: [iteration-02.md](iteration-02.md) — меню WebView отключено, собственные команды ПКМ, pointer/keyboard редактирование концов, одинаковый масштаб XY и защита несохранённой копии. Проверки Windows dev/release и настоящего окна прошли. Формат проекта и нормативные ограничения не менялись.
 
 > Обновление первой итерации: application service, SQLite revisions и Windows Tauri/React клиент реализованы. Актуальное состояние и реальные проверки: [iteration-01.md](iteration-01.md). Запуск: [desktop-workflow.md](desktop-workflow.md). Ниже сохранён исходный контекст перед разработкой; его перечень «ещё не реализовано» относится к первоначальному состоянию.
