@@ -1,0 +1,18 @@
+{
+  "unsupported_schema": "Unsupported schema version.",
+  "invalid_json": "Invalid JSON or project structure.",
+  "document_too_large": "Project exceeds 1 MiB.",
+  "segment_count": "Between 1 and 256 segments are required.",
+  "non_finite": "A non-finite number was encountered.",
+  "non_positive_dimension": "Effective width must be positive.",
+  "zero_length": "A segment has zero length.",
+  "numerical_range": "Numerical range exceeded.",
+  "overlapping_segments": "Segments overlap; double counting area is prohibited.",
+  "crossing_segments": "Segments cross. Split them at a common endpoint.",
+  "snapshot_mismatch": "Stored result does not match the input.",
+  "invalid_title": "Title must have 1 to 200 characters.",
+  "database_error": "Local project database error.",
+  "unsupported_database_schema": "Database created by a newer application version.",
+  "clock_error": "System clock error.",
+  "project_not_found": "Revision not found."
+}

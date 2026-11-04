@@ -1,0 +1,132 @@
+//! Immutable SQLite revisions. Loading preserves original results; it never recalculates.
+use crate::{
+    validate_input, AppError, CalculationInput, CalculationResult, MAX_DOCUMENT_BYTES,
+    SCHEMA_VERSION,
+};
+use rusqlite::{params, Connection};
+use serde::{Deserialize, Serialize};
+use std::{
+    path::Path,
+    time::{SystemTime, UNIX_EPOCH},
+};
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Project {
+    pub schema_version: u32,
+    pub title: String,
+    pub input: CalculationInput,
+    pub last_calculation: Option<CalculationResult>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Revision {
+    pub id: String,
+    pub title: String,
+    pub saved_at_unix_ms: String,
+}
+pub struct ProjectStore {
+    connection: Connection,
+}
+fn db_error(_: rusqlite::Error) -> AppError {
+    AppError::new("database_error", None)
+}
+
+impl Project {
+    pub fn validate(&self) -> Result<(), AppError> {
+        if self.schema_version != SCHEMA_VERSION {
+            return Err(AppError::new("unsupported_schema", Some("schema_version")));
+        }
+        if self.title.trim().is_empty() || self.title.chars().count() > 200 {
+            return Err(AppError::new("invalid_title", Some("title")));
+        }
+        validate_input(&self.input)?;
+        if let Some(result) = &self.last_calculation {
+            if result.schema_version != SCHEMA_VERSION || result.input_snapshot != self.input {
+                return Err(AppError::new("snapshot_mismatch", Some("last_calculation")));
+            }
+        }
+        Ok(())
+    }
+    pub fn from_json(text: &str) -> Result<Self, AppError> {
+        if text.len() > MAX_DOCUMENT_BYTES {
+            return Err(AppError::new("document_too_large", None));
+        }
+        let value: Self =
+            serde_json::from_str(text).map_err(|_| AppError::new("invalid_json", None))?;
+        value.validate()?;
+        Ok(value)
+    }
+    pub fn to_json(&self) -> Result<String, AppError> {
+        self.validate()?;
+        let text =
+            serde_json::to_string_pretty(self).map_err(|_| AppError::new("invalid_json", None))?;
+        if text.len() > MAX_DOCUMENT_BYTES {
+            return Err(AppError::new("document_too_large", None));
+        }
+        Ok(text)
+    }
+}
+impl ProjectStore {
+    pub fn open(path: &Path) -> Result<Self, AppError> {
+        Self::from_connection(Connection::open(path).map_err(db_error)?)
+    }
+    pub fn in_memory() -> Result<Self, AppError> {
+        Self::from_connection(Connection::open_in_memory().map_err(db_error)?)
+    }
+    fn from_connection(connection: Connection) -> Result<Self, AppError> {
+        let version: u32 = connection
+            .pragma_query_value(None, "user_version", |row| row.get(0))
+            .map_err(db_error)?;
+        if version > 1 {
+            return Err(AppError::new("unsupported_database_schema", None));
+        }
+        if version == 0 {
+            connection.execute_batch("BEGIN IMMEDIATE;
+                CREATE TABLE project_revisions (id TEXT PRIMARY KEY, title TEXT NOT NULL, saved_at_unix_ms TEXT NOT NULL, document TEXT NOT NULL);
+                PRAGMA user_version = 1; COMMIT;").map_err(db_error)?;
+        }
+        Ok(Self { connection })
+    }
+    pub fn save(&self, project: &Project) -> Result<String, AppError> {
+        let text = project.to_json()?;
+        let id = uuid::Uuid::new_v4().to_string();
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_err(|_| AppError::new("clock_error", None))?
+            .as_millis()
+            .to_string();
+        self.connection.execute("INSERT INTO project_revisions (id, title, saved_at_unix_ms, document) VALUES (?1, ?2, ?3, ?4)",
+            params![id, project.title, timestamp, text]).map_err(db_error)?;
+        Ok(id)
+    }
+    pub fn list(&self) -> Result<Vec<Revision>, AppError> {
+        let mut statement = self.connection.prepare("SELECT id, title, saved_at_unix_ms FROM project_revisions ORDER BY length(saved_at_unix_ms) DESC, saved_at_unix_ms DESC, rowid DESC LIMIT 100").map_err(db_error)?;
+        let rows = statement
+            .query_map([], |row| {
+                Ok(Revision {
+                    id: row.get(0)?,
+                    title: row.get(1)?,
+                    saved_at_unix_ms: row.get(2)?,
+                })
+            })
+            .map_err(db_error)?;
+        rows.collect::<Result<Vec<_>, _>>().map_err(db_error)
+    }
+    pub fn load(&self, id: &str) -> Result<Project, AppError> {
+        let text: String = self
+            .connection
+            .query_row(
+                "SELECT document FROM project_revisions WHERE id=?1",
+                [id],
+                |row| row.get(0),
+            )
+            .map_err(|e| {
+                if matches!(e, rusqlite::Error::QueryReturnedNoRows) {
+                    AppError::new("project_not_found", None)
+                } else {
+                    db_error(e)
+                }
+            })?;
+        Project::from_json(&text)
+    }
+}

@@ -1,6 +1,6 @@
 /target/
-/node_modules/
-/dist/
+**/node_modules/
+**/dist/
 *.sqlite
 
 # Reference publications stay local and must never enter Git.
@@ -16,3 +16,5 @@
 *.chm
 *.doc
 *.docx
+
+/apps/desktop/src-tauri/gen/
