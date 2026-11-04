@@ -1,3 +1,5 @@
+> Актуализация: первый desktop workflow и application service описаны в [iteration-01.md](iteration-01.md), [desktop-workflow.md](desktop-workflow.md) и [application-contract.md](application-contract.md). Исходное состояние ниже сохранено как контекст; нормативная прочность по-прежнему недоступна.
+
 # Полная матрица разработки и приёмки
 
 Источник требований: product-requirements.md. Ни одна строка planned не является обещанием, что функциональность уже существует. Начальное состояние зафиксировано перед первым push.

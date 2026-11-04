@@ -1,3 +1,5 @@
+> Актуализация: первый desktop workflow и application service описаны в [iteration-01.md](iteration-01.md), [desktop-workflow.md](desktop-workflow.md) и [application-contract.md](application-contract.md). Исходное состояние ниже сохранено как контекст; нормативная прочность по-прежнему недоступна.
+
 # Проверки
 
 На Windows выполнить команды из getting-started.md. Проверять фактическое число выполненных тестов и исходный exit code. CI содержит fmt, clippy и cargo test; результат пока неизвестен. Нет GUI/API/SQLite/PDF, следовательно их интеграционные проверки не выполнены и не заявляются.

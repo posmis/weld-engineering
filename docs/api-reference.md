@@ -1,3 +1,5 @@
+> Актуализация: первый desktop workflow и application service описаны в [iteration-01.md](iteration-01.md), [desktop-workflow.md](desktop-workflow.md) и [application-contract.md](application-contract.md). Исходное состояние ниже сохранено как контекст; нормативная прочность по-прежнему недоступна.
+
 # API — проект, не реализован
 
 Будущие versioned маршруты: GET /api/v1/standards, /materials, /joints; POST /api/v1/joints/validate, /calculate, /optimize, /reports. Сервер по умолчанию только loopback, без публичной публикации. Нужны лимиты тела, количества сегментов и времени расчёта; точные лимиты определить при нагрузочной проверке. OpenAPI пока не реализован.

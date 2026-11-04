@@ -1,3 +1,5 @@
+> Актуализация: первый desktop workflow и application service описаны в [iteration-01.md](iteration-01.md), [desktop-workflow.md](desktop-workflow.md) и [application-contract.md](application-contract.md). Исходное состояние ниже сохранено как контекст; нормативная прочность по-прежнему недоступна.
+
 # Архитектура и границы
 
 ## Решение

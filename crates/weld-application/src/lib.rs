@@ -112,47 +112,72 @@ fn point(p: [f64; 2]) -> Result<Point2, AppError> {
     })
 }
 
-/// Conservative layout boundary: segments may meet at endpoints, but must not
-/// cross or overlap. Roundoff-ambiguous near-collinear pairs are rejected.
-/// EPSILON.sqrt() limits unresolved geometric predicates, not engineering size.
+/// Exact rational predicates for the finite binary coordinates supplied by the
+/// caller. No geometric tolerance or rounding can turn a crossing into a pass.
+/// AABB rejection keeps disjoint pairs out of the more expensive predicates.
 fn check_layout(segments: &[SegmentInput]) -> Result<(), AppError> {
+    use num_rational::BigRational;
+    use std::cmp::Ordering;
+    type ExactPoint = [BigRational; 2];
+    let exact: Vec<[ExactPoint; 2]> = segments
+        .iter()
+        .map(|s| {
+            [s.start_mm, s.end_mm].map(|p| {
+                p.map(|x| BigRational::from_float(x).expect("coordinates already checked finite"))
+            })
+        })
+        .collect();
+    let orientation = |p: &ExactPoint, q: &ExactPoint, r: &ExactPoint| {
+        let value = (&q[0] - &p[0]) * (&r[1] - &p[1]) - (&q[1] - &p[1]) * (&r[0] - &p[0]);
+        value.cmp(&BigRational::from_integer(0.into()))
+    };
+    let opposite = |a: Ordering, b: Ordering| {
+        (a == Ordering::Less && b == Ordering::Greater)
+            || (a == Ordering::Greater && b == Ordering::Less)
+    };
+    let within = |p: [f64; 2], s: &SegmentInput| {
+        (0..2).all(|axis| {
+            p[axis] >= s.start_mm[axis].min(s.end_mm[axis])
+                && p[axis] <= s.start_mm[axis].max(s.end_mm[axis])
+        })
+    };
     for (i, a) in segments.iter().enumerate() {
-        for b in &segments[i + 1..] {
-            let scale = [a.start_mm, a.end_mm, b.start_mm, b.end_mm]
+        for (j, b) in segments.iter().enumerate().skip(i + 1) {
+            if (0..2).any(|axis| {
+                a.start_mm[axis].min(a.end_mm[axis]) > b.start_mm[axis].max(b.end_mm[axis])
+                    || b.start_mm[axis].min(b.end_mm[axis]) > a.start_mm[axis].max(a.end_mm[axis])
+            }) {
+                continue;
+            }
+            let [p, q] = &exact[i];
+            let [s, t] = &exact[j];
+            let o1 = orientation(p, q, s);
+            let o2 = orientation(p, q, t);
+            let o3 = orientation(s, t, p);
+            let o4 = orientation(s, t, q);
+            if [o1, o2, o3, o4].iter().all(|o| *o == Ordering::Equal) {
+                let axis = usize::from(a.start_mm[0] == a.end_mm[0]);
+                let low = a.start_mm[axis]
+                    .min(a.end_mm[axis])
+                    .max(b.start_mm[axis].min(b.end_mm[axis]));
+                let high = a.start_mm[axis]
+                    .max(a.end_mm[axis])
+                    .min(b.start_mm[axis].max(b.end_mm[axis]));
+                if high > low {
+                    return Err(AppError::new("overlapping_segments", Some("segments")));
+                }
+                continue;
+            }
+            let intersects = (opposite(o1, o2) && opposite(o3, o4))
+                || (o1 == Ordering::Equal && within(b.start_mm, a))
+                || (o2 == Ordering::Equal && within(b.end_mm, a))
+                || (o3 == Ordering::Equal && within(a.start_mm, b))
+                || (o4 == Ordering::Equal && within(a.end_mm, b));
+            let shared_endpoint = [a.start_mm, a.end_mm]
                 .iter()
-                .flatten()
-                .fold(1.0_f64, |v, x| v.max(x.abs()));
-            let p = a.start_mm.map(|x| x / scale);
-            let q = a.end_mm.map(|x| x / scale);
-            let s = b.start_mm.map(|x| x / scale);
-            let t = b.end_mm.map(|x| x / scale);
-            let delta = |x: [f64; 2], y: [f64; 2]| [x[0] - y[0], x[1] - y[1]];
-            let cross = |x: [f64; 2], y: [f64; 2]| x[0] * y[1] - x[1] * y[0];
-            let d = delta(q, p);
-            let e = delta(t, s);
-            let v = delta(s, p);
-            let den = cross(d, e);
-            let tol = f64::EPSILON.sqrt();
-            if den.abs() <= tol * d[0].hypot(d[1]) * e[0].hypot(e[1]) {
-                if cross(v, d).abs() <= tol * d[0].hypot(d[1]) * v[0].hypot(v[1]).max(tol) {
-                    let axis = usize::from(d[1].abs() > d[0].abs());
-                    let low = p[axis].min(q[axis]).max(s[axis].min(t[axis]));
-                    let high = p[axis].max(q[axis]).min(s[axis].max(t[axis]));
-                    if high > low {
-                        return Err(AppError::new("overlapping_segments", Some("segments")));
-                    }
-                }
-            } else {
-                let u = cross(v, e) / den;
-                let w = cross(v, d) / den;
-                if (0.0..=1.0).contains(&u) && (0.0..=1.0).contains(&w) {
-                    let shared_endpoint = [a.start_mm, a.end_mm]
-                        .iter()
-                        .any(|p| *p == b.start_mm || *p == b.end_mm);
-                    if !shared_endpoint {
-                        return Err(AppError::new("crossing_segments", Some("segments")));
-                    }
-                }
+                .any(|p| *p == b.start_mm || *p == b.end_mm);
+            if intersects && !shared_endpoint {
+                return Err(AppError::new("crossing_segments", Some("segments")));
             }
         }
     }

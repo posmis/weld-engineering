@@ -177,3 +177,39 @@ fn corrupted_snapshot_cannot_expose_stresses_for_unsupported_loading() {
     project.last_calculation.as_mut().unwrap().geometry.area_mm2 = f64::NAN;
     assert_eq!(project.validate().unwrap_err().code, "invalid_snapshot");
 }
+
+#[test]
+fn near_parallel_crossing_is_not_lost_to_a_floating_tolerance() {
+    let mut request = input();
+    request.segments = vec![
+        SegmentInput {
+            start_mm: [0.0, 0.0],
+            end_mm: [1.0, 0.0],
+            effective_width_mm: 1.0,
+        },
+        SegmentInput {
+            start_mm: [0.0, -5e-11],
+            end_mm: [1.0, 5e-11],
+            effective_width_mm: 1.0,
+        },
+    ];
+    assert_eq!(calculate(&request).unwrap_err().code, "crossing_segments");
+}
+
+#[test]
+fn translated_oblique_parallel_segments_are_valid() {
+    let mut request = input();
+    request.segments = vec![
+        SegmentInput {
+            start_mm: [1e12, 1e12],
+            end_mm: [1e12 + 10.0, 1e12 + 10.0],
+            effective_width_mm: 1.0,
+        },
+        SegmentInput {
+            start_mm: [1e12, 1e12 + 1.0],
+            end_mm: [1e12 + 10.0, 1e12 + 11.0],
+            effective_width_mm: 1.0,
+        },
+    ];
+    assert!(calculate(&request).is_ok());
+}

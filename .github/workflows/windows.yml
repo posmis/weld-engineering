@@ -32,11 +32,26 @@ jobs:
           cache-dependency-path: apps/desktop/package-lock.json
       - name: Install pinned Rust
         run: rustup toolchain install 1.99.1 --profile minimal
+      - uses: actions/cache/restore@v4
+        id: desktop-cache
+        with:
+          path: target
+          key: ${{ runner.os }}-desktop-rust-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}
+          restore-keys: ${{ runner.os }}-desktop-rust-
       - run: npm ci --no-audit --no-fund
       - run: npm test
       - run: npm run build
       - name: Build Windows desktop executable
         run: npm run tauri build -- --no-bundle --ci
+      - uses: actions/cache/save@v4
+        if: steps.desktop-cache.outputs.cache-hit != 'true'
+        with:
+          path: target
+          key: ${{ steps.desktop-cache.outputs.cache-primary-key }}
+      - name: Exercise real desktop calculation and SQLite workflow
+        shell: pwsh
+        working-directory: .
+        run: ./scripts/windows-desktop-smoke.ps1
       - uses: actions/upload-artifact@v4
         with:
           name: weld-engineering-windows-x64
