@@ -8,7 +8,7 @@ export async function createReport(project: Project, fontBytes: Uint8Array, summ
   const font = await pdf.embedFont(fontBytes, { subset: true });
   pdf.setTitle(project.title); pdf.setAuthor('Weld Engineering'); pdf.setSubject('Номинальные напряжения. Нормативная прочность не проверена.'); pdf.setCreationDate(date);
   const supported = new Set(font.getCharacterSet());
-  const safe = (text: string) => Array.from(text).map(c => supported.has(c.codePointAt(0)!) ? c : '?').join('');
+  const safe = (text: string) => Array.from(text.replaceAll('−', '-').replaceAll('→', '->')).map(c => supported.has(c.codePointAt(0)!) ? c : '?').join('');
   const number = (value: number) => new Intl.NumberFormat('ru-RU', { maximumSignificantDigits: 10 }).format(value);
   const vector = (values: number[]) => values.map(number).join(' / ');
   let page: PDFPage; let y = 0;
@@ -75,7 +75,7 @@ export async function createReport(project: Project, fontBytes: Uint8Array, summ
       line(`Подстановка: (${number(g.iy_mm4)})·bx+(${number(g.ixy_mm4)})·by=−(${number(r.moment_at_centroid_n_mm[1])}); (${number(g.ixy_mm4)})·bx+(${number(g.ix_mm4)})·by=(${number(r.moment_at_centroid_n_mm[0])}). Единицы: mm⁴ и N·mm.`);
       line(`σz min / max [MPa]: ${vector(r.distribution.normal_range_mpa)}; |τ| max=${number(r.distribution.max_shear_mpa)} MPa`);
       line(`Контроль равновесия=${number(r.distribution.equilibrium_error)}; rcond изгиба=${r.distribution.bending_rcond === null ? 'не применимо' : number(r.distribution.bending_rcond)}`);
-      line('Участок / конец | τx / τy / σz [MPa]');
+      room(55); line('Участок / конец | τx / τy / σz [MPa]');
       r.distribution.segments.forEach((s, i) => { line(`S${i + 1} / 1 | ${vector(s.start_mpa)}`); line(`S${i + 1} / 2 | ${vector(s.end_mpa)}`); });
     }
     if (r.warnings.length) line(`Предупреждения ядра: ${r.warnings.join(', ')}`);
