@@ -1,3 +1,5 @@
+> Последний этап: история проекта (100 действий, отмена/повтор), zoom у курсора и панорамирование. Состояние и Windows-проверки — [editor-history-navigation.md](editor-history-navigation.md). Форматы проекта и базы не менялись.
+
 > Редактор: добавлены постоянные настройки шага/привязок и перенос шва целиком. Руководство — [desktop-workflow.md](desktop-workflow.md), контракт настроек и миграция SQLite v2 — [application-contract.md](application-contract.md). Точные результаты Windows-проверки этой доработки — [editor-movement.md](editor-movement.md).
 
 > Актуальное развитие: [iteration-02.md](iteration-02.md) — меню WebView отключено, собственные команды ПКМ, pointer/keyboard редактирование концов, одинаковый масштаб XY и защита несохранённой копии. Проверки Windows dev/release и настоящего окна прошли. Формат проекта и нормативные ограничения не менялись.
