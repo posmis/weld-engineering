@@ -82,8 +82,11 @@ function Click-Name([string]$Name) {
         $pattern.Invoke()
     } elseif ($element.TryGetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern, [ref]$pattern)) {
         $pattern.Toggle()
+    } elseif ($element.TryGetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern, [ref]$pattern)) {
+        if ($pattern.Current.ExpandCollapseState -eq [System.Windows.Automation.ExpandCollapseState]::Collapsed) { $pattern.Expand() }
+        else { $pattern.Collapse() }
     } else {
-        throw "Control '$Name' supports neither Invoke nor Toggle"
+        throw "Control '$Name' supports neither Invoke, Toggle nor ExpandCollapse"
     }
 }
 try {
