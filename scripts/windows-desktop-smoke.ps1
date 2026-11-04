@@ -113,6 +113,11 @@ try {
     $movedStart = [double]::Parse((Read-Field 'S1 X1'), [Globalization.CultureInfo]::InvariantCulture)
     $movedEnd = [double]::Parse((Read-Field 'S1 X2'), [Globalization.CultureInfo]::InvariantCulture)
     if ([Math]::Abs(($movedStart - $before) - ($movedEnd - $beforeEnd)) -gt 1e-9) { throw 'Mouse translation changed the weld vector' }
+    Click-Name 'Отменить'
+    $null = Wait-Until { [double]::Parse((Read-Field 'S1 X1'), [Globalization.CultureInfo]::InvariantCulture) -eq $before } 'one undo restores the complete drag'
+    if ([double]::Parse((Read-Field 'S1 X2'), [Globalization.CultureInfo]::InvariantCulture) -ne $beforeEnd) { throw 'Undo did not restore both weld endpoints' }
+    Click-Name 'Повторить'
+    $null = Wait-Until { [double]::Parse((Read-Field 'S1 X1'), [Globalization.CultureInfo]::InvariantCulture) -eq $movedStart } 'redo restores the translated weld'
     Click-Name 'Рассчитать'
     $null = Wait-Until { Find-Name 'Номинальные компоненты F/A' } 'real Rust calculation result in WebView'
     $null = Wait-Until { Find-Name 'Проверка прочности недоступна' } 'unsupported strength status'
@@ -123,6 +128,33 @@ try {
     $null = Wait-Until { Find-Name 'Номинальные компоненты F/A' } 'original calculation preserved after cancel'
     Click-Name 'Сохранить ревизию'
     $null = Wait-Until { Find-Name 'Ревизия сохранена' } 'SQLite save confirmation'
+    (Find-Name 'Переместить шов S1').SetFocus()
+    [WeldDesktopInput]::keybd_event(0x27, 0, 0, [UIntPtr]::Zero)
+    [WeldDesktopInput]::keybd_event(0x27, 0, 2, [UIntPtr]::Zero)
+    $null = Wait-Until { -not (Find-Name 'Номинальные компоненты F/A') } 'editing invalidates the saved calculation'
+    Click-Name 'Отменить'
+    $null = Wait-Until { Find-Name 'Номинальные компоненты F/A' } 'undo restores the saved calculation'
+    if (Find-Name 'Есть несохранённые изменения') { throw 'Undo to saved snapshot did not restore clean state' }
+    Click-Name 'Вписать схему'
+    $endBounds = (Find-Name 'S1 Конец').Current.BoundingRectangle
+    Click-Name 'Приблизить схему'
+    $null = Wait-Until { (Find-Name 'S1 Конец').Current.BoundingRectangle.X -gt ($endBounds.X + 5) } 'native zoom changes the viewport'
+    Click-Name 'Вписать схему'
+    Click-Name 'Панорамирование'
+    $beforePan = (Find-Name 'S1 Конец').Current.BoundingRectangle.X
+    $canvasBounds = (Find-Name 'XY weld layout').Current.BoundingRectangle
+    $panX = [int]($canvasBounds.X + $canvasBounds.Width * .7)
+    $panY = [int]($canvasBounds.Y + $canvasBounds.Height * .7)
+    $null = [WeldDesktopInput]::SetCursorPos($panX, $panY)
+    [WeldDesktopInput]::mouse_event(0x0002, 0, 0, 0, [UIntPtr]::Zero)
+    Start-Sleep -Milliseconds 100
+    $null = [WeldDesktopInput]::SetCursorPos($panX + 20, $panY + 10)
+    $null = Wait-Until { (Find-Name 'S1 Конец').Current.BoundingRectangle.X -gt ($beforePan + 10) } 'native pan moves the viewport'
+    [WeldDesktopInput]::mouse_event(0x0004, 0, 0, 0, [UIntPtr]::Zero)
+    Click-Name 'Панорамирование'
+    Click-Name 'Вписать схему'
+    if (Find-Name 'Есть несохранённые изменения') { throw 'Viewport navigation changed the project' }
+    if (-not (Find-Name 'Номинальные компоненты F/A')) { throw 'Viewport navigation invalidated calculation' }
     Click-Name 'Создать'
     $null = Wait-Until { Find-Name 'Задайте геометрию и выполните расчёт.' } 'new project with no result'
     Click-Name 'Открыть ревизию'
@@ -153,7 +185,7 @@ try {
     $handle = [IntPtr]$script:window.Current.NativeWindowHandle
     $null = [WeldDesktopInput]::PostMessage($handle, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero)
     if (-not $process.WaitForExit(10000)) { throw 'Restarted desktop did not close cleanly' }
-    Write-Output 'PASS: settings persistence and whole-weld movement; application context menu -> real endpoint drag and cancel -> native unsaved close guard -> Rust calculation -> SQLite save -> snapshot reopen -> clean close.'
+    Write-Output 'PASS: undo/redo, saved result restoration, viewport zoom and pan; settings persistence and whole-weld movement; application context menu -> real endpoint drag and cancel -> native unsaved close guard -> Rust calculation -> SQLite save -> snapshot reopen -> clean close.'
  } catch {
     if ($script:window) {
         $elements = $script:window.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)

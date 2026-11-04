@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import type { CalculationInput, SegmentInput } from './contracts';
 import { moveWeld, type EditorSettings, type Handle } from './editorMovement';
+import { panView, zoomAt, type View } from './viewport';
 import type ru from './locales/ru.json';
 
-type View = { cx: number; cy: number; scale: number };
 type Point = [number, number];
 type Drag = { pointerId: number; segment: number; end: Handle; original: SegmentInput[]; view: View; origin: Point; previousView: View | null };
 
@@ -15,6 +15,17 @@ export function LayoutEditor({ input, centre, selected, onSelect, onChange, disa
   const svg = useRef<SVGSVGElement>(null), menu = useRef<HTMLDivElement>(null);
   const expectedSegments = useRef(input.segments);
   const drag = useRef<Drag | null>(null);
+  const pan = useRef<{ pointerId: number; origin: Point; view: View; previousView: View | null } | null>(null);
+  const wheel = useRef<((event: WheelEvent) => void) | null>(null); wheel.current = null;
+  const [panMode, setPanMode] = useState(false), [panning, setPanning] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  // React wheel listeners can be passive. Prevent document/browser zoom only on this canvas.
+  useEffect(() => {
+    const element = svg.current; if (!element) return;
+    const listener = (event: WheelEvent) => wheel.current?.(event);
+    element.addEventListener('wheel', listener, { passive: false });
+    return () => element.removeEventListener('wheel', listener);
+  });
   const [fixedView, setFixedView] = useState<View | null>(null);
   const [snap, setSnap] = useState<Point | null>(null);
   const [context, setContext] = useState<{ x: number; y: number; point: Point; segment?: number } | null>(null);
@@ -24,7 +35,7 @@ export function LayoutEditor({ input, centre, selected, onSelect, onChange, disa
     document.addEventListener('pointerdown', close); document.addEventListener('keydown', escape);
     return () => { document.removeEventListener('pointerdown', close); document.removeEventListener('keydown', escape); };
   }, []);
-  useEffect(() => { if (disabled) setContext(null); }, [disabled]);
+  useEffect(() => { if (disabled) { setContext(null); finishPan(true); } }, [disabled]);
   const points = input.segments.flatMap(s => [s.start_mm, s.end_mm]);
   if (points.some(p => p.some(v => !Number.isFinite(v)))) return <div className="drawing empty">{t.bounds}</div>;
   // These are screen transforms, not engineering calculations. Use equal XY scales.
@@ -54,17 +65,17 @@ export function LayoutEditor({ input, centre, selected, onSelect, onChange, disa
     expectedSegments.current = next; onChange(next);
   }
   function begin(event: ReactPointerEvent<SVGElement>, segment: number, end: Drag['end']) {
-    if (disabled || event.button !== 0 || drag.current) return;
+    if (disabled || event.button !== 0 || drag.current || pan.current || panMode) return;
     const position = world(event.clientX, event.clientY, view);
     if (!position) return;
     event.preventDefault(); event.stopPropagation(); onSelect(segment); event.currentTarget.focus(); onDragStart?.();
     expectedSegments.current = input.segments;
     drag.current = { pointerId: event.pointerId, segment, end, original: input.segments, view,
       origin: position, previousView: fixedView };
-    setFixedView(view); svg.current?.setPointerCapture?.(event.pointerId);
+    setDragging(true); setFixedView(view); svg.current?.setPointerCapture?.(event.pointerId);
   }
   function keyboard(event: React.KeyboardEvent<SVGElement>, segment: number, end: Handle) {
-    if (disabled || !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
+    if (disabled || drag.current || pan.current || !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
     event.preventDefault(); event.stopPropagation();
     const step = settings.movement_step_mm * (event.shiftKey ? 10 : 1);
     const delta: Point = [event.key === 'ArrowLeft' ? -step : event.key === 'ArrowRight' ? step : 0,
@@ -73,18 +84,58 @@ export function LayoutEditor({ input, centre, selected, onSelect, onChange, disa
     if (moved) { setFixedView(view); onSelect(segment); apply(segment, moved.segment); }
   }
   function finish(cancel: boolean) {
-    const active = drag.current; drag.current = null; setSnap(null);
+    const active = drag.current; drag.current = null; setSnap(null); setDragging(false);
     if (!active) return;
     if (cancel && expectedSegments.current === input.segments) { setFixedView(active.previousView); if (onDragCancel) onDragCancel(); else onChange(active.original); }
     onDragFinish?.();
     if (svg.current?.hasPointerCapture?.(active.pointerId)) svg.current.releasePointerCapture(active.pointerId);
   }
+  function finishPan(cancel: boolean) {
+    const active = pan.current; if (!active) return;
+    pan.current = null; setPanning(false);
+    if (cancel) setFixedView(active.previousView);
+    if (svg.current?.hasPointerCapture?.(active.pointerId)) svg.current.releasePointerCapture(active.pointerId);
+  }
+  function zoom(factor: number, anchor: Point = [view.cx, view.cy]) {
+    if (disabled || drag.current || pan.current) return;
+    const next = zoomAt(view, anchor, factor, fitted.scale);
+    if (next) { setFixedView(next); setContext(null); }
+  }
+  wheel.current = event => {
+    if (disabled) return;
+    event.preventDefault();
+    if (drag.current || pan.current) return;
+    const anchor = world(event.clientX, event.clientY, view); if (!anchor) return;
+    const units = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? 410 : 1;
+    zoom(Math.exp(-Math.max(-500, Math.min(500, event.deltaY * units)) * .002), anchor);
+  };
   const pitch = settings.grid_step_mm * view.scale;
   const visiblePitch = Number.isFinite(pitch) && pitch > 0 ? pitch * Math.max(1, Math.ceil(12 / pitch)) : 20;
   return <>
-    <button disabled={disabled} onClick={() => { if (!drag.current) setFixedView(null); }}>{t.fitView}</button>
-    <svg ref={svg} className="drawing editable" viewBox="0 0 600 410" preserveAspectRatio="xMidYMid meet" aria-label="XY weld layout" role="group" tabIndex={0}
+    <div className="view-controls" role="group" aria-label={t.viewControls}>
+      <button disabled={disabled || dragging || panning} onClick={() => setFixedView(null)}>{t.fitView}</button>
+      <button disabled={disabled || dragging || panning} aria-label={t.zoomIn} onClick={() => zoom(1.25)}>+</button>
+      <button disabled={disabled || dragging || panning} aria-label={t.zoomOut} onClick={() => zoom(.8)}>−</button>
+      <button disabled={disabled || dragging || panning} aria-pressed={panMode} onClick={() => setPanMode(!panMode)}>{t.panMode}</button>
+      <span>{Math.round(view.scale / fitted.scale * 100)}%</span>
+    </div>
+    <svg ref={svg} className={`drawing editable${panMode || panning ? " pan-mode" : ""}`} viewBox="0 0 600 410" preserveAspectRatio="xMidYMid meet" aria-label="XY weld layout" role="group" tabIndex={0}
+      onAuxClick={event => { if (event.button === 1) event.preventDefault(); }}
+      onPointerDownCapture={event => {
+        if (disabled || drag.current || pan.current || !(event.button === 1 || (panMode && event.button === 0))) return;
+        const origin = world(event.clientX, event.clientY, view); if (!origin) return;
+        event.preventDefault(); event.stopPropagation(); setContext(null); svg.current?.focus();
+        pan.current = { pointerId: event.pointerId, origin, view, previousView: fixedView };
+        setPanning(true); setFixedView(view); svg.current?.setPointerCapture?.(event.pointerId);
+      }}
       onPointerMove={event => {
+        const navigation = pan.current;
+        if (navigation) {
+          if (disabled || navigation.pointerId !== event.pointerId) return;
+          const position = world(event.clientX, event.clientY, navigation.view);
+          const next = position && panView(navigation.view, navigation.origin, position);
+          if (next) setFixedView(next); return;
+        }
         const active = drag.current;
         if (!active || disabled || active.pointerId !== event.pointerId) return;
         if (expectedSegments.current !== input.segments) { finish(false); return; }
@@ -96,11 +147,14 @@ export function LayoutEditor({ input, centre, selected, onSelect, onChange, disa
             [position[0] - active.origin[0], position[1] - active.origin[1]], settings, pixelsPerMm, event.altKey);
           if (moved) { apply(active.segment, moved.segment); setSnap(moved.snap); }
         }
-      }} onPointerUp={event => { if (drag.current?.pointerId === event.pointerId) finish(false); }}
-      onPointerCancel={() => finish(true)} onLostPointerCapture={() => { if (drag.current) finish(true); }}
-      onKeyDown={event => { if (event.key === 'Escape' && drag.current) { event.preventDefault(); event.stopPropagation(); finish(true); } }}
+      }} onPointerUp={event => { if (pan.current?.pointerId === event.pointerId) finishPan(false); if (drag.current?.pointerId === event.pointerId) finish(false); }}
+      onPointerCancel={() => { finishPan(true); finish(true); }} onLostPointerCapture={() => { finishPan(true); if (drag.current) finish(true); }}
+      onKeyDown={event => {
+        if (event.key === 'Escape' && pan.current) { event.preventDefault(); event.stopPropagation(); finishPan(true); return; }
+        if (!disabled && event.key === 'Escape' && panMode) { event.preventDefault(); setPanMode(false); }
+        if (event.key === 'Escape' && drag.current) { event.preventDefault(); event.stopPropagation(); finish(true); } }}
       onContextMenu={event => {
-        event.preventDefault(); if (disabled || drag.current) return;
+        event.preventDefault(); if (disabled || drag.current || pan.current) return;
         const point = world(event.clientX, event.clientY, view); if (!point) return;
         const element = (event.target as Element).closest('[data-segment-index]');
         const index = element ? Number(element.getAttribute('data-segment-index')) : undefined;
@@ -123,7 +177,7 @@ export function LayoutEditor({ input, centre, selected, onSelect, onChange, disa
       {centre && <g className="centroid"><circle cx={x(centre[0])} cy={y(centre[1])} r="7"/><text x={x(centre[0]) + 12} y={y(centre[1]) + 22}>C</text></g>}
       {input.application.kind === 'point' && input.application.point_mm.every(Number.isFinite) && <g className="application-point"><circle cx={x(input.application.point_mm[0])} cy={y(input.application.point_mm[1])} r="6"/><text x={x(input.application.point_mm[0]) + 12} y={y(input.application.point_mm[1]) - 10}>P</text></g>}
     </svg>
-    <p className="hint">{t.dragHelp}</p>
+    <p className="hint">{t.dragHelp}<br/>{t.navigationHelp}</p>
     {context && !disabled && <div ref={menu} role="menu" aria-label={t.geometry} className="editor-context" style={{ left: context.x, top: context.y }}>
       <button role="menuitem" disabled={input.segments.length >= 256} onClick={() => { onChange([...input.segments, { start_mm: context.point, end_mm: [context.point[0] + 100, context.point[1]], effective_width_mm: 2 }]); setContext(null); }}>{t.addHere}</button>
       {context.segment !== undefined && <button role="menuitem" onClick={() => { onChange(input.segments.filter((_, i) => i !== context.segment)); onSelect(0); setContext(null); }}>{t.deleteSegment} S{context.segment + 1}</button>}

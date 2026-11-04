@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { ProjectHistory, sameValue, type EditorSnapshot } from './projectHistory';
 import { backend } from './backend';
 import { newProject, type CalculationInput, type Project, type Revision, type Vec3 } from './contracts';
 import { defaultSettings, type EditorSettings } from './editorMovement';
@@ -13,7 +14,7 @@ import errorsEn from './locales/errors-en.json';
 
 function NumberField({ value, label, onChange }: { value: number; label: string; onChange: (n: number) => void }) {
   const [text, setText] = useState(String(value));
-  useEffect(() => { if (Number.isFinite(value)) setText(String(value)); }, [value]);
+  useEffect(() => { setText(Number.isFinite(value) ? String(value) : ''); }, [value]);
   return <input aria-label={label} inputMode="decimal" type="text" value={text}
     aria-invalid={!Number.isFinite(value)} onChange={e => {
       const raw = e.target.value; setText(raw);
@@ -42,7 +43,10 @@ export function App() {
   const dirty = JSON.stringify(project) !== baseline.current;
   const dirtyRef = useRef(dirty), busyRef = useRef(busy), allowClose = useRef(false);
   dirtyRef.current = dirty; busyRef.current = busy;
-  const dragSnapshot = useRef<{ project: Project; historical: boolean } | null>(null);
+  const history = useRef(new ProjectHistory());
+  const current = useRef<EditorSnapshot>({ project, historical, selected }); current.current = { project, historical, selected };
+  const [gestureActive, setGestureActive] = useState(false);
+  const dragSnapshot = useRef<{ snapshot: EditorSnapshot; checkpoint: ReturnType<ProjectHistory['checkpoint']>; token: object } | null>(null);
   const inputEpoch = useRef(0);
   const [pending, setPending] = useState<{ run: () => void | Promise<void> } | null>(null);
   useEffect(() => {
@@ -83,19 +87,37 @@ export function App() {
     setBusy(true); setError(''); setMessage('');
     try { await action(); } catch (e) { setError(describe(e)); } finally { setBusy(false); }
   }
+  function showSnapshot(snapshot: EditorSnapshot) {
+    const safe = { ...snapshot, selected: Math.max(0, Math.min(snapshot.selected, snapshot.project.input.segments.length - 1)) };
+    current.current = safe; setProject(safe.project); setHistorical(safe.historical); setSelected(safe.selected);
+  }
+  function changeProject(next: Project, historicalNext = historical) {
+    const before = current.current;
+    const after = { ...before, project: next, historical: historicalNext };
+    const field = document.activeElement;
+    const group = dragSnapshot.current?.token ?? (field instanceof HTMLInputElement ? field : null);
+    history.current.record(before, after, group); showSnapshot(after);
+  }
   function edit(input: CalculationInput) {
+    if (sameValue(input, current.current.project.input)) return;
     inputEpoch.current += 1;
-    setProject(p => ({ ...p, input, last_calculation: null }));
-    setHistorical(false); setMessage(''); setError('');
+    changeProject({ ...current.current.project, input, last_calculation: null }, false);
+    setMessage(''); setError('');
+  }
+  function travel(direction: 'undo' | 'redo') {
+    if (busy || pending || settingsOpen || gestureActive) return;
+    const snapshot = history.current[direction](current.current);
+    if (!snapshot) return;
+    inputEpoch.current += 1; showSnapshot(snapshot); setMessage(''); setError('');
   }
   function setVector(field: 'force_n' | 'couple_n_mm', index: number, value: number) {
     const vector: Vec3 = [...project.input[field]]; vector[index] = value;
     edit({ ...project.input, [field]: vector });
   }
   function replace(p: Project, snapshot: boolean, imported = false) {
-    inputEpoch.current += 1; dragSnapshot.current = null;
+    inputEpoch.current += 1; dragSnapshot.current = null; setGestureActive(false); history.current.clear();
     baseline.current = imported ? '' : JSON.stringify(p);
-    setProject(p); setHistorical(snapshot && p.last_calculation !== null); setSelected(0); setFormKey(k => k + 1); setRevisions(null);
+    showSnapshot({ project: p, historical: snapshot && p.last_calculation !== null, selected: 0 }); setFormKey(k => k + 1); setRevisions(null);
   }
   function request(action: { run: () => void | Promise<void> }) {
     setError(''); setMessage('');
@@ -103,7 +125,7 @@ export function App() {
     else void run(async () => { await action.run(); });
   }
   async function saveCurrent() {
-    ensureFinite(); await backend.save(project); baseline.current = JSON.stringify(project); setMessage(t.saved);
+    history.current.breakGroup(); ensureFinite(); await backend.save(project); baseline.current = JSON.stringify(project); setMessage(t.saved);
   }
   function continuePending(save: boolean) {
     const action = pending; if (!action) return;
@@ -124,19 +146,27 @@ export function App() {
     const a = document.createElement('a'); a.href = url; a.download = 'weld-project.json'; a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
-  return <div className={dark ? 'app dark' : 'app'}><div inert={pending !== null || settingsOpen}>
+  return <div className={dark ? 'app dark' : 'app'} onBlurCapture={() => history.current.breakGroup()} onKeyDownCapture={event => {
+    if (!(event.ctrlKey || event.metaKey) || event.altKey || !['z', 'y'].includes(event.key.toLowerCase())) return;
+    const target = event.target as HTMLElement;
+    if (target.closest('input,textarea,[contenteditable="true"]')) return;
+    event.preventDefault();
+    travel(event.key.toLowerCase() === 'y' || event.shiftKey ? 'redo' : 'undo');
+  }}><div inert={pending !== null || settingsOpen}>
     <header><div className="brand"><span className="brand-mark">W</span><div><strong>WELD ENGINEERING</strong><small>{t.units}</small></div></div>
       <div className="header-controls"><button disabled={busy || settingsLoading} onClick={() => setSettingsOpen(true)}>{t.settings}</button><button onClick={() => setLang(lang === 'ru' ? 'en' : 'ru')}>{lang === 'ru' ? 'EN' : 'RU'}</button><button onClick={() => setDark(!dark)}>{dark ? t.light : t.dark}</button></div></header>
     <fieldset disabled={busy || pending !== null} className="toolbar"><button onClick={() => request({ run: () => replace({ ...newProject(), title: t.newProject }, false) })}>{t.new}</button>
+      <button disabled={!history.current.canUndo || gestureActive} onClick={() => travel('undo')} title="Ctrl+Z">{t.undo}</button>
+      <button disabled={!history.current.canRedo || gestureActive} onClick={() => travel('redo')} title="Ctrl+Y / Ctrl+Shift+Z">{t.redo}</button>
       <button onClick={() => run(saveCurrent)}>{t.save}</button>
       <button onClick={() => run(async () => setRevisions(await backend.list()))}>{t.open}</button>
       <button onClick={() => inputFile.current?.click()}>{t.import}</button><button onClick={() => run(exportProject)}>{t.export}</button>
-      <label className="project-title">{t.title}<input maxLength={200} value={project.title} onChange={e => setProject({ ...project, title: e.target.value })}/></label>
+      <label className="project-title">{t.title}<input maxLength={200} value={project.title} onChange={e => changeProject({ ...project, title: e.target.value })}/></label>
       <button className="primary" onClick={() => run(async () => {
-        ensureFinite(); const epoch = inputEpoch.current; const value = await backend.calculate(project.input);
+        history.current.breakGroup(); ensureFinite(); const epoch = inputEpoch.current; const value = await backend.calculate(project.input);
         // Editing or cancelling a drag can happen while a request is in flight.
         if (epoch !== inputEpoch.current) return;
-        setProject(p => ({ ...p, last_calculation: value })); setHistorical(false);
+        showSnapshot({ ...current.current, project: { ...current.current.project, last_calculation: value }, historical: false });
       })}>{busy ? t.busy : t.calculate}</button>
     </fieldset>
     <input ref={inputFile} type="file" accept=".json,application/json" hidden onChange={e => {
@@ -153,13 +183,22 @@ export function App() {
     <main key={formKey}>
       <section className="geometry panel"><div className="section-title"><h2>01 / {t.geometry}</h2><span>XY · mm</span></div>
         <LayoutEditor input={project.input} centre={result?.geometry.centroid_mm} selected={selected} onSelect={setSelected} onChange={segments => edit({ ...project.input, segments })} disabled={busy || pending !== null || settingsOpen || settingsLoading} t={t} settings={settings}
-          onDragStart={() => { dragSnapshot.current = { project, historical }; }}
-          onDragCancel={() => { const original = dragSnapshot.current; if (original) { inputEpoch.current += 1; setProject(current => {
-            const input = { ...current.input, segments: original.project.input.segments };
-            const same = JSON.stringify(input) === JSON.stringify(original.project.input);
-            return { ...current, input, last_calculation: same ? original.project.last_calculation : null };
-          }); setHistorical(original.historical); } }}
-          onDragFinish={() => { dragSnapshot.current = null; }}/>
+          onDragStart={() => {
+            history.current.breakGroup(); setGestureActive(true);
+            dragSnapshot.current = { snapshot: current.current, checkpoint: history.current.checkpoint(), token: {} };
+          }}
+          onDragCancel={() => {
+            const original = dragSnapshot.current; if (!original) return;
+            inputEpoch.current += 1;
+            const input = { ...current.current.project.input, segments: original.snapshot.project.input.segments };
+            const same = sameValue(input, original.snapshot.project.input);
+            const restored = { ...current.current, historical: same && original.snapshot.historical,
+              project: { ...current.current.project, input, last_calculation: same ? original.snapshot.project.last_calculation : null } };
+            history.current.restore(original.checkpoint);
+            history.current.record(original.snapshot, restored); showSnapshot(restored);
+          }}
+          onDragFinish={() => { dragSnapshot.current = null; setGestureActive(false); history.current.breakGroup(); }}/>
+
 
         <p className="hint">{t.choose}</p>
         <fieldset disabled={busy || pending !== null}><div className="table-scroll"><table><thead><tr><th>#</th><th>X₁</th><th>Y₁</th><th>X₂</th><th>Y₂</th><th title={t.width}>a, mm</th><th/></tr></thead>

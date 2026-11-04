@@ -250,3 +250,70 @@ test('whole-weld pointer movement translates both ends and keeps its viewport af
   expect((screen.getByLabelText('S1 Y2') as HTMLInputElement).value).toBe('10');
   expect(screen.getByRole('button', { name: 'S1 Начало' }).getAttribute('cx')).toBe('124');
 });
+
+test('a whole multi-frame drag is one undo command restoring the saved calculation and clean state', async () => {
+  vi.mocked(backend.calculate).mockResolvedValue(result()); vi.mocked(backend.save).mockResolvedValue('revision');
+  const { container } = await renderApp();
+  await act(async () => { fireEvent.click(screen.getByText('Рассчитать')); });
+  await act(async () => { fireEvent.click(screen.getByText('Сохранить ревизию')); });
+  const svg = container.querySelector('svg')!;
+  Object.defineProperty(svg, 'getScreenCTM', { value: () => ({ a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 }) });
+  pointer(screen.getByRole('button', { name: 'Переместить шов S1' }), 'pointerdown', 300, 200);
+  pointer(svg, 'pointermove', 344, 156); pointer(svg, 'pointermove', 388, 112); pointer(svg, 'pointerup', 388, 112);
+  fireEvent.click(screen.getByRole('button', { name: 'Отменить' }));
+  expect((screen.getByLabelText('S1 X1') as HTMLInputElement).value).toBe('-50');
+  expect(screen.getByText('Номинальные компоненты F/A')).toBeTruthy();
+  expect(screen.queryByText('Есть несохранённые изменения')).toBeNull();
+  expect((screen.getByRole('button', { name: 'Отменить' }) as HTMLButtonElement).disabled).toBe(true);
+  fireEvent.click(screen.getByRole('button', { name: 'Повторить' }));
+  expect((screen.getByLabelText('S1 X1') as HTMLInputElement).value).toBe('-30');
+  expect(screen.queryByText('Номинальные компоненты F/A')).toBeNull();
+});
+
+test('focused numeric typing is grouped, invalid values remain undoable, and new projects clear history', async () => {
+  await renderApp(); const field = screen.getByLabelText('S1 X1');
+  act(() => field.focus()); fireEvent.change(field, { target: { value: '' } });
+  fireEvent.change(field, { target: { value: '-4' } }); fireEvent.change(field, { target: { value: '-40' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Отменить' }));
+  expect((field as HTMLInputElement).value).toBe('-50');
+  fireEvent.click(screen.getByRole('button', { name: 'Повторить' })); expect((field as HTMLInputElement).value).toBe('-40');
+  fireEvent.change(field, { target: { value: '' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Отменить' })); expect((field as HTMLInputElement).value).toBe('-40');
+  fireEvent.click(screen.getByRole('button', { name: 'Повторить' })); expect((field as HTMLInputElement).value).toBe('');
+  fireEvent.click(screen.getByText('Создать')); await act(async () => { fireEvent.click(screen.getByText('Не сохранять')); });
+  expect((screen.getByRole('button', { name: 'Отменить' }) as HTMLButtonElement).disabled).toBe(true);
+  expect((screen.getByRole('button', { name: 'Повторить' }) as HTMLButtonElement).disabled).toBe(true);
+});
+
+test('cancelled drag preserves the redo branch; shortcuts leave native text undo alone', async () => {
+  const { container } = await renderApp(); const svg = container.querySelector('svg')!;
+  Object.defineProperty(svg, 'getScreenCTM', { value: () => ({ a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 }) });
+  fireEvent.keyDown(screen.getByRole('button', { name: 'Переместить шов S1' }), { key: 'ArrowRight' });
+  fireEvent.keyDown(svg, { key: 'z', ctrlKey: true });
+  const event = new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true, cancelable: true });
+  fireEvent(screen.getByLabelText('S1 X1'), event); expect(event.defaultPrevented).toBe(false);
+  pointer(screen.getByRole('button', { name: 'S1 Начало' }), 'pointerdown', 80, 200);
+  pointer(svg, 'pointermove', 124, 156); fireEvent.keyDown(svg, { key: 'Escape' });
+  fireEvent.keyDown(svg, { key: 'y', ctrlKey: true });
+  expect((screen.getByLabelText('S1 X1') as HTMLInputElement).value).toBe('-49');
+  expect((screen.getByLabelText('S1 X2') as HTMLInputElement).value).toBe('51');
+});
+
+test('wheel zoom anchors at the cursor, pan cancels with Escape, and navigation never dirties input', async () => {
+  const { container } = await renderApp(); const svg = container.querySelector('svg')!;
+  Object.defineProperty(svg, 'getScreenCTM', { value: () => ({ a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 }) });
+  const endpoint = screen.getByRole('button', { name: 'S1 Начало' });
+  fireEvent.wheel(svg, { clientX: 80, clientY: 200, deltaY: -120 });
+  expect(Number(endpoint.getAttribute('cx'))).toBeCloseTo(80);
+  expect(Number(screen.getByRole('button', { name: 'S1 Конец' }).getAttribute('cx'))).toBeGreaterThan(520);
+  fireEvent.click(screen.getByText('Панорамирование'));
+  pointer(svg, 'pointerdown', 300, 200); pointer(svg, 'pointermove', 350, 220);
+  expect(Number(endpoint.getAttribute('cx'))).toBeCloseTo(130);
+  fireEvent.keyDown(svg, { key: 'Escape' }); expect(Number(endpoint.getAttribute('cx'))).toBeCloseTo(80);
+  pointer(svg, 'pointerdown', 300, 200); pointer(svg, 'pointermove', 350, 220); pointer(svg, 'pointerup', 350, 220);
+  expect(Number(endpoint.getAttribute('cx'))).toBeCloseTo(130);
+  fireEvent.click(screen.getByText('Вписать схему')); expect(Number(endpoint.getAttribute('cx'))).toBeCloseTo(80);
+  expect((screen.getByLabelText('S1 X1') as HTMLInputElement).value).toBe('-50');
+  expect(screen.queryByText('Есть несохранённые изменения')).toBeNull();
+  expect((screen.getByRole('button', { name: 'Отменить' }) as HTMLButtonElement).disabled).toBe(true);
+});

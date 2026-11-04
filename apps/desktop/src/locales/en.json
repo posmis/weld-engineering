@@ -78,5 +78,12 @@
   "settingsLoadError": "Could not load settings. Using defaults.",
   "settingsHelp": "Snaps override the movement step. Hold Alt while dragging to bypass snaps. Numeric input is exact. Snaps do not split intersecting welds.",
   "fitView": "Fit layout",
-  "moveWhole": "Move weld"
+  "moveWhole": "Move weld",
+  "undo": "Undo",
+  "redo": "Redo",
+  "viewControls": "Layout navigation",
+  "zoomIn": "Zoom in",
+  "zoomOut": "Zoom out",
+  "panMode": "Pan mode",
+  "navigationHelp": "Wheel: zoom at cursor. Middle mouse button or Pan mode: move the view. Escape cancels the gesture. Ctrl+Z / Ctrl+Y: undo / redo outside text fields."
 }

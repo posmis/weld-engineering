@@ -8,3 +8,9 @@
 .centroid, .application-point, .segment text { pointer-events: none; }
 .segment .hit { cursor: move; }
 .segment .hit:focus { stroke: #d99229; stroke-opacity: .3; }
+
+.view-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.view-controls span { margin-left: auto; color: var(--muted); font-variant-numeric: tabular-nums; }
+.view-controls button[aria-pressed=true] { background: var(--accent); color: var(--panel); }
+.drawing.pan-mode, .drawing.pan-mode .hit, .drawing.pan-mode circle { cursor: grab; }
+.drawing { touch-action: none; }
