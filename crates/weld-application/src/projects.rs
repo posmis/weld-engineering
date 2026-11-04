@@ -17,6 +17,8 @@ pub struct Project {
     pub title: String,
     pub input: CalculationInput,
     pub last_calculation: Option<CalculationResult>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub casebook: Option<crate::cases::CaseBook>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Revision {
@@ -90,6 +92,9 @@ impl Project {
             {
                 return Err(AppError::new("invalid_snapshot", Some("last_calculation")));
             }
+        }
+        if let Some(book) = &self.casebook {
+            book.validate(self)?;
         }
         Ok(())
     }

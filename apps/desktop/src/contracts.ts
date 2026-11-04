@@ -16,10 +16,16 @@ export interface CalculationResult {
   analysis_status: 'computed' | 'unsupported_loading'; strength_status: 'unsupported_calculation';
   validation_status: 'not_independently_validated'; warnings: string[];
 }
-export interface Project { schema_version: 1; title: string; input: CalculationInput; last_calculation: CalculationResult | null }
+export interface Project { schema_version: 1; title: string; input: CalculationInput; last_calculation: CalculationResult | null; casebook?: CaseBook }
 export interface Revision { id: string; title: string; saved_at_unix_ms: string }
 export function newProject(): Project {
   return { schema_version: 1, title: 'Новый проект', input: { schema_version: 1,
     segments: [{ start_mm: [-50, 0], end_mm: [50, 0], effective_width_mm: 2 }],
     force_n: [0, 0, 600], couple_n_mm: [0, 0, 0], application: { kind: 'centroid' } }, last_calculation: null };
 }
+
+export interface LoadCase { id: string; title: string; force_n: Vec3; couple_n_mm: Vec3; application: CalculationInput['application']; last_calculation: CalculationResult | null }
+export interface CaseBook { schema_version: 1; active_id: string; cases: LoadCase[] }
+export interface GoverningValue { value_mpa: number; case_id: string; segment_index: number; endpoint: string }
+export interface CaseSummary { total: number; computed: number; complete: boolean; normal_min: GoverningValue | null; normal_max: GoverningValue | null; shear_max: GoverningValue | null }
+export interface BatchResult { project: Project; summary: CaseSummary; failures: { case_id: string; error: { code: string; field: string | null } }[] }

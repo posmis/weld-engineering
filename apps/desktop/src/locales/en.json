@@ -120,5 +120,16 @@
   "ready": "Ready",
   "stresses": "Stresses",
   "resultTabs": "Result sections",
-  "sectionModel": "Section model"
+  "sectionModel": "Section model",
+  "calculateAll": "Calculate all",
+  "loadCase": "Load case",
+  "caseTitle": "Case title",
+  "cloneCase": "Copy case",
+  "removeCase": "Remove case",
+  "caseSummary": "Case summary",
+  "completeCases": "All cases computed",
+  "partialCases": "Incomplete summary",
+  "caseNotComputed": "Not computed",
+  "caseUnsupported": "Unsupported",
+  "caseComputed": "Computed"
 }

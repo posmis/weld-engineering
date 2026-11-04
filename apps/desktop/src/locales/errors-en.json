@@ -16,5 +16,6 @@
   "clock_error": "System clock error.",
   "project_not_found": "Revision not found.",
   "invalid_snapshot": "Stored result contains invalid or contradictory data.",
-  "window_error": "The window operation could not be completed."
+  "window_error": "The window operation could not be completed.",
+  "invalid_cases": "Invalid load case collection."
 }

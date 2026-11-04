@@ -6,9 +6,9 @@ import { backend } from './backend';
 import { desktopWindow } from './desktopWindow';
 import { newProject, type CalculationResult } from './contracts';
 
-vi.mock('./backend', () => ({ backend: { getEditorSettings: vi.fn(), saveEditorSettings: vi.fn(), calculate: vi.fn(), save: vi.fn(), list: vi.fn(), open: vi.fn(), import: vi.fn(), export: vi.fn() } }));
+vi.mock('./backend', () => ({ backend: { getEditorSettings: vi.fn(), saveEditorSettings: vi.fn(), calculate: vi.fn(), calculateCases: vi.fn(), summarizeCases: vi.fn(), save: vi.fn(), list: vi.fn(), open: vi.fn(), import: vi.fn(), export: vi.fn() } }));
 vi.mock('./desktopWindow', () => ({ desktopWindow: { listenClose: vi.fn(), close: vi.fn() } }));
-beforeEach(() => { vi.mocked(backend.getEditorSettings).mockResolvedValue({ ...defaultSettings }); vi.mocked(backend.saveEditorSettings).mockResolvedValue(undefined); vi.mocked(desktopWindow.listenClose).mockResolvedValue(() => {}); vi.mocked(desktopWindow.close).mockResolvedValue(undefined); });
+beforeEach(() => { vi.mocked(backend.summarizeCases).mockResolvedValue({ total: 2, computed: 0, complete: false, normal_min: null, normal_max: null, shear_max: null }); vi.mocked(backend.getEditorSettings).mockResolvedValue({ ...defaultSettings }); vi.mocked(backend.saveEditorSettings).mockResolvedValue(undefined); vi.mocked(desktopWindow.listenClose).mockResolvedValue(() => {}); vi.mocked(desktopWindow.close).mockResolvedValue(undefined); });
 afterEach(() => { cleanup(); vi.resetAllMocks(); });
 function result(): CalculationResult {
   return { schema_version: 1, engine_version: 'test', method_id: 'uniform-direct-traction-v1', input_snapshot: newProject().input,
@@ -439,4 +439,26 @@ test('tree arrow keys navigate visible nodes and collapsed branches do not recei
   expect(screen.getByRole('textbox', { name: 'force_n x' })).toBeTruthy();
   act(() => branch.focus()); fireEvent.keyDown(branch, { key: 'ArrowRight' }); fireEvent.keyDown(branch, { key: 'ArrowDown' });
   expect(document.activeElement).toBe(screen.getByRole('treeitem', { name: 'Шов S1' }));
+});
+
+test('independent cases keep their own loads and results; geometry edits invalidate the entire set', async () => {
+  vi.mocked(backend.calculate).mockImplementation(async input => ({ ...result(), input_snapshot: input }));
+  await renderApp();
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Рассчитать' })); });
+  fireEvent.click(screen.getByRole('treeitem', { name: 'Нагрузки' }));
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Копировать случай' })); });
+  fireEvent.change(screen.getByLabelText('force_n z'), { target: { value: '-800' } });
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Рассчитать' })); });
+  const select = screen.getByLabelText('Нагрузочный случай');
+  const first = (select as HTMLSelectElement).options[0].value;
+  await act(async () => { fireEvent.change(select, { target: { value: first } }); });
+  expect((screen.getByLabelText('force_n z') as HTMLInputElement).value).toBe('600');
+  expect(screen.getByText('Номинальные компоненты F/A')).toBeTruthy();
+  fireEvent.click(screen.getByRole('treeitem', { name: 'Шов S1' }));
+  fireEvent.change(screen.getByLabelText('S1 a'), { target: { value: '4' } });
+  vi.mocked(backend.save).mockResolvedValue('revision');
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Сохранить ревизию' })); });
+  const saved = vi.mocked(backend.save).mock.calls[0][0];
+  expect(saved.casebook?.cases).toHaveLength(2);
+  expect(saved.casebook?.cases.every(c => c.last_calculation === null)).toBe(true);
 });

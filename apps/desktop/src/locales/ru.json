@@ -120,5 +120,16 @@
   "ready": "Готово",
   "stresses": "Напряжения",
   "resultTabs": "Разделы результатов",
-  "sectionModel": "Модель сечения"
+  "sectionModel": "Модель сечения",
+  "calculateAll": "Рассчитать все",
+  "loadCase": "Нагрузочный случай",
+  "caseTitle": "Название случая",
+  "cloneCase": "Копировать случай",
+  "removeCase": "Удалить случай",
+  "caseSummary": "Сводка случаев",
+  "completeCases": "Все случаи рассчитаны",
+  "partialCases": "Неполная сводка",
+  "caseNotComputed": "Не рассчитан",
+  "caseUnsupported": "Не поддерживается",
+  "caseComputed": "Рассчитан"
 }

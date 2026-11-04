@@ -284,6 +284,15 @@ try {
     Activate-Tree 'Результаты'
     $null = Wait-Until { Find-Name 'Номинальное распределение напряжений' } 'reopened dock preserves original distribution'
     if (Find-Name 'Есть несохранённые изменения') { throw 'Dock navigation changed the saved project' }
+    Activate-Tree 'Нагрузки'
+    Click-Name 'Копировать случай'
+    Set-Field 'force_n z' '-600'
+    Click-Name 'Рассчитать все'
+    $null = Wait-Until { Find-Name 'Сводка случаев · 2/2 — Все случаи рассчитаны' } 'complete independent-case envelope'
+    $null = Wait-Until { Find-Name '-21,5 / 18,5' } 'reverse load case uses its own distribution'
+    Click-Name 'Сохранить ревизию'
+    $null = Wait-Until { Find-Name 'Ревизия сохранена' } 'casebook saved'
+
     $handle = [IntPtr]$script:window.Current.NativeWindowHandle
     $null = [WeldDesktopInput]::PostMessage($handle, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero)
     if (-not $process.WaitForExit(10000)) { throw 'Restarted desktop did not close cleanly' }

@@ -12,6 +12,19 @@ use weld_application::{
     AppError, CalculationInput, CalculationResult,
 };
 
+#[tauri::command]
+fn calculate_load_cases(
+    project: Project,
+) -> Result<weld_application::cases::BatchResult, AppError> {
+    weld_application::cases::calculate_cases(&project)
+}
+#[tauri::command]
+fn summarize_load_cases(
+    project: Project,
+) -> Result<weld_application::cases::CaseSummary, AppError> {
+    weld_application::cases::summarize_cases(&project)
+}
+
 type Store = Mutex<ProjectStore>;
 #[tauri::command]
 fn calculate_joint(input: CalculationInput) -> Result<CalculationResult, AppError> {
@@ -100,6 +113,8 @@ fn main() {
         })
         .invoke_handler(tauri::generate_handler![
             calculate_joint,
+            calculate_load_cases,
+            summarize_load_cases,
             save_project,
             list_projects,
             open_project,

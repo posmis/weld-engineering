@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ProjectHistory, sameValue, type EditorSnapshot } from './projectHistory';
+import { CaseResults } from './CaseResults';
+import { activateCase, addCase, editInput, maxCases, removeCase, withCalculation } from './loadCases';
 import { backend } from './backend';
 import { newProject, type CalculationInput, type Project, type Revision, type Vec3 } from './contracts';
 import { defaultSettings, type EditorSettings } from './editorMovement';
@@ -95,7 +97,7 @@ export function App() {
   function edit(input: CalculationInput) {
     if (sameValue(input, current.current.project.input)) return;
     inputEpoch.current += 1;
-    changeProject({ ...current.current.project, input, last_calculation: null }, false);
+    changeProject(editInput(current.current.project, input), false);
     setMessage(''); setError('');
   }
   function travel(direction: 'undo' | 'redo') {
@@ -115,8 +117,19 @@ export function App() {
     history.current.breakGroup(); ensureFinite(); const epoch = inputEpoch.current;
     const value = await backend.calculate(project.input);
     if (epoch !== inputEpoch.current) return;
-    showSnapshot({ ...current.current, project: { ...current.current.project, last_calculation: value }, historical: false });
+    showSnapshot({ ...current.current, project: withCalculation(current.current.project, value), historical: false });
     setResultsOpen(true);
+  }
+  function changeCase(next: Project) {
+    if (sameValue(next, project)) return;
+    ensureFinite(); inputEpoch.current += 1; history.current.breakGroup(); changeProject(next, false); setError(''); setMessage('');
+  }
+  async function calculateAll() {
+    ensureFinite(); const epoch = inputEpoch.current;
+    const batch = await backend.calculateCases(project);
+    if (epoch !== inputEpoch.current) return;
+    showSnapshot({ ...current.current, project: batch.project, historical: false }); setResultsOpen(true);
+    if (batch.failures.length) setError(batch.failures.map(f => `${project.casebook?.cases.find(c => c.id === f.case_id)?.title}: ${describe(f.error)}`).join('; '));
   }
   function setVector(field: 'force_n' | 'couple_n_mm', index: number, value: number) {
     const vector: Vec3 = [...project.input[field]]; vector[index] = value;
@@ -173,6 +186,7 @@ export function App() {
         <div className="tool-group"><button disabled={!history.current.canUndo || gestureActive} onClick={() => travel('undo')} title="Ctrl+Z">{t.undo}</button>
           <button disabled={!history.current.canRedo || gestureActive} onClick={() => travel('redo')} title="Ctrl+Y / Ctrl+Shift+Z">{t.redo}</button><button disabled={project.input.segments.length >= 256 || gestureActive} onClick={addSegment}>{t.add}</button></div>
         <div className="tool-group"><button className="primary" onClick={() => run(calculateCurrent)}>{busy ? t.busy : t.calculate}</button>
+          <button disabled={!project.casebook} onClick={() => run(calculateAll)}>{t.calculateAll}</button>
           <button aria-pressed={resultsOpen} disabled={gestureActive} onClick={() => setResultsOpen(!resultsOpen)}>{t.toggleResults}</button></div>
       </fieldset>
       <input ref={inputFile} type="file" accept=".json,application/json" hidden onChange={e => {
@@ -191,6 +205,11 @@ export function App() {
           <section hidden={inspector !== 'weld'} aria-label={t.weldProperties}><WeldProperties segments={project.input.segments} selected={selected} disabled={blocked} t={t}
             onChange={segments => edit({ ...project.input, segments })} onRemove={() => { edit({ ...project.input, segments: project.input.segments.filter((_, i) => i !== selected) }); selectWeld(Math.max(0, selected - 1)); }}/></section>
           <section className="loads" hidden={inspector !== 'loads'} aria-label={t.loads}><div className="property-heading">{t.loads}</div><fieldset disabled={blocked}>
+        <div className="case-controls"><label>{t.loadCase}<select value={project.casebook?.active_id ?? ''} onChange={e => changeCase(activateCase(project, e.target.value))}>
+          {!project.casebook && <option value="">LC1</option>}{project.casebook?.cases.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}</select></label>
+          {project.casebook && <label>{t.caseTitle}<input maxLength={100} value={project.casebook.cases.find(c => c.id === project.casebook?.active_id)?.title ?? ''} onChange={e => changeProject({ ...project, casebook: { ...project.casebook!, cases: project.casebook!.cases.map(c => c.id === project.casebook?.active_id ? { ...c, title: e.target.value } : c) } })}/></label>}
+          <div className="case-buttons"><button disabled={(project.casebook?.cases.length ?? 1) >= maxCases} onClick={() => changeCase(addCase(project, `LC${(project.casebook?.cases.length ?? 1) + 1}`))}>{t.cloneCase}</button><button disabled={!project.casebook || project.casebook.cases.length < 2} onClick={() => changeCase(removeCase(project))}>{t.removeCase}</button></div>
+        </div>
         {(['force_n', 'couple_n_mm'] as const).map(field => <div className="load-group" key={field}><h3>{field === 'force_n' ? t.force : t.couple} <span>{field === 'force_n' ? 'N' : 'N·mm'}</span></h3>
           {project.input[field].map((value, i) => <label className="component" key={i}>{field === 'force_n' ? 'F' : 'M'}{'xyz'[i]}<NumberField label={`${field} ${'xyz'[i]}`} value={value} onChange={n => setVector(field, i, n)}/></label>)}
         </div>)}
@@ -202,7 +221,7 @@ export function App() {
           </fieldset><p className="hint">{t.source}</p></section>
         </div>
       </>} viewport={<section className="cad-viewport" aria-label={t.workspace}>
-        <div className="viewport-title"><strong>{t.geometry}</strong><span>XY · mm</span></div>
+        <div className="viewport-title"><strong>{t.geometry}</strong><span>{project.casebook?.cases.find(c => c.id === project.casebook?.active_id)?.title} · XY · mm</span></div>
         <LayoutEditor key={formKey} input={project.input} centre={result?.geometry.centroid_mm} selected={selected} onSelect={selectWeld}
           onChange={segments => edit({ ...project.input, segments })} disabled={blocked || settingsOpen || settingsLoading} t={t} settings={settings} compact
           onDragStart={() => { history.current.breakGroup(); setGestureActive(true); dragSnapshot.current = { snapshot: current.current, checkpoint: history.current.checkpoint(), token: {} }; }}
@@ -210,12 +229,12 @@ export function App() {
             const original = dragSnapshot.current; if (!original) return;
             inputEpoch.current += 1; const input = { ...current.current.project.input, segments: original.snapshot.project.input.segments };
             const same = sameValue(input, original.snapshot.project.input);
-            const restored = { ...current.current, historical: same && original.snapshot.historical, project: { ...current.current.project, input, last_calculation: same ? original.snapshot.project.last_calculation : null } };
+            const restored = { ...current.current, historical: same && original.snapshot.historical, project: same ? original.snapshot.project : editInput(current.current.project, input) };
             history.current.restore(original.checkpoint); history.current.record(original.snapshot, restored); showSnapshot(restored);
           }} onDragFinish={() => { dragSnapshot.current = null; setGestureActive(false); history.current.breakGroup(); }}/>
       </section>} results={<section className="results" aria-label={t.results}>
         <div className="dock-title"><strong>{t.results}</strong><button aria-label={t.closeResults} onClick={() => setResultsOpen(false)}>×</button></div>
-        <div className="result-scroll"><ProjectResults result={result} selected={selected} onSelect={selectWeld} t={t}/></div>
+        <div className="result-scroll">{project.casebook && <CaseResults project={project} t={t} onActivate={id => changeCase(activateCase(project, id))}/>}<ProjectResults result={result} selected={selected} onSelect={selectWeld} t={t}/></div>
       </section>}/>
       <footer className="status-bar">
         {error && !pending && <span className="status-error" role="alert">{t.error}: {error}</span>}
