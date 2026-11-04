@@ -18,3 +18,7 @@
 *.docx
 
 /apps/desktop/src-tauri/gen/
+
+# Generated C# client build outputs
+/examples/**/bin/
+/examples/**/obj/

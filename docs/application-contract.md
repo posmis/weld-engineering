@@ -22,7 +22,7 @@ Crate `weld-application` не зависит от Tauri/React. `calculate` пр�
 
 Ни computed, ни наличие traction_mpa не означают, что соединение выдерживает нагрузку. Для unsupported_loading поле traction_mpa=null. Ошибки геометрии возвращаются как Err, а не как численный результат с pass.
 
-Tauri commands: calculate_joint(input), save_project(project), list_projects(), open_project(id), import_project(text), export_project(project). Они только адаптируют application service. SQLite недоступен frontend напрямую. Нет HTTP-сервера и публичного сетевого сервиса. Документ api-reference.md пока описывает будущий REST, не существующий endpoint.
+Tauri commands: calculate_joint(input), save_project(project), list_projects(), open_project(id), import_project(text), export_project(project). Они только адаптируют application service. SQLite недоступен frontend напрямую. Отдельный opt-in loopback HTTP-сервис теперь описан в [api-reference.md](api-reference.md). Desktop его автоматически не запускает; публичной публикации нет.
 
 Project содержит schema_version, title, input и nullable last_calculation. Если результат есть, его input_snapshot обязан совпадать с input; неподдерживаемая версия, неконечные числа и противоречивые статусы/напряжения отклоняются. Проверка структуры не гарантирует подлинность внешнего результата и не является пересчётом.
 

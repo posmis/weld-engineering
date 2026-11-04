@@ -1,15 +1,36 @@
-> Актуализация: первый desktop workflow и application service описаны в [iteration-01.md](iteration-01.md), [desktop-workflow.md](desktop-workflow.md) и [application-contract.md](application-contract.md). Исходное состояние ниже сохранено как контекст; нормативная прочность по-прежнему недоступна.
+# Локальный API v1
 
-# API — проект, не реализован
+Отдельный процесс Windows x64: `start-api.bat` из корня либо `weld-api.exe --port 1421` из артефакта. Rust/Cargo нужны только запуску из исходников. Desktop автоматически сервер не запускает. Доступ только по IPv4 loopback, адрес нельзя заменить параметром. Остановка Ctrl+C; после штатной остановки token-файл удаляется. После аварийного завершения он может остаться, следующий запуск на том же порту заменяет его новым токеном.
 
-Будущие versioned маршруты: GET /api/v1/standards, /materials, /joints; POST /api/v1/joints/validate, /calculate, /optimize, /reports. Сервер по умолчанию только loopback, без публичной публикации. Нужны лимиты тела, количества сегментов и времени расчёта; точные лимиты определить при нагрузочной проверке. OpenAPI пока не реализован.
+Токен каждого запуска: `%LOCALAPPDATA%\WeldEngineering\api-1421.token`. Передавайте его в `Authorization: Bearer ...`, не в URL. Не публикуйте файл/токен. Другой локальный процесс того же пользователя может прочитать профиль, это не изоляция от владельца Windows-сеанса. Запросы с Origin отвергаются; браузерный CORS не включён. API не принимает пути к файлам и не открывает SQLite desktop.
 
-Предлагаемый запрос (не действующий endpoint):
-```json
-{"schema_version":1,"method_id":"pending-verification","units":{"length":"mm","force":"N","moment":"N_mm"},"segments":[{"start":[0,0],"end":[100,0],"effective_width":2}],"force":[0,10,0],"moment":[0,0,0],"application_point":[100,0,0]}
+[OpenAPI 3.1](openapi.json) и `GET /api/v1/openapi.json` описывают существующие endpoints:
+
+| Метод | Маршрут | Назначение |
+|---|---|---|
+| GET | /api/v1/capabilities | Методы, ограничения и явно недоступные функции |
+| POST | /api/v1/calculate | CalculationInput → CalculationResult |
+| POST | /api/v1/cases/calculate | Project с casebook → BatchResult |
+| POST | /api/v1/projects/validate | Проверить проект/снимки без пересчёта, вернуть проект |
+| GET | /api/v1/openapi.json | Спецификация |
+
+Пример PowerShell 7:
+
+```powershell
+$token = [IO.File]::ReadAllText("$env:LOCALAPPDATA\WeldEngineering\api-1421.token")
+$headers = @{ Authorization = "Bearer $token" }
+$body = '{"schema_version":1,"segments":[{"start_mm":[-50,0],"end_mm":[50,0],"effective_width_mm":2}],"force_n":[400,-200,600],"couple_n_mm":[0,0,0],"application":{"kind":"centroid"}}'
+$r = Invoke-RestMethod -Method Post -Uri http://127.0.0.1:1421/api/v1/calculate -Headers $headers -ContentType application/json -Body $body
+$r.traction_mpa # 2, -1, 3 MPa
+$r.strength_status # unsupported_calculation
 ```
-Предлагаемый ответ при отсутствии метода:
-```json
-{"schema_version":1,"validity":"unsupported_calculation","error":{"code":"method_not_verified","method_id":"pending-verification"},"strength_result":null}
-```
-Нельзя возвращать passed для геометрии как результат прочности. Stable schemas, serialization и application service предстоит реализовать.
+
+Ответ содержит schema_version=1, engine_version, method_id=uniform-direct-traction-v1, исходный input_snapshot, geometry (L=100 mm, A=200 mm², центр [0,0]), moment_at_centroid_n_mm=[0,0,0], traction_mpa=[2,-1,3], analysis_status=computed, strength_status=unsupported_calculation, validation_status=not_independently_validated и warnings. **computed не является проверкой прочности**. Полный воспроизводимый ответ задаётся application service, без альтернативной HTTP-формулы.
+
+Геометрическая ошибка возвращается HTTP 422 с `{"code":"non_positive_dimension","field":null}` (пример: effective_width_mm=0), без напряжений. JSON/типовые ошибки дают 400/415/422, отсутствие токена 401, Origin 403, лимит тела 413, занятые workers 429, тайм-аут 408, внутренний отказ task 500. Неизвестные route/method дают 404/405. Все эти ответы имеют AppError code/field. Числа должны быть конечными, неизвестные поля отклоняются.
+
+Лимиты: тело 1 MiB, 256 участков, 32 случая, два одновременно выполняющихся blocking workers, 15 s ожидания. После timeout/disconnect вычисляющий worker удерживает permit до завершения; новые запросы не создают бесконечные фоновые задачи. Это защита ресурса, не гарантия завершения произвольного расчёта за 15 s.
+
+Нормативная прочность, fatigue, давление, laser, optimization и верифицированный каталог материалов пока недоступны. Endpoint-обёртки для этих функций не объявлены реализованными. PDF создаётся в desktop, не HTTP-сервисом.
+
+Проверки — только Windows CI: HTTP router tests, реальный release-процесс, сокет 127.0.0.1, авторизация, аналитический ответ, OpenAPI и сборка C# примера. Результат текущего CI ещё ожидается.

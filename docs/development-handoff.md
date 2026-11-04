@@ -78,3 +78,6 @@
 
 
 Новая итерация: [независимые нагрузочные случаи](load-cases.md), пакетный расчёт и сводка компонентов с определяющими случаями. Нормативная прочность не включена. Windows CI 41899254686 для 4a3d3b6: оба задания success. Следующий этап: [PDF-отчёты](pdf-reports.md), его Windows CI пока ожидается.
+
+
+Продолжение полного плана: [completion-status.md](completion-status.md). Добавлены [локальный REST/OpenAPI](api-reference.md), start-api.bat, C# transport example и расширенный Inventor guide. PDF Windows CI 41899903561 выявил отсутствующие @types/node: исправлены manifest/lockfile. Для чтения локального bundled-шрифта PDF добавлен connect-src self. Полная проверка API/PDF на Windows ожидается.

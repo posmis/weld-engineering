@@ -1,0 +1,1277 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Weld Engineering local nominal calculation API",
+    "version": "1.0.0",
+    "description": "Windows x64. Loopback only, opt-in process. Units: mm, N, N·mm, MPa. Normative strength/fatigue/optimization are unavailable. Stored snapshots are not independently authenticated or recalculated."
+  },
+  "servers": [
+    {
+      "url": "http://127.0.0.1:1421"
+    }
+  ],
+  "security": [
+    {
+      "localToken": []
+    }
+  ],
+  "paths": {
+    "/api/v1/calculate": {
+      "post": {
+        "summary": "Nominal mathematical analysis only; never normative strength acceptance",
+        "responses": {
+          "200": {
+            "description": "Success; computed is not a strength verdict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalculationResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or incorrect Bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Browser Origin rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Route not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "408": {
+            "description": "Calculation deadline exceeded; worker remains reserved until it exits",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body exceeds 1 MiB",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Use application/json",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input or unsupported application method; see code/field",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Both calculation workers occupied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal calculation task failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CalculationInput"
+              },
+              "example": {
+                "schema_version": 1,
+                "segments": [
+                  {
+                    "start_mm": [
+                      -50,
+                      0
+                    ],
+                    "end_mm": [
+                      50,
+                      0
+                    ],
+                    "effective_width_mm": 2
+                  }
+                ],
+                "force_n": [
+                  400,
+                  -200,
+                  600
+                ],
+                "couple_n_mm": [
+                  0,
+                  0,
+                  0
+                ],
+                "application": {
+                  "kind": "centroid"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cases/calculate": {
+      "post": {
+        "summary": "Independent load cases and partial envelope; per-case failures retained",
+        "responses": {
+          "200": {
+            "description": "Success; computed is not a strength verdict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or incorrect Bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Browser Origin rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Route not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "408": {
+            "description": "Calculation deadline exceeded; worker remains reserved until it exits",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body exceeds 1 MiB",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Use application/json",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input or unsupported application method; see code/field",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Both calculation workers occupied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal calculation task failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Project"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/validate": {
+      "post": {
+        "summary": "Validate input and stored snapshot consistency, without recomputation",
+        "responses": {
+          "200": {
+            "description": "Success; computed is not a strength verdict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Project"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or incorrect Bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Browser Origin rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Route not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "408": {
+            "description": "Calculation deadline exceeded; worker remains reserved until it exits",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body exceeds 1 MiB",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Use application/json",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input or unsupported application method; see code/field",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Both calculation workers occupied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal calculation task failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Project"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/capabilities": {
+      "get": {
+        "summary": "Current supported and unavailable capabilities",
+        "responses": {
+          "200": {
+            "description": "Success; computed is not a strength verdict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Capabilities"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or incorrect Bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Browser Origin rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Route not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "408": {
+            "description": "Calculation deadline exceeded; worker remains reserved until it exits",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body exceeds 1 MiB",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Use application/json",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input or unsupported application method; see code/field",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Both calculation workers occupied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal calculation task failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/openapi.json": {
+      "get": {
+        "summary": "This OpenAPI document",
+        "responses": {
+          "200": {
+            "description": "OpenAPI 3.1 JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or incorrect Bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Browser Origin rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "localToken": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Per-launch token in %LOCALAPPDATA%/WeldEngineering/api-PORT.token"
+      }
+    },
+    "schemas": {
+      "AppError": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "code",
+          "field"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "field": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "Segment": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "start_mm",
+          "end_mm",
+          "effective_width_mm"
+        ],
+        "properties": {
+          "start_mm": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "format": "double"
+            },
+            "minItems": 2,
+            "maxItems": 2
+          },
+          "end_mm": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "format": "double"
+            },
+            "minItems": 2,
+            "maxItems": 2
+          },
+          "effective_width_mm": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          }
+        }
+      },
+      "ApplicationPoint": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "const": "centroid"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "point_mm"
+            ],
+            "properties": {
+              "kind": {
+                "const": "point"
+              },
+              "point_mm": {
+                "type": "array",
+                "items": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "minItems": 3,
+                "maxItems": 3
+              }
+            }
+          }
+        ]
+      },
+      "CalculationInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schema_version",
+          "segments",
+          "force_n",
+          "couple_n_mm",
+          "application"
+        ],
+        "properties": {
+          "schema_version": {
+            "const": 1
+          },
+          "segments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Segment"
+            },
+            "minItems": 1,
+            "maxItems": 256
+          },
+          "force_n": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "format": "double"
+            },
+            "minItems": 3,
+            "maxItems": 3
+          },
+          "couple_n_mm": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "format": "double"
+            },
+            "minItems": 3,
+            "maxItems": 3
+          },
+          "application": {
+            "$ref": "#/components/schemas/ApplicationPoint"
+          }
+        }
+      },
+      "Geometry": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "length_mm",
+          "area_mm2",
+          "ix_mm4",
+          "iy_mm4",
+          "ixy_mm4",
+          "polar_mm4",
+          "centroid_mm"
+        ],
+        "properties": {
+          "length_mm": {
+            "type": "number",
+            "format": "double"
+          },
+          "area_mm2": {
+            "type": "number",
+            "format": "double"
+          },
+          "ix_mm4": {
+            "type": "number",
+            "format": "double"
+          },
+          "iy_mm4": {
+            "type": "number",
+            "format": "double"
+          },
+          "ixy_mm4": {
+            "type": "number",
+            "format": "double"
+          },
+          "polar_mm4": {
+            "type": "number",
+            "format": "double"
+          },
+          "centroid_mm": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "format": "double"
+            },
+            "minItems": 2,
+            "maxItems": 2
+          }
+        }
+      },
+      "NominalDistribution": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "segments",
+          "normal_range_mpa",
+          "max_shear_mpa",
+          "bending_rcond",
+          "equilibrium_error"
+        ],
+        "properties": {
+          "segments": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "start_mpa",
+                "end_mpa"
+              ],
+              "properties": {
+                "start_mpa": {
+                  "type": "array",
+                  "items": {
+                    "type": "number",
+                    "format": "double"
+                  },
+                  "minItems": 3,
+                  "maxItems": 3
+                },
+                "end_mpa": {
+                  "type": "array",
+                  "items": {
+                    "type": "number",
+                    "format": "double"
+                  },
+                  "minItems": 3,
+                  "maxItems": 3
+                }
+              }
+            },
+            "minItems": 1,
+            "maxItems": 256
+          },
+          "normal_range_mpa": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "format": "double"
+            },
+            "minItems": 2,
+            "maxItems": 2
+          },
+          "max_shear_mpa": {
+            "type": "number",
+            "format": "double"
+          },
+          "bending_rcond": {
+            "anyOf": [
+              {
+                "type": "number",
+                "format": "double"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "equilibrium_error": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "CalculationResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schema_version",
+          "engine_version",
+          "method_id",
+          "input_snapshot",
+          "geometry",
+          "moment_at_centroid_n_mm",
+          "traction_mpa",
+          "analysis_status",
+          "strength_status",
+          "validation_status",
+          "warnings"
+        ],
+        "properties": {
+          "schema_version": {
+            "const": 1
+          },
+          "engine_version": {
+            "type": "string"
+          },
+          "method_id": {
+            "type": "string"
+          },
+          "input_snapshot": {
+            "$ref": "#/components/schemas/CalculationInput"
+          },
+          "geometry": {
+            "$ref": "#/components/schemas/Geometry"
+          },
+          "moment_at_centroid_n_mm": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "format": "double"
+            },
+            "minItems": 3,
+            "maxItems": 3
+          },
+          "traction_mpa": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "minItems": 3,
+                "maxItems": 3
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "distribution": {
+            "$ref": "#/components/schemas/NominalDistribution"
+          },
+          "analysis_status": {
+            "enum": [
+              "computed",
+              "unsupported_loading"
+            ]
+          },
+          "strength_status": {
+            "const": "unsupported_calculation"
+          },
+          "validation_status": {
+            "const": "not_independently_validated"
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "LoadCase": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "title",
+          "force_n",
+          "couple_n_mm",
+          "application",
+          "last_calculation"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "force_n": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "format": "double"
+            },
+            "minItems": 3,
+            "maxItems": 3
+          },
+          "couple_n_mm": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "format": "double"
+            },
+            "minItems": 3,
+            "maxItems": 3
+          },
+          "application": {
+            "$ref": "#/components/schemas/ApplicationPoint"
+          },
+          "last_calculation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CalculationResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "CaseBook": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schema_version",
+          "active_id",
+          "cases"
+        ],
+        "properties": {
+          "schema_version": {
+            "const": 1
+          },
+          "active_id": {
+            "type": "string"
+          },
+          "cases": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LoadCase"
+            },
+            "minItems": 1,
+            "maxItems": 32
+          }
+        }
+      },
+      "Project": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schema_version",
+          "title",
+          "input",
+          "last_calculation"
+        ],
+        "properties": {
+          "schema_version": {
+            "const": 1
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "input": {
+            "$ref": "#/components/schemas/CalculationInput"
+          },
+          "last_calculation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CalculationResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "casebook": {
+            "$ref": "#/components/schemas/CaseBook"
+          }
+        }
+      },
+      "GoverningValue": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "value_mpa",
+          "case_id",
+          "segment_index",
+          "endpoint"
+        ],
+        "properties": {
+          "value_mpa": {
+            "type": "number",
+            "format": "double"
+          },
+          "case_id": {
+            "type": "string"
+          },
+          "segment_index": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "endpoint": {
+            "enum": [
+              "start",
+              "end"
+            ]
+          }
+        }
+      },
+      "CaseSummary": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "total",
+          "computed",
+          "complete",
+          "normal_min",
+          "normal_max",
+          "shear_max"
+        ],
+        "properties": {
+          "total": {
+            "type": "integer"
+          },
+          "computed": {
+            "type": "integer"
+          },
+          "complete": {
+            "type": "boolean"
+          },
+          "normal_min": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GoverningValue"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "normal_max": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GoverningValue"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "shear_max": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GoverningValue"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "BatchResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "project",
+          "summary",
+          "failures"
+        ],
+        "properties": {
+          "project": {
+            "$ref": "#/components/schemas/Project"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/CaseSummary"
+          },
+          "failures": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "case_id",
+                "error"
+              ],
+              "properties": {
+                "case_id": {
+                  "type": "string"
+                },
+                "error": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "Capabilities": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schema_version",
+          "engine_version",
+          "methods",
+          "strength_status",
+          "validation_status",
+          "limits",
+          "unsupported"
+        ],
+        "properties": {
+          "schema_version": {
+            "const": 1
+          },
+          "engine_version": {
+            "type": "string"
+          },
+          "methods": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "strength_status": {
+            "const": "unsupported_calculation"
+          },
+          "validation_status": {
+            "const": "not_independently_validated"
+          },
+          "limits": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "document_bytes",
+              "segments",
+              "cases",
+              "workers",
+              "timeout_seconds"
+            ],
+            "properties": {
+              "document_bytes": {
+                "type": "integer"
+              },
+              "segments": {
+                "type": "integer"
+              },
+              "cases": {
+                "type": "integer"
+              },
+              "workers": {
+                "type": "integer"
+              },
+              "timeout_seconds": {
+                "type": "integer"
+              }
+            }
+          },
+          "unsupported": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  }
+}
