@@ -1,5 +1,5 @@
 import { afterEach, expect, test, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { App } from './App';
 import { backend } from './backend';
 import { newProject, type CalculationResult } from './contracts';
@@ -16,26 +16,29 @@ function result(): CalculationResult {
 test('submits geometry to Rust boundary and invalidates the displayed result after an edit', async () => {
   vi.mocked(backend.calculate).mockResolvedValue(result());
   render(<App />);
-  fireEvent.click(screen.getByText('Рассчитать'));
-  await waitFor(() => expect(screen.getByText('Номинальные компоненты F/A')).toBeTruthy());
+  await act(async () => { fireEvent.click(screen.getByText('Рассчитать')); });
+  expect(screen.getByText('Номинальные компоненты F/A')).toBeTruthy();
   expect(backend.calculate).toHaveBeenCalledWith(newProject().input);
   expect(screen.getByText('Проверка прочности недоступна')).toBeTruthy();
   fireEvent.change(screen.getByLabelText('S1 a'), { target: { value: '4' } });
   expect(screen.queryByText('Номинальные компоненты F/A')).toBeNull();
+  expect((screen.getByLabelText('S1 a') as HTMLInputElement).value).toBe('4');
+  expect(backend.calculate).toHaveBeenCalledTimes(1);
 });
 
 test('renders unsupported eccentric loading without presenting nominal stresses', async () => {
   const value = result(); value.traction_mpa = null; value.analysis_status = 'unsupported_loading'; value.moment_at_centroid_n_mm = [0, 0, 1000];
   vi.mocked(backend.calculate).mockResolvedValue(value);
-  render(<App />); fireEvent.click(screen.getByText('Рассчитать'));
-  await waitFor(() => expect(screen.getByText(/Результирующий момент ненулевой/)).toBeTruthy());
+  render(<App />);
+  await act(async () => { fireEvent.click(screen.getByText('Рассчитать')); });
+  expect(screen.getByText(/Результирующий момент ненулевой/)).toBeTruthy();
   expect(screen.queryByText('Номинальные компоненты F/A')).toBeNull();
 });
 
 test('empty numeric input does not silently become zero or reach the calculation boundary', async () => {
   render(<App />);
   fireEvent.change(screen.getByLabelText('force_n z'), { target: { value: '' } });
-  fireEvent.click(screen.getByText('Рассчитать'));
-  await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('Обнаружено неконечное число'));
+  await act(async () => { fireEvent.click(screen.getByText('Рассчитать')); });
+  expect(screen.getByRole('alert').textContent).toContain('Обнаружено неконечное число');
   expect(backend.calculate).not.toHaveBeenCalled();
 });

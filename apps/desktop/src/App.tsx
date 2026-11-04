@@ -16,7 +16,8 @@ function NumberField({ value, label, onChange }: { value: number; label: string;
       onChange(normalised === '' ? NaN : Number(normalised));
     }} />;
 }
-const display = (n: number) => new Intl.NumberFormat('ru-RU', { maximumSignificantDigits: 9 }).format(n);
+const numberFormatter = new Intl.NumberFormat('ru-RU', { maximumSignificantDigits: 9 });
+const display = (n: number) => numberFormatter.format(n);
 
 function Layout({ input, centre, selected, onSelect, invalidText }: {
   input: CalculationInput; centre?: [number, number]; selected: number; onSelect: (n: number) => void; invalidText: string;
