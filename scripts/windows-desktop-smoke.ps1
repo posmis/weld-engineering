@@ -44,6 +44,22 @@ function Read-Field([string]$Name) {
         return $null
     } "current value of $Name"
 }
+function Document-Key([byte]$Key) {
+    (Find-Name 'XY weld layout').SetFocus()
+    [WeldDesktopInput]::keybd_event(0x11, 0, 0, [UIntPtr]::Zero)
+    [WeldDesktopInput]::keybd_event($Key, 0, 0, [UIntPtr]::Zero)
+    [WeldDesktopInput]::keybd_event($Key, 0, 2, [UIntPtr]::Zero)
+    [WeldDesktopInput]::keybd_event(0x11, 0, 2, [UIntPtr]::Zero)
+}
+function Show-Drawing {
+    Document-Key 0x24 # Ctrl+Home: return to the geometry section before physical mouse input.
+    $null = Wait-Until {
+        $drawing = Find-Name 'XY weld layout'
+        $bounds = $drawing.Current.BoundingRectangle
+        $windowBounds = $script:window.Current.BoundingRectangle
+        -not $drawing.Current.IsOffscreen -and $bounds.Y -ge $windowBounds.Y -and $bounds.Bottom -le $windowBounds.Bottom
+    } 'geometry visible after document scroll'
+}
 function Set-Field([string]$Name, [string]$Value) {
     $field = Wait-Until { Find-Name $Name ([System.Windows.Automation.ControlType]::Edit) } "editable field $Name"
     $field.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue($Value)
@@ -79,7 +95,11 @@ try {
     } 'native Tauri window'
     $drawing = Wait-Until { Find-Name 'XY weld layout' } 'editable weld layout'
     $null = Wait-Until { $control = Find-Name 'Настройки приложения' ([System.Windows.Automation.ControlType]::Button); $control -and $control.Current.IsEnabled } 'editor settings loaded from SQLite'
-    $bounds = $drawing.Current.BoundingRectangle
+    Document-Key 0x23 # Ctrl+End: results follow welds and loads below the first screen.
+    $null = Wait-Until { $result = Find-Name 'Задайте геометрию и выполните расчёт.'; $result -and -not $result.Current.IsOffscreen } 'results reached by vertical document scroll'
+    if (-not (Find-Name 'S1 Начало').Current.IsOffscreen) { throw 'Geometry and results are still shown side by side' }
+    Show-Drawing
+    $bounds = (Find-Name 'XY weld layout').Current.BoundingRectangle
     $null = [WeldDesktopInput]::SetCursorPos([int]($bounds.X + $bounds.Width * 0.8), [int]($bounds.Y + $bounds.Height * 0.75))
     [WeldDesktopInput]::mouse_event(0x0008, 0, 0, 0, [UIntPtr]::Zero)
     [WeldDesktopInput]::mouse_event(0x0010, 0, 0, 0, [UIntPtr]::Zero)
@@ -122,6 +142,7 @@ try {
     if ((Read-Field 'S1 X2') -ne '55') { throw 'Whole weld did not move both endpoints together' }
     $before = [double]::Parse((Read-Field 'S1 X1'), [Globalization.CultureInfo]::InvariantCulture)
     $beforeEnd = [double]::Parse((Read-Field 'S1 X2'), [Globalization.CultureInfo]::InvariantCulture)
+    Show-Drawing
     $lineBounds = (Find-Name 'Переместить шов S1').Current.BoundingRectangle
     $lineX = [int]($lineBounds.X + $lineBounds.Width / 2)
     $lineY = [int]($lineBounds.Y + $lineBounds.Height / 2)
@@ -157,6 +178,7 @@ try {
     $null = Wait-Until { Find-Name 'Номинальные компоненты F/A' } 'undo restores the saved calculation'
     if (Find-Name 'Есть несохранённые изменения') { throw 'Undo to saved snapshot did not restore clean state' }
     Click-Name 'Вписать схему'
+    Show-Drawing
     $endBounds = (Find-Name 'S1 Конец').Current.BoundingRectangle
     Click-Name 'Приблизить схему'
     $null = Wait-Until { (Find-Name 'S1 Конец').Current.BoundingRectangle.X -gt ($endBounds.X + 5) } 'native zoom changes the viewport'
@@ -225,7 +247,7 @@ try {
     $handle = [IntPtr]$script:window.Current.NativeWindowHandle
     $null = [WeldDesktopInput]::PostMessage($handle, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero)
     if (-not $process.WaitForExit(10000)) { throw 'Restarted desktop did not close cleanly' }
-    Write-Output 'PASS: nominal bending/torsion, singular section refusal, distribution snapshot restart; undo/redo, saved result restoration, viewport zoom and pan; settings persistence and whole-weld movement; application context menu -> real endpoint drag and cancel -> native unsaved close guard -> Rust calculation -> SQLite save -> snapshot reopen -> clean close.'
+    Write-Output 'PASS: vertically scrolling welds-loads-results layout; nominal bending/torsion, singular section refusal, distribution snapshot restart; undo/redo, saved result restoration, viewport zoom and pan; settings persistence and whole-weld movement; application context menu -> real endpoint drag and cancel -> native unsaved close guard -> Rust calculation -> SQLite save -> snapshot reopen -> clean close.'
  } catch {
     if ($script:window) {
         $elements = $script:window.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)
