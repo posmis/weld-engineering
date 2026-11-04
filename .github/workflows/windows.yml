@@ -52,8 +52,8 @@ jobs:
       - run: npm run build
       - name: Check Windows development profile used by start.bat
         run: cargo check --locked -p weld-desktop
-      - name: Build Windows desktop executable
-        run: npm run tauri build -- --no-bundle --ci
+      - name: Build Windows desktop and per-user installer
+        run: npm run tauri build -- --ci
       - name: Build standalone Windows API
         run: cargo build --locked --release -p weld-api
       - name: Compile future CAD C# transport example
@@ -68,10 +68,10 @@ jobs:
         with:
           path: target
           key: ${{ steps.desktop-cache.outputs.cache-primary-key }}
-      - name: Exercise real desktop calculation and SQLite workflow
+      - name: Install Windows app, exercise real desktop workflow and uninstall
         shell: pwsh
         working-directory: .
-        run: ./scripts/windows-desktop-smoke.ps1
+        run: ./scripts/windows-installer-smoke.ps1
       - name: Read generated Cyrillic PDF and embedded project with an independent parser
         working-directory: .\
         run: |
@@ -82,6 +82,7 @@ jobs:
           name: weld-engineering-windows-x64
           path: |
             target/release/weld-desktop.exe
+            target/release/bundle/nsis/*-setup.exe
             target/release/weld-api.exe
             target/windows-ui-smoke.png
             target/windows-results-smoke.png

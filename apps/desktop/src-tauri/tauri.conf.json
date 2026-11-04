@@ -28,9 +28,27 @@
     }
   },
   "bundle": {
-    "active": false,
+    "active": true,
     "icon": [
       "icons/icon.ico"
-    ]
+    ],
+    "targets": [
+      "nsis"
+    ],
+    "windows": {
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper",
+        "silent": true
+      },
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": [
+          "Russian",
+          "English"
+        ],
+        "displayLanguageSelector": false,
+        "startMenuFolder": "Weld Engineering"
+      }
+    }
   }
 }

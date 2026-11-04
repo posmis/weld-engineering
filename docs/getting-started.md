@@ -7,3 +7,5 @@
 Из корня: `cargo test --locked -p weld-core -p weld-application`. Из apps/desktop: `npm ci`, `npm test`, `npm run tauri dev`. Полные команды форматирования, Clippy и release-сборки приведены в desktop-workflow.md.
 
 Из корня `start.bat` запускает desktop, `start-api.bat` — отдельный локальный API. После обновления исходников полностью закройте приложение и запустите его заново. Новые функции: [случаи](load-cases.md), [прерывистые швы](intermittent-welds.md), [PDF](pdf-reports.md), [API/C#](api-reference.md). Полный статус этапов и ограничения — [completion-status.md](completion-status.md).
+
+Предусмотрена установка готовым NSIS setup.exe без developer tools: [windows-installer.md](windows-installer.md). Первый installer CI ещё ожидается.

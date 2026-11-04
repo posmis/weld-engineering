@@ -34,7 +34,7 @@ $r.strength_status # unsupported_calculation
 
 Нормативная прочность, fatigue, давление, laser, optimization и верифицированный каталог материалов пока недоступны. Endpoint-обёртки для этих функций не объявлены реализованными. PDF создаётся в desktop, не HTTP-сервисом.
 
-Проверки — только Windows CI: HTTP router tests, реальный release-процесс, сокет 127.0.0.1, авторизация, аналитический ответ, OpenAPI и настоящий HTTP-вызов C# примера. Request/response проверяются PowerShell Test-Json по опубликованным OpenAPI schemas. Результат текущего CI ещё ожидается.
+Проверки — только Windows CI: HTTP router tests, реальный release-процесс, сокет 127.0.0.1, авторизация, аналитический ответ, OpenAPI и настоящий HTTP-вызов C# примера. Request/response проверяются PowerShell Test-Json по опубликованным OpenAPI schemas. Windows run 41905263645, source 17e0205: проверки пройдены.
 
 ## Совместимость
 

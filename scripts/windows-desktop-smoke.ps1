@@ -1,3 +1,4 @@
+param([string]$Executable = (Join-Path $PSScriptRoot "../target/release/weld-desktop.exe"))
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
@@ -107,7 +108,7 @@ function Click-Name([string]$Name) {
     }
 }
 try {
-    $executable = Join-Path $PSScriptRoot '../target/release/weld-desktop.exe'
+    $executable = [System.IO.Path]::GetFullPath($Executable)
     $process = Start-Process -FilePath $executable -PassThru
     $script:window = Wait-Until {
         $condition = [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $process.Id)

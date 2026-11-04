@@ -8,4 +8,4 @@
 
 Tauri: generate_intermittent(request). REST: POST /api/v1/geometry/intermittent. Запрос IntermittentInput: input (CalculationInput), segment_index (с нуля), weld_length_mm, pitch_mm, count. Ответ — новый CalculationInput. Изменения проекта и история остаются ответственностью вызывающего приложения.
 
-Подготовлены Windows unit/HTTP/UI tests, включая наклонный обратный шов и Undo полного набора случаев. Текущий результат CI ещё ожидается.
+Windows run 41905263645, source 17e0205 — success. Пройдены unit/HTTP/UI tests, включая наклонный обратный шов, реальную замену в окне и Undo полного набора случаев.

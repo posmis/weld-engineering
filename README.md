@@ -15,6 +15,7 @@
 - [Локальный API и OpenAPI](docs/api-reference.md)
 - [Интеграция Inventor/C#](docs/inventor-integration.md)
 - [Контракт application service](docs/application-contract.md)
+- [Установщик Windows](docs/windows-installer.md)
 - [Начало работы](docs/getting-started.md)
 - [Исследование стандартов](docs/standards-research.md)
 - [Методы](docs/engineering-methods.md)
