@@ -1,5 +1,6 @@
 //! GUI-independent application boundary. No normative acceptance method is enabled.
 pub mod projects;
+pub mod settings;
 
 use serde::{Deserialize, Serialize};
 use weld_core::{Millimetres, NewtonMillimetres, Newtons, Point2, Segment};

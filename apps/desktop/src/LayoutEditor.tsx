@@ -1,19 +1,22 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import type { CalculationInput, SegmentInput } from './contracts';
+import { moveWeld, type EditorSettings, type Handle } from './editorMovement';
 import type ru from './locales/ru.json';
 
 type View = { cx: number; cy: number; scale: number };
 type Point = [number, number];
-type Drag = { pointerId: number; segment: number; end: 'start_mm' | 'end_mm'; original: SegmentInput[]; view: View; offset: Point };
+type Drag = { pointerId: number; segment: number; end: Handle; original: SegmentInput[]; view: View; origin: Point; previousView: View | null };
 
-export function LayoutEditor({ input, centre, selected, onSelect, onChange, disabled, t, onDragStart, onDragCancel, onDragFinish }: {
+export function LayoutEditor({ input, centre, selected, onSelect, onChange, disabled, t, settings, onDragStart, onDragCancel, onDragFinish }: {
   input: CalculationInput; centre?: Point; selected: number; onSelect: (n: number) => void;
-  onChange: (segments: SegmentInput[]) => void; disabled: boolean; t: typeof ru;
+  onChange: (segments: SegmentInput[]) => void; disabled: boolean; t: typeof ru; settings: EditorSettings;
   onDragStart?: () => void; onDragCancel?: () => void; onDragFinish?: () => void;
 }) {
   const svg = useRef<SVGSVGElement>(null), menu = useRef<HTMLDivElement>(null);
+  const expectedSegments = useRef(input.segments);
   const drag = useRef<Drag | null>(null);
   const [fixedView, setFixedView] = useState<View | null>(null);
+  const [snap, setSnap] = useState<Point | null>(null);
   const [context, setContext] = useState<{ x: number; y: number; point: Point; segment?: number } | null>(null);
   useEffect(() => {
     const close = (event: Event) => { if (!menu.current?.contains(event.target as Node)) setContext(null); };
@@ -23,8 +26,9 @@ export function LayoutEditor({ input, centre, selected, onSelect, onChange, disa
   }, []);
   useEffect(() => { if (disabled) setContext(null); }, [disabled]);
   const points = input.segments.flatMap(s => [s.start_mm, s.end_mm]);
-  if (!points.length || points.some(p => p.some(v => !Number.isFinite(v)))) return <div className="drawing empty">{t.bounds}</div>;
+  if (points.some(p => p.some(v => !Number.isFinite(v)))) return <div className="drawing empty">{t.bounds}</div>;
   // These are screen transforms, not engineering calculations. Use equal XY scales.
+  if (!points.length) points.push([-50, 0], [50, 0]);
   const xs = points.map(p => p[0]), ys = points.map(p => p[1]);
   const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
   const fitted: View = { cx: minX / 2 + maxX / 2, cy: minY / 2 + maxY / 2,
@@ -43,34 +47,55 @@ export function LayoutEditor({ input, centre, selected, onSelect, onChange, disa
     const result: Point = [(sx - 300) / mapping.scale + mapping.cx, (200 - sy) / mapping.scale + mapping.cy];
     return result.every(Number.isFinite) ? result : null;
   }
-  function move(segment: number, end: Drag['end'], point: Point) {
-    if (!point.every(Number.isFinite)) return;
-    onChange(input.segments.map((s, i) => i === segment ? { ...s, [end]: point } : s));
+  function apply(segment: number, changed: SegmentInput) {
+    const current = input.segments[segment];
+    if (JSON.stringify(current) === JSON.stringify(changed)) return;
+    const next = input.segments.map((s, i) => i === segment ? changed : s);
+    expectedSegments.current = next; onChange(next);
   }
-  function begin(event: ReactPointerEvent<SVGCircleElement>, segment: number, end: Drag['end']) {
-    if (disabled || event.button !== 0) return;
+  function begin(event: ReactPointerEvent<SVGElement>, segment: number, end: Drag['end']) {
+    if (disabled || event.button !== 0 || drag.current) return;
     const position = world(event.clientX, event.clientY, view);
     if (!position) return;
-    event.preventDefault(); onSelect(segment); event.currentTarget.focus(); onDragStart?.();
-    const original = input.segments[segment][end];
+    event.preventDefault(); event.stopPropagation(); onSelect(segment); event.currentTarget.focus(); onDragStart?.();
+    expectedSegments.current = input.segments;
     drag.current = { pointerId: event.pointerId, segment, end, original: input.segments, view,
-      offset: [position[0] - original[0], position[1] - original[1]] };
+      origin: position, previousView: fixedView };
     setFixedView(view); svg.current?.setPointerCapture?.(event.pointerId);
   }
+  function keyboard(event: React.KeyboardEvent<SVGElement>, segment: number, end: Handle) {
+    if (disabled || !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
+    event.preventDefault(); event.stopPropagation();
+    const step = settings.movement_step_mm * (event.shiftKey ? 10 : 1);
+    const delta: Point = [event.key === 'ArrowLeft' ? -step : event.key === 'ArrowRight' ? step : 0,
+      event.key === 'ArrowDown' ? -step : event.key === 'ArrowUp' ? step : 0];
+    const moved = moveWeld(input.segments, segment, end, delta, settings, view.scale, true);
+    if (moved) { setFixedView(view); onSelect(segment); apply(segment, moved.segment); }
+  }
   function finish(cancel: boolean) {
-    const active = drag.current; drag.current = null; setFixedView(null);
+    const active = drag.current; drag.current = null; setSnap(null);
     if (!active) return;
-    if (cancel) { if (onDragCancel) onDragCancel(); else onChange(active.original); }
+    if (cancel && expectedSegments.current === input.segments) { setFixedView(active.previousView); if (onDragCancel) onDragCancel(); else onChange(active.original); }
     onDragFinish?.();
     if (svg.current?.hasPointerCapture?.(active.pointerId)) svg.current.releasePointerCapture(active.pointerId);
   }
+  const pitch = settings.grid_step_mm * view.scale;
+  const visiblePitch = Number.isFinite(pitch) && pitch > 0 ? pitch * Math.max(1, Math.ceil(12 / pitch)) : 20;
   return <>
+    <button disabled={disabled} onClick={() => { if (!drag.current) setFixedView(null); }}>{t.fitView}</button>
     <svg ref={svg} className="drawing editable" viewBox="0 0 600 410" preserveAspectRatio="xMidYMid meet" aria-label="XY weld layout" role="group" tabIndex={0}
       onPointerMove={event => {
         const active = drag.current;
         if (!active || disabled || active.pointerId !== event.pointerId) return;
+        if (expectedSegments.current !== input.segments) { finish(false); return; }
         const position = world(event.clientX, event.clientY, active.view);
-        if (position) move(active.segment, active.end, [position[0] - active.offset[0], position[1] - active.offset[1]]);
+        if (position) {
+          const matrix = svg.current?.getScreenCTM();
+          const pixelsPerMm = active.view.scale * Math.hypot(matrix?.a ?? 1, matrix?.b ?? 0);
+          const moved = moveWeld(active.original, active.segment, active.end,
+            [position[0] - active.origin[0], position[1] - active.origin[1]], settings, pixelsPerMm, event.altKey);
+          if (moved) { apply(active.segment, moved.segment); setSnap(moved.snap); }
+        }
       }} onPointerUp={event => { if (drag.current?.pointerId === event.pointerId) finish(false); }}
       onPointerCancel={() => finish(true)} onLostPointerCapture={() => { if (drag.current) finish(true); }}
       onKeyDown={event => { if (event.key === 'Escape' && drag.current) { event.preventDefault(); event.stopPropagation(); finish(true); } }}
@@ -82,22 +107,18 @@ export function LayoutEditor({ input, centre, selected, onSelect, onChange, disa
         if (index !== undefined) onSelect(index);
         setContext({ x: Math.max(8, Math.min(event.clientX, window.innerWidth - 250)), y: Math.max(8, Math.min(event.clientY, window.innerHeight - 150)), point, segment: index });
       }}>
-      <defs><pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M 20 0 L 0 0 0 20" fill="none" stroke="currentColor" strokeWidth=".3"/></pattern></defs>
-      <rect width="600" height="410" fill="url(#grid)" className="grid"/>
+      <defs><pattern id="grid" x={x(0)} y={y(0)} width={visiblePitch} height={visiblePitch} patternUnits="userSpaceOnUse"><path d={`M ${visiblePitch} 0 L 0 0 0 ${visiblePitch}`} fill="none" stroke="currentColor" strokeWidth=".3"/></pattern></defs>
+      <rect width="600" height="410" fill={settings.snap_grid ? "url(#grid)" : "none"} className="grid"/>
       <path d="M25 375h45m-45 0v-45" className="axis"/><text x="74" y="380">X</text><text x="20" y="322">Y</text>
       {input.segments.map((s, i) => <g key={i} data-segment-index={i} className={i === selected ? 'segment selected' : 'segment'} onClick={() => { if (!disabled) onSelect(i); }}>
-        <line x1={x(s.start_mm[0])} y1={y(s.start_mm[1])} x2={x(s.end_mm[0])} y2={y(s.end_mm[1])} className="hit"/>
-        <line x1={x(s.start_mm[0])} y1={y(s.start_mm[1])} x2={x(s.end_mm[0])} y2={y(s.end_mm[1])}/>
+        <line x1={x(s.start_mm[0])} y1={y(s.start_mm[1])} x2={x(s.end_mm[0])} y2={y(s.end_mm[1])} className="hit" role="button" aria-label={`${t.moveWhole} S${i + 1}`} tabIndex={disabled ? -1 : 0} aria-disabled={disabled}
+          onPointerDown={event => begin(event, i, 'whole')} onKeyDown={event => keyboard(event, i, 'whole')}/>
+        <line x1={x(s.start_mm[0])} y1={y(s.start_mm[1])} x2={x(s.end_mm[0])} y2={y(s.end_mm[1])} pointerEvents="none"/>
         {(['start_mm', 'end_mm'] as const).map(end => <circle key={end} cx={x(s[end][0])} cy={y(s[end][1])} r="6" role="button" aria-label={`S${i + 1} ${end === 'start_mm' ? t.startPoint : t.endPoint}`} tabIndex={disabled ? -1 : 0} aria-disabled={disabled}
-          onPointerDown={event => begin(event, i, end)} onKeyDown={event => {
-            if (disabled || !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
-            event.preventDefault(); const step = event.shiftKey ? 10 : 1; const p: Point = [...s[end]];
-            if (event.key === 'ArrowLeft') p[0] -= step; if (event.key === 'ArrowRight') p[0] += step;
-            if (event.key === 'ArrowUp') p[1] += step; if (event.key === 'ArrowDown') p[1] -= step;
-            onSelect(i); move(i, end, p);
-          }}/>) }
+          onPointerDown={event => begin(event, i, end)} onKeyDown={event => keyboard(event, i, end)}/>) }
         <text x={x(s.start_mm[0] / 2 + s.end_mm[0] / 2)} y={y(s.start_mm[1] / 2 + s.end_mm[1] / 2) - 12}>S{i + 1} · a={s.effective_width_mm} mm</text>
       </g>)}
+      {snap && <circle className="snap-marker" cx={x(snap[0])} cy={y(snap[1])} r="10"/>}
       {centre && <g className="centroid"><circle cx={x(centre[0])} cy={y(centre[1])} r="7"/><text x={x(centre[0]) + 12} y={y(centre[1]) + 22}>C</text></g>}
       {input.application.kind === 'point' && input.application.point_mm.every(Number.isFinite) && <g className="application-point"><circle cx={x(input.application.point_mm[0])} cy={y(input.application.point_mm[1])} r="6"/><text x={x(input.application.point_mm[0]) + 12} y={y(input.application.point_mm[1]) - 10}>P</text></g>}
     </svg>

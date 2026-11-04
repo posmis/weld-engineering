@@ -42,6 +42,7 @@ try {
         [System.Windows.Automation.AutomationElement]::RootElement.FindFirst([System.Windows.Automation.TreeScope]::Children, $condition)
     } 'native Tauri window'
     $drawing = Wait-Until { Find-Name 'XY weld layout' } 'editable weld layout'
+    $null = Wait-Until { (Find-Name 'Настройки приложения').Current.IsEnabled } 'editor settings loaded from SQLite'
     $bounds = $drawing.Current.BoundingRectangle
     $null = [WeldDesktopInput]::SetCursorPos([int]($bounds.X + $bounds.Width * 0.8), [int]($bounds.Y + $bounds.Height * 0.75))
     [WeldDesktopInput]::mouse_event(0x0008, 0, 0, 0, [UIntPtr]::Zero)
@@ -73,6 +74,19 @@ try {
     $null = [WeldDesktopInput]::SetCursorPos($x + 20, $y)
     $null = Wait-Until { $valuePattern.Current.Value -ne '-50' } 'second drag updates engineering input'
     [WeldDesktopInput]::mouse_event(0x0004, 0, 0, 0, [UIntPtr]::Zero)
+    Click-Name 'Настройки приложения'
+    $step = Wait-Until { Find-Name 'Шаг перемещения, mm' } 'movement step setting'
+    $step.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue('5')
+    Click-Name 'Сохранить настройки'
+    $null = Wait-Until { (Find-Name 'Настройки приложения').Current.IsEnabled } 'settings saved'
+    $before = [double]::Parse($valuePattern.Current.Value, [Globalization.CultureInfo]::InvariantCulture)
+    $whole = Find-Name 'Переместить шов S1'
+    $whole.SetFocus()
+    [WeldDesktopInput]::keybd_event(0x27, 0, 0, [UIntPtr]::Zero)
+    [WeldDesktopInput]::keybd_event(0x27, 0, 2, [UIntPtr]::Zero)
+    $null = Wait-Until { [double]::Parse($valuePattern.Current.Value, [Globalization.CultureInfo]::InvariantCulture) -eq ($before + 5) } 'configured whole-weld keyboard step'
+    $endValue = (Find-Name 'S1 X2').GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern)
+    if ($endValue.Current.Value -ne '55') { throw 'Whole weld did not move both endpoints together' }
     Click-Name 'Рассчитать'
     $null = Wait-Until { Find-Name 'Номинальные компоненты F/A' } 'real Rust calculation result in WebView'
     $null = Wait-Until { Find-Name 'Проверка прочности недоступна' } 'unsupported strength status'
@@ -100,7 +114,20 @@ try {
     $null = [WeldDesktopInput]::PostMessage($handle, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero)
     if (-not $process.WaitForExit(10000)) { throw 'Clean native close did not complete' }
     if ($process.ExitCode -ne 0) { throw "Desktop closed with exit $($process.ExitCode)" }
-    Write-Output 'PASS: application context menu -> real endpoint drag and cancel -> native unsaved close guard -> Rust calculation -> SQLite save -> snapshot reopen -> clean close.'
+    $process = Start-Process -FilePath $executable -PassThru
+    $script:window = Wait-Until {
+        $condition = [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $process.Id)
+        [System.Windows.Automation.AutomationElement]::RootElement.FindFirst([System.Windows.Automation.TreeScope]::Children, $condition)
+    } 'restarted native window'
+    $null = Wait-Until { $control = Find-Name 'Настройки приложения'; $control -and $control.Current.IsEnabled } 'persisted preferences loaded'
+    Click-Name 'Настройки приложения'
+    $step = Wait-Until { Find-Name 'Шаг перемещения, mm' } 'reopened movement step setting'
+    if ($step.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.Value -ne '5') { throw 'Movement step was not persisted across process restart' }
+    Click-Name 'Отмена'
+    $handle = [IntPtr]$script:window.Current.NativeWindowHandle
+    $null = [WeldDesktopInput]::PostMessage($handle, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero)
+    if (-not $process.WaitForExit(10000)) { throw 'Restarted desktop did not close cleanly' }
+    Write-Output 'PASS: settings persistence and whole-weld movement; application context menu -> real endpoint drag and cancel -> native unsaved close guard -> Rust calculation -> SQLite save -> snapshot reopen -> clean close.'
  } catch {
     if ($script:window) {
         $elements = $script:window.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)

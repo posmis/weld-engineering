@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { backend } from './backend';
 import { newProject, type CalculationInput, type Project, type Revision, type Vec3 } from './contracts';
+import { defaultSettings, type EditorSettings } from './editorMovement';
+import { SettingsDialog } from './SettingsDialog';
 import { LayoutEditor } from './LayoutEditor';
 import { UnsavedDialog } from './UnsavedDialog';
 import { desktopWindow } from './desktopWindow';
@@ -24,6 +26,10 @@ const display = (n: number) => numberFormatter.format(n);
 
 export function App() {
   const [lang, setLang] = useState<'ru' | 'en'>('ru'); const t = lang === 'ru' ? ru : en;
+  const [settings, setSettings] = useState<EditorSettings>(defaultSettings);
+  const [settingsOpen, setSettingsOpen] = useState(false), [settingsLoading, setSettingsLoading] = useState(true), [settingsWarning, setSettingsWarning] = useState(false);
+  const settingsOpenRef = useRef(false); settingsOpenRef.current = settingsOpen;
+  useEffect(() => { let active = true; void backend.getEditorSettings().then(value => { if (active) setSettings(value); }).catch(() => { if (active) setSettingsWarning(true); }).finally(() => { if (active) setSettingsLoading(false); }); return () => { active = false; }; }, []);
   const [dark, setDark] = useState(false);
   const [project, setProject] = useState<Project>(newProject);
   const [selected, setSelected] = useState(0), [busy, setBusy] = useState(false);
@@ -52,6 +58,7 @@ export function App() {
     window.addEventListener('beforeunload', beforeUnload);
     let disposed = false; let unlisten: (() => void) | undefined;
     void desktopWindow.listenClose(event => {
+      if (settingsOpenRef.current) { event.preventDefault(); if (!busyRef.current) setSettingsOpen(false); return; }
       if (allowClose.current || (!dirtyRef.current && !busyRef.current)) return;
       event.preventDefault();
       setPending({ run: async () => {
@@ -117,9 +124,9 @@ export function App() {
     const a = document.createElement('a'); a.href = url; a.download = 'weld-project.json'; a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
-  return <div className={dark ? 'app dark' : 'app'}><div inert={pending !== null}>
+  return <div className={dark ? 'app dark' : 'app'}><div inert={pending !== null || settingsOpen}>
     <header><div className="brand"><span className="brand-mark">W</span><div><strong>WELD ENGINEERING</strong><small>{t.units}</small></div></div>
-      <div className="header-controls"><button onClick={() => setLang(lang === 'ru' ? 'en' : 'ru')}>{lang === 'ru' ? 'EN' : 'RU'}</button><button onClick={() => setDark(!dark)}>{dark ? t.light : t.dark}</button></div></header>
+      <div className="header-controls"><button disabled={busy || settingsLoading} onClick={() => setSettingsOpen(true)}>{t.settings}</button><button onClick={() => setLang(lang === 'ru' ? 'en' : 'ru')}>{lang === 'ru' ? 'EN' : 'RU'}</button><button onClick={() => setDark(!dark)}>{dark ? t.light : t.dark}</button></div></header>
     <fieldset disabled={busy || pending !== null} className="toolbar"><button onClick={() => request({ run: () => replace({ ...newProject(), title: t.newProject }, false) })}>{t.new}</button>
       <button onClick={() => run(saveCurrent)}>{t.save}</button>
       <button onClick={() => run(async () => setRevisions(await backend.list()))}>{t.open}</button>
@@ -136,6 +143,7 @@ export function App() {
       const file = e.target.files?.[0]; e.target.value = '';
       if (file) request({ run: async () => { if (file.size > 1048576) throw { code: 'document_too_large' }; replace(await backend.import(await file.text()), true, true); } });
     }}/>
+    {settingsWarning && <div className="notification" role="alert">{t.settingsLoadError}</div>}
     {error && !pending && <div className="notification error" role="alert">{t.error}: {error}</div>}
     {message && <div className="notification" role="status">{message}</div>}
     {historical && <div className="notification">{t.snapshot}</div>}
@@ -144,9 +152,13 @@ export function App() {
     </section>}
     <main key={formKey}>
       <section className="geometry panel"><div className="section-title"><h2>01 / {t.geometry}</h2><span>XY · mm</span></div>
-        <LayoutEditor input={project.input} centre={result?.geometry.centroid_mm} selected={selected} onSelect={setSelected} onChange={segments => edit({ ...project.input, segments })} disabled={busy || pending !== null} t={t}
+        <LayoutEditor input={project.input} centre={result?.geometry.centroid_mm} selected={selected} onSelect={setSelected} onChange={segments => edit({ ...project.input, segments })} disabled={busy || pending !== null || settingsOpen || settingsLoading} t={t} settings={settings}
           onDragStart={() => { dragSnapshot.current = { project, historical }; }}
-          onDragCancel={() => { const original = dragSnapshot.current; if (original) { inputEpoch.current += 1; setProject(original.project); setHistorical(original.historical); } }}
+          onDragCancel={() => { const original = dragSnapshot.current; if (original) { inputEpoch.current += 1; setProject(current => {
+            const input = { ...current.input, segments: original.project.input.segments };
+            const same = JSON.stringify(input) === JSON.stringify(original.project.input);
+            return { ...current, input, last_calculation: same ? original.project.last_calculation : null };
+          }); setHistorical(original.historical); } }}
           onDragFinish={() => { dragSnapshot.current = null; }}/>
 
         <p className="hint">{t.choose}</p>
@@ -186,6 +198,11 @@ export function App() {
     </main>
     <footer>Weld Engineering 0.1.0 <span className={dirty ? 'dirty-state' : ''}>{dirty ? t.dirty : 'Windows · Rust calculation engine'}</span></footer>
     </div>
+    {settingsOpen && <SettingsDialog settings={settings} t={t} onCancel={() => setSettingsOpen(false)} onSave={async value => {
+      setBusy(true);
+      try { await backend.saveEditorSettings(value); setSettings(value); setSettingsWarning(false); setSettingsOpen(false); }
+      finally { setBusy(false); }
+    }}/>}
     {pending && <UnsavedDialog title={t.unsaved} description={t.unsavedDescription} save={t.saveContinue} discard={t.discard} cancel={t.cancel} busy={busy} error={error}
       onSave={() => continuePending(true)} onDiscard={() => continuePending(false)} onCancel={() => { setPending(null); setError(''); }}/>}
   </div>;

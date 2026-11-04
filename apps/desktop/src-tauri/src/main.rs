@@ -8,6 +8,7 @@ use tauri::Manager;
 use weld_application::{
     calculate,
     projects::{Project, ProjectStore, Revision},
+    settings::EditorSettings,
     AppError, CalculationInput, CalculationResult,
 };
 
@@ -46,6 +47,23 @@ fn export_project(project: Project) -> Result<String, AppError> {
     project.to_json()
 }
 
+#[tauri::command]
+fn get_editor_settings(store: tauri::State<'_, Store>) -> Result<EditorSettings, AppError> {
+    store
+        .lock()
+        .map_err(|_| AppError::new("database_error", None))?
+        .editor_settings()
+}
+#[tauri::command]
+fn save_editor_settings(
+    settings: EditorSettings,
+    store: tauri::State<'_, Store>,
+) -> Result<(), AppError> {
+    store
+        .lock()
+        .map_err(|_| AppError::new("database_error", None))?
+        .save_editor_settings(&settings)
+}
 fn main() {
     tauri::Builder::default()
         .setup(|app| {
@@ -86,7 +104,9 @@ fn main() {
             list_projects,
             open_project,
             import_project,
-            export_project
+            export_project,
+            get_editor_settings,
+            save_editor_settings
         ])
         .run(tauri::generate_context!())
         .expect("Failed to run Weld Engineering");

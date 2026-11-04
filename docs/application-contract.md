@@ -25,3 +25,9 @@ Crate `weld-application` не зависит от Tauri/React. `calculate` пр�
 Tauri commands: calculate_joint(input), save_project(project), list_projects(), open_project(id), import_project(text), export_project(project). Они только адаптируют application service. SQLite недоступен frontend напрямую. Нет HTTP-сервера и публичного сетевого сервиса. Документ api-reference.md пока описывает будущий REST, не существующий endpoint.
 
 Project содержит schema_version, title, input и nullable last_calculation. Если результат есть, его input_snapshot обязан совпадать с input; неподдерживаемая версия, неконечные числа и противоречивые статусы/напряжения отклоняются. Проверка структуры не гарантирует подлинность внешнего результата и не является пересчётом.
+
+### Editor settings v1
+
+`get_editor_settings()` и `save_editor_settings(settings)` работают с отдельной строкой `editor_v1` в таблице `application_settings`. Поля: `schema_version=1`, положительные конечные `movement_step_mm`, `grid_step_mm`, `snap_tolerance_px` в диапазоне 1–64, булевы `snap_grid`, `snap_endpoints`, `snap_midpoints`, `snap_axes`. Неверные значения возвращают `invalid_settings`, неизвестные поля отклоняются. Отсутствующая строка даёт значения по умолчанию; повреждённая строка не перезаписывается автоматически.
+
+SQLite `user_version=2`: миграция с v1 добавляет только таблицу настроек, сохраняя исходные документы ревизий. JSON schema проектов остаётся v1. Настройки редактора не входят в расчётный снимок.

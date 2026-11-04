@@ -3,7 +3,7 @@ use crate::{
     validate_input, AppError, CalculationInput, CalculationResult, MAX_DOCUMENT_BYTES,
     SCHEMA_VERSION,
 };
-use rusqlite::{params, Connection};
+use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use std::{
     path::Path,
@@ -113,7 +113,7 @@ impl ProjectStore {
         let version: u32 = connection
             .pragma_query_value(None, "user_version", |row| row.get(0))
             .map_err(db_error)?;
-        if version > 1 {
+        if version > 2 {
             return Err(AppError::new("unsupported_database_schema", None));
         }
         if version == 0 {
@@ -121,7 +121,52 @@ impl ProjectStore {
                 CREATE TABLE project_revisions (id TEXT PRIMARY KEY, title TEXT NOT NULL, saved_at_unix_ms TEXT NOT NULL, document TEXT NOT NULL);
                 PRAGMA user_version = 1; COMMIT;").map_err(db_error)?;
         }
+        if version < 2 {
+            connection
+                .execute_batch(
+                    "BEGIN IMMEDIATE;
+                CREATE TABLE application_settings (name TEXT PRIMARY KEY, document TEXT NOT NULL);
+                PRAGMA user_version = 2; COMMIT;",
+                )
+                .map_err(db_error)?;
+        }
         Ok(Self { connection })
+    }
+    pub fn editor_settings(&self) -> Result<crate::settings::EditorSettings, AppError> {
+        let text: Option<String> = self
+            .connection
+            .query_row(
+                "SELECT document FROM application_settings WHERE name='editor_v1'",
+                [],
+                |row| row.get(0),
+            )
+            .optional()
+            .map_err(db_error)?;
+        match text {
+            None => Ok(crate::settings::EditorSettings::default()),
+            Some(text) => {
+                let settings: crate::settings::EditorSettings = serde_json::from_str(&text)
+                    .map_err(|_| AppError::new("invalid_settings", None))?;
+                settings.validate()?;
+                Ok(settings)
+            }
+        }
+    }
+    pub fn save_editor_settings(
+        &self,
+        settings: &crate::settings::EditorSettings,
+    ) -> Result<(), AppError> {
+        settings.validate()?;
+        let text =
+            serde_json::to_string(settings).map_err(|_| AppError::new("invalid_settings", None))?;
+        self.connection
+            .execute(
+                "INSERT INTO application_settings(name, document) VALUES ('editor_v1', ?1)
+            ON CONFLICT(name) DO UPDATE SET document=excluded.document",
+                [text],
+            )
+            .map_err(db_error)?;
+        Ok(())
     }
     pub fn save(&self, project: &Project) -> Result<String, AppError> {
         let text = project.to_json()?;
