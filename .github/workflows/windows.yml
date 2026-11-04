@@ -48,6 +48,8 @@ jobs:
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
       - run: npm run build
+      - name: Check Windows development profile used by start.bat
+        run: cargo check --locked -p weld-desktop
       - name: Build Windows desktop executable
         run: npm run tauri build -- --no-bundle --ci
       - uses: actions/cache/save@v4
