@@ -46,8 +46,14 @@ function Read-Field([string]$Name) {
 }
 function Click-Name([string]$Name) {
     $element = Wait-Until { Find-Name $Name } "control $Name"
-    $pattern = $element.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern)
-    $pattern.Invoke()
+    $pattern = $null
+    if ($element.TryGetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern, [ref]$pattern)) {
+        $pattern.Invoke()
+    } elseif ($element.TryGetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern, [ref]$pattern)) {
+        $pattern.Toggle()
+    } else {
+        throw "Control '$Name' supports neither Invoke nor Toggle"
+    }
 }
 try {
     $executable = Join-Path $PSScriptRoot '../target/release/weld-desktop.exe'
