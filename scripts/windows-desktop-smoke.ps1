@@ -33,6 +33,17 @@ function Find-Name([string]$Name, [System.Windows.Automation.ControlType]$Type =
     }
     return $script:window.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $condition)
 }
+function Read-Field([string]$Name) {
+    # Opening a modal removes inert content from the accessibility tree. Always
+    # reacquire the current control instead of retaining a disconnected pattern.
+    return Wait-Until {
+        $field = Find-Name $Name ([System.Windows.Automation.ControlType]::Edit)
+        if (-not $field) { return $null }
+        $value = $field.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.Value
+        if ($value -ne '') { return $value }
+        return $null
+    } "current value of $Name"
+}
 function Click-Name([string]$Name) {
     $element = Wait-Until { Find-Name $Name } "control $Name"
     $pattern = $element.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern)
@@ -61,12 +72,10 @@ try {
     [WeldDesktopInput]::mouse_event(0x0002, 0, 0, 0, [UIntPtr]::Zero)
     Start-Sleep -Milliseconds 100
     $null = [WeldDesktopInput]::SetCursorPos($x + 30, $y - 20)
-    $coordinate = Wait-Until { Find-Name 'S1 X1' } 'numeric coordinate field'
-    $valuePattern = $coordinate.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern)
-    $null = Wait-Until { $valuePattern.Current.Value -ne '-50' } 'mouse drag updates engineering input'
+    $null = Wait-Until { (Read-Field 'S1 X1') -ne '-50' } 'mouse drag updates engineering input'
     [WeldDesktopInput]::keybd_event(0x1B, 0, 0, [UIntPtr]::Zero)
     [WeldDesktopInput]::keybd_event(0x1B, 0, 2, [UIntPtr]::Zero)
-    $null = Wait-Until { $valuePattern.Current.Value -eq '-50' } 'Escape restores drag input'
+    $null = Wait-Until { (Read-Field 'S1 X1') -eq '-50' } 'Escape restores drag input'
     [WeldDesktopInput]::mouse_event(0x0004, 0, 0, 0, [UIntPtr]::Zero)
 
     $endpointBounds = (Find-Name 'S1 Начало').Current.BoundingRectangle
@@ -76,23 +85,22 @@ try {
     [WeldDesktopInput]::mouse_event(0x0002, 0, 0, 0, [UIntPtr]::Zero)
     Start-Sleep -Milliseconds 100
     $null = [WeldDesktopInput]::SetCursorPos($x + 20, $y)
-    $null = Wait-Until { $valuePattern.Current.Value -ne '-50' } 'second drag updates engineering input'
+    $null = Wait-Until { (Read-Field 'S1 X1') -ne '-50' } 'second drag updates engineering input'
     [WeldDesktopInput]::mouse_event(0x0004, 0, 0, 0, [UIntPtr]::Zero)
     Click-Name 'Настройки приложения'
     $step = Wait-Until { Find-Name 'Шаг перемещения, mm' ([System.Windows.Automation.ControlType]::Edit) } 'movement step setting'
     $step.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue('5')
     Click-Name 'Сохранить настройки'
     $null = Wait-Until { $control = Find-Name 'Настройки приложения' ([System.Windows.Automation.ControlType]::Button); $control -and $control.Current.IsEnabled } 'settings saved'
-    $before = [double]::Parse($valuePattern.Current.Value, [Globalization.CultureInfo]::InvariantCulture)
+    $before = [double]::Parse((Read-Field 'S1 X1'), [Globalization.CultureInfo]::InvariantCulture)
     $whole = Find-Name 'Переместить шов S1'
     $whole.SetFocus()
     [WeldDesktopInput]::keybd_event(0x27, 0, 0, [UIntPtr]::Zero)
     [WeldDesktopInput]::keybd_event(0x27, 0, 2, [UIntPtr]::Zero)
-    $null = Wait-Until { [double]::Parse($valuePattern.Current.Value, [Globalization.CultureInfo]::InvariantCulture) -eq ($before + 5) } 'configured whole-weld keyboard step'
-    $endValue = (Find-Name 'S1 X2').GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern)
-    if ($endValue.Current.Value -ne '55') { throw 'Whole weld did not move both endpoints together' }
-    $before = [double]::Parse($valuePattern.Current.Value, [Globalization.CultureInfo]::InvariantCulture)
-    $beforeEnd = [double]::Parse($endValue.Current.Value, [Globalization.CultureInfo]::InvariantCulture)
+    $null = Wait-Until { [double]::Parse((Read-Field 'S1 X1'), [Globalization.CultureInfo]::InvariantCulture) -eq ($before + 5) } 'configured whole-weld keyboard step'
+    if ((Read-Field 'S1 X2') -ne '55') { throw 'Whole weld did not move both endpoints together' }
+    $before = [double]::Parse((Read-Field 'S1 X1'), [Globalization.CultureInfo]::InvariantCulture)
+    $beforeEnd = [double]::Parse((Read-Field 'S1 X2'), [Globalization.CultureInfo]::InvariantCulture)
     $lineBounds = (Find-Name 'Переместить шов S1').Current.BoundingRectangle
     $lineX = [int]($lineBounds.X + $lineBounds.Width / 2)
     $lineY = [int]($lineBounds.Y + $lineBounds.Height / 2)
@@ -100,10 +108,10 @@ try {
     [WeldDesktopInput]::mouse_event(0x0002, 0, 0, 0, [UIntPtr]::Zero)
     Start-Sleep -Milliseconds 100
     $null = [WeldDesktopInput]::SetCursorPos($lineX + 30, $lineY - 20)
-    $null = Wait-Until { [double]::Parse($valuePattern.Current.Value, [Globalization.CultureInfo]::InvariantCulture) -ne $before } 'whole-weld mouse translation'
+    $null = Wait-Until { [double]::Parse((Read-Field 'S1 X1'), [Globalization.CultureInfo]::InvariantCulture) -ne $before } 'whole-weld mouse translation'
     [WeldDesktopInput]::mouse_event(0x0004, 0, 0, 0, [UIntPtr]::Zero)
-    $movedStart = [double]::Parse($valuePattern.Current.Value, [Globalization.CultureInfo]::InvariantCulture)
-    $movedEnd = [double]::Parse($endValue.Current.Value, [Globalization.CultureInfo]::InvariantCulture)
+    $movedStart = [double]::Parse((Read-Field 'S1 X1'), [Globalization.CultureInfo]::InvariantCulture)
+    $movedEnd = [double]::Parse((Read-Field 'S1 X2'), [Globalization.CultureInfo]::InvariantCulture)
     if ([Math]::Abs(($movedStart - $before) - ($movedEnd - $beforeEnd)) -gt 1e-9) { throw 'Mouse translation changed the weld vector' }
     Click-Name 'Рассчитать'
     $null = Wait-Until { Find-Name 'Номинальные компоненты F/A' } 'real Rust calculation result in WebView'
