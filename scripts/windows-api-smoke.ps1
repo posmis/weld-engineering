@@ -5,11 +5,12 @@ $exe = Join-Path $PSScriptRoot '../target/release/weld-api.exe'
 $process = Start-Process -FilePath $exe -ArgumentList @('--port', "$port") -PassThru -RedirectStandardOutput (Join-Path $PSScriptRoot '../target/api-smoke-stdout.txt') -RedirectStandardError (Join-Path $PSScriptRoot '../target/api-smoke-stderr.txt')
 try {
     $deadline = [DateTime]::UtcNow.AddSeconds(30)
-    while (-not (Test-Path $tokenPath)) {
-        if ($process.HasExited -or [DateTime]::UtcNow -gt $deadline) { throw 'API startup failed before creating its token file' }
-        Start-Sleep -Milliseconds 100
+    $token = ''
+    while ($token.Length -ne 32) {
+        if ($process.HasExited -or [DateTime]::UtcNow -gt $deadline) { throw 'API startup failed before publishing its token file' }
+        try { if (Test-Path $tokenPath) { $token = [System.IO.File]::ReadAllText($tokenPath) } } catch [System.IO.IOException] { $token = '' }
+        if ($token.Length -ne 32) { Start-Sleep -Milliseconds 100 }
     }
-    $token = [System.IO.File]::ReadAllText($tokenPath)
     $headers = @{ Authorization = "Bearer $token" }
     $base = "http://127.0.0.1:$port/api/v1"
     $capabilities = Invoke-RestMethod -Uri "$base/capabilities" -Headers $headers

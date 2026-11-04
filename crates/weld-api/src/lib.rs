@@ -42,18 +42,17 @@ fn same_token(a: &[u8], b: &[u8]) -> bool {
     }
     a.iter().zip(b).fold(0u8, |diff, (x, y)| diff | (x ^ y)) == 0
 }
-fn json_input<T>(value: Result<Json<T>, JsonRejection>) -> Result<T, Response> {
+fn json_input<T>(value: Result<Json<T>, JsonRejection>) -> Result<T, (StatusCode, Json<AppError>)> {
     value.map(|Json(value)| value).map_err(|e| {
-        error(
-            e.status(),
-            if e.status() == StatusCode::PAYLOAD_TOO_LARGE {
-                "document_too_large"
-            } else {
-                "invalid_json"
-            },
-        )
+        let code = if e.status() == StatusCode::PAYLOAD_TOO_LARGE {
+            "document_too_large"
+        } else {
+            "invalid_json"
+        };
+        (e.status(), Json(AppError::new(code, None)))
     })
 }
+
 async fn work<T: Serialize + Send + 'static>(
     state: ApiState,
     action: impl FnOnce() -> Result<T, AppError> + Send + 'static,
@@ -79,7 +78,7 @@ async fn calculate(
 ) -> Response {
     match json_input(input) {
         Ok(input) => work(state, move || weld_application::calculate(&input)).await,
-        Err(e) => e,
+        Err(e) => e.into_response(),
     }
 }
 async fn cases(
@@ -88,7 +87,7 @@ async fn cases(
 ) -> Response {
     match json_input(project) {
         Ok(p) => work(state, move || weld_application::cases::calculate_cases(&p)).await,
-        Err(e) => e,
+        Err(e) => e.into_response(),
     }
 }
 async fn validate(
@@ -103,7 +102,21 @@ async fn validate(
             })
             .await
         }
-        Err(e) => e,
+        Err(e) => e.into_response(),
+    }
+}
+async fn intermittent(
+    State(state): State<ApiState>,
+    request: Result<Json<weld_application::intermittent::IntermittentInput>, JsonRejection>,
+) -> Response {
+    match json_input(request) {
+        Ok(request) => {
+            work(state, move || {
+                weld_application::intermittent::generate(&request)
+            })
+            .await
+        }
+        Err(e) => e.into_response(),
     }
 }
 async fn capabilities() -> Json<serde_json::Value> {
@@ -122,6 +135,7 @@ pub fn router(token: String) -> Router {
     };
     Router::new()
         .route("/api/v1/calculate", post(calculate))
+        .route("/api/v1/geometry/intermittent", post(intermittent))
         .route("/api/v1/cases/calculate", post(cases))
         .route("/api/v1/projects/validate", post(validate))
         .route("/api/v1/capabilities", get(capabilities))

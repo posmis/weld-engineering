@@ -133,5 +133,11 @@
   "caseUnsupported": "Unsupported",
   "caseComputed": "Computed",
   "pdfReport": "PDF report",
-  "reportSaved": "PDF report saved"
+  "reportSaved": "PDF report saved",
+  "intermittent": "Intermittent weld",
+  "weldLength": "Piece length, mm",
+  "pitch": "Piece pitch, mm",
+  "pieceCount": "Number of pieces",
+  "applyPattern": "Replace selected weld",
+  "patternHelp": "Pieces follow the selected weld from its start. Pitch must exceed length and the last piece must fit. Engineer-supplied dimensions; normative restrictions are not checked."
 }

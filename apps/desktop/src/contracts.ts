@@ -29,3 +29,5 @@ export interface CaseBook { schema_version: 1; active_id: string; cases: LoadCas
 export interface GoverningValue { value_mpa: number; case_id: string; segment_index: number; endpoint: string }
 export interface CaseSummary { total: number; computed: number; complete: boolean; normal_min: GoverningValue | null; normal_max: GoverningValue | null; shear_max: GoverningValue | null }
 export interface BatchResult { project: Project; summary: CaseSummary; failures: { case_id: string; error: { code: string; field: string | null } }[] }
+
+export interface IntermittentInput { input: CalculationInput; segment_index: number; weld_length_mm: number; pitch_mm: number; count: number }

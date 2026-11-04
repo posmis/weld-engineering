@@ -9,6 +9,7 @@
 | Метод | Маршрут | Назначение |
 |---|---|---|
 | GET | /api/v1/capabilities | Методы, ограничения и явно недоступные функции |
+| POST | /api/v1/geometry/intermittent | Явные участки прерывистого шва, без нормативных ограничений |
 | POST | /api/v1/calculate | CalculationInput → CalculationResult |
 | POST | /api/v1/cases/calculate | Project с casebook → BatchResult |
 | POST | /api/v1/projects/validate | Проверить проект/снимки без пересчёта, вернуть проект |

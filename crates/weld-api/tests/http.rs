@@ -91,11 +91,31 @@ fn published_openapi_contains_the_actual_routes_and_no_unimplemented_strength_en
     let spec: serde_json::Value =
         serde_json::from_str(include_str!("../../../docs/openapi.json")).unwrap();
     assert_eq!(spec["openapi"], "3.1.0");
-    assert_eq!(spec["paths"].as_object().unwrap().len(), 5);
+    assert_eq!(spec["paths"].as_object().unwrap().len(), 6);
     assert!(spec["paths"].get("/api/v1/optimize").is_none());
     assert_eq!(
         spec["components"]["schemas"]["CalculationResult"]["properties"]["strength_status"]
             ["const"],
         "unsupported_calculation"
+    );
+}
+
+#[tokio::test]
+async fn intermittent_geometry_is_generated_by_the_shared_service() {
+    let request = request(
+        "/api/v1/geometry/intermittent",
+        serde_json::json!({"input": input(), "segment_index": 0, "weld_length_mm":20, "pitch_mm":40, "count":3}),
+    );
+    let response = weld_api::router("test-token".into())
+        .oneshot(request)
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let value: serde_json::Value =
+        serde_json::from_slice(&response.into_body().collect().await.unwrap().to_bytes()).unwrap();
+    assert_eq!(value["segments"].as_array().unwrap().len(), 3);
+    assert_eq!(
+        value["segments"][2]["end_mm"],
+        serde_json::json!([50.0, 0.0])
     );
 }

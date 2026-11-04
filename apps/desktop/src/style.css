@@ -143,3 +143,6 @@ th, td { padding: 7px 5px; border-bottom: 1px solid var(--line); text-align: lef
 .case-buttons, .case-result-list { display: flex; flex-wrap: wrap; gap: 6px; }
 .case-results { margin-bottom: 8px; }
 .case-results summary { cursor: pointer; padding: 6px 0; font-weight: 600; }
+.intermittent-editor { border-top: 1px solid var(--line); margin-top: 12px; padding-top: 10px; }
+.intermittent-editor summary { cursor: pointer; font-weight: 600; }
+.intermittent-editor label { display: grid; gap: 4px; margin-top: 8px; }

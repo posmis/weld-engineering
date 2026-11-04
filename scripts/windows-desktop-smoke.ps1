@@ -311,6 +311,15 @@ try {
     $null = Wait-Until { Find-Name 'PDF-отчёт сохранён' } 'PDF generated and written by native adapter'
     $reportBytes = [System.IO.File]::ReadAllBytes($reportPath)
     if ($reportBytes.Length -lt 1000 -or [System.Text.Encoding]::ASCII.GetString($reportBytes, 0, 5) -ne '%PDF-') { throw 'Invalid PDF report output' }
+    Activate-Tree 'Шов S1'
+    Click-Name 'Прерывистый шов'
+    Click-Name 'Заменить выбранный шов'
+    $null = Wait-Until { Find-Name 'Шов S4' ([System.Windows.Automation.ControlType]::TreeItem) } 'intermittent pieces replace one continuous segment'
+    $null = Wait-Until { Find-Name 'Задайте геометрию и выполните расчёт.' } 'intermittent edit invalidates active case'
+    Click-Name 'Отменить'
+    $null = Wait-Until { Find-Name 'Номинальное распределение напряжений' } 'undo intermittent edit restores casebook snapshots'
+    if (Find-Name 'Есть несохранённые изменения') { throw 'Undo intermittent geometry failed to restore saved project' }
+
 
 
     $handle = [IntPtr]$script:window.Current.NativeWindowHandle

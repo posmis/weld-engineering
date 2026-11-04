@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ProjectHistory, sameValue, type EditorSnapshot } from './projectHistory';
+import { IntermittentEditor } from './IntermittentEditor';
 import { CaseResults } from './CaseResults';
 import { activateCase, addCase, editInput, maxCases, removeCase, withCalculation } from './loadCases';
 import { backend } from './backend';
@@ -214,7 +215,13 @@ export function App() {
         <div className="dock-title">{t.properties}</div>
         <div className="property-scroll" key={formKey}>
           <section hidden={inspector !== 'weld'} aria-label={t.weldProperties}><WeldProperties segments={project.input.segments} selected={selected} disabled={blocked} t={t}
-            onChange={segments => edit({ ...project.input, segments })} onRemove={() => { edit({ ...project.input, segments: project.input.segments.filter((_, i) => i !== selected) }); selectWeld(Math.max(0, selected - 1)); }}/></section>
+            onChange={segments => edit({ ...project.input, segments })} onRemove={() => { edit({ ...project.input, segments: project.input.segments.filter((_, i) => i !== selected) }); selectWeld(Math.max(0, selected - 1)); }}/>
+            {project.input.segments[selected] && <IntermittentEditor key={selected} disabled={blocked || gestureActive} t={t} onApply={params => run(async () => {
+              ensureFinite(); const epoch = inputEpoch.current;
+              const input = await backend.intermittent({ input: project.input, segment_index: selected, ...params });
+              if (epoch === inputEpoch.current) { history.current.breakGroup(); edit(input); }
+            })}/>}
+          </section>
           <section className="loads" hidden={inspector !== 'loads'} aria-label={t.loads}><div className="property-heading">{t.loads}</div><fieldset disabled={blocked}>
         <div className="case-controls"><label>{t.loadCase}<select value={project.casebook?.active_id ?? ''} onChange={e => changeCase(activateCase(project, e.target.value))}>
           {!project.casebook && <option value="">LC1</option>}{project.casebook?.cases.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}</select></label>

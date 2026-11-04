@@ -44,6 +44,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .open(&path)?;
     file.write_all(token.as_bytes())?;
     file.sync_all()?;
+    drop(file); // Release the Windows write handle before clients read the token.
     let _token_file = TokenFile {
         path: path.clone(),
         token: token.clone(),

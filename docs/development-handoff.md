@@ -81,3 +81,8 @@
 
 
 Продолжение полного плана: [completion-status.md](completion-status.md). Добавлены [локальный REST/OpenAPI](api-reference.md), start-api.bat, C# transport example и расширенный Inventor guide. PDF Windows CI 41899903561 выявил отсутствующие @types/node: исправлены manifest/lockfile. Для чтения локального bundled-шрифта PDF добавлен connect-src self. Полная проверка API/PDF на Windows ожидается.
+
+
+Добавлен [генератор прерывистых швов](intermittent-welds.md) в Rust/GUI/API, отменяемая замена выбранного отрезка. CI d29848b выявил clippy result_large_err в JSON adapter: вместо большого Response в Err теперь компактная status/AppError пара, поведение HTTP сохранено. Следующая общая Windows-проверка ожидается.
+
+Windows native HTTP smoke d29848b выявил удерживаемый write handle token-файла; handle явно закрывается до запуска serve, readiness smoke ждёт полный опубликованный токен. API/desktop release-сборки до этого места прошли, PDF native ещё не достигнут.

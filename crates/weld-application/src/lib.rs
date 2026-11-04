@@ -1,5 +1,6 @@
 //! GUI-independent application boundary. No normative acceptance method is enabled.
 pub mod cases;
+pub mod intermittent;
 pub mod projects;
 pub mod settings;
 

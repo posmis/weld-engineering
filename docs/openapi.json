@@ -619,6 +619,143 @@
           }
         }
       }
+    },
+    "/api/v1/geometry/intermittent": {
+      "post": {
+        "summary": "Replace one straight segment by explicit intermittent pieces; no normative pitch or length restrictions",
+        "responses": {
+          "200": {
+            "description": "Success; computed is not a strength verdict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalculationInput"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or incorrect Bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Browser Origin rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Route not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "408": {
+            "description": "Calculation deadline exceeded; worker remains reserved until it exits",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body exceeds 1 MiB",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Use application/json",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input or unsupported application method; see code/field",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Both calculation workers occupied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal calculation task failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IntermittentInput"
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1269,6 +1406,40 @@
             "items": {
               "type": "string"
             }
+          }
+        }
+      },
+      "IntermittentInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "input",
+          "segment_index",
+          "weld_length_mm",
+          "pitch_mm",
+          "count"
+        ],
+        "properties": {
+          "input": {
+            "$ref": "#/components/schemas/CalculationInput"
+          },
+          "segment_index": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 255
+          },
+          "weld_length_mm": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "pitch_mm": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 256
           }
         }
       }

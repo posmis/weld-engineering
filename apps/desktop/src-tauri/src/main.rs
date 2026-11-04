@@ -25,6 +25,12 @@ fn summarize_load_cases(
     weld_application::cases::summarize_cases(&project)
 }
 
+#[tauri::command]
+fn generate_intermittent(
+    request: weld_application::intermittent::IntermittentInput,
+) -> Result<CalculationInput, AppError> {
+    weld_application::intermittent::generate(&request)
+}
 type Store = Mutex<ProjectStore>;
 #[tauri::command]
 fn calculate_joint(input: CalculationInput) -> Result<CalculationResult, AppError> {
@@ -132,6 +138,7 @@ fn main() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            generate_intermittent,
             save_pdf_report,
             calculate_joint,
             calculate_load_cases,

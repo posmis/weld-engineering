@@ -6,7 +6,7 @@ import { backend } from './backend';
 import { desktopWindow } from './desktopWindow';
 import { newProject, type CalculationResult } from './contracts';
 
-vi.mock('./backend', () => ({ backend: { getEditorSettings: vi.fn(), saveEditorSettings: vi.fn(), calculate: vi.fn(), calculateCases: vi.fn(), summarizeCases: vi.fn(), save: vi.fn(), list: vi.fn(), open: vi.fn(), import: vi.fn(), export: vi.fn() } }));
+vi.mock('./backend', () => ({ backend: { getEditorSettings: vi.fn(), saveEditorSettings: vi.fn(), calculate: vi.fn(), calculateCases: vi.fn(), intermittent: vi.fn(), summarizeCases: vi.fn(), save: vi.fn(), list: vi.fn(), open: vi.fn(), import: vi.fn(), export: vi.fn() } }));
 vi.mock('./desktopWindow', () => ({ desktopWindow: { listenClose: vi.fn(), close: vi.fn() } }));
 beforeEach(() => { vi.mocked(backend.summarizeCases).mockResolvedValue({ total: 2, computed: 0, complete: false, normal_min: null, normal_max: null, shear_max: null }); vi.mocked(backend.getEditorSettings).mockResolvedValue({ ...defaultSettings }); vi.mocked(backend.saveEditorSettings).mockResolvedValue(undefined); vi.mocked(desktopWindow.listenClose).mockResolvedValue(() => {}); vi.mocked(desktopWindow.close).mockResolvedValue(undefined); });
 afterEach(() => { cleanup(); vi.resetAllMocks(); });
@@ -461,4 +461,17 @@ test('independent cases keep their own loads and results; geometry edits invalid
   const saved = vi.mocked(backend.save).mock.calls[0][0];
   expect(saved.casebook?.cases).toHaveLength(2);
   expect(saved.casebook?.cases.every(c => c.last_calculation === null)).toBe(true);
+});
+
+test('intermittent generation delegates to Rust and is one undoable geometry edit', async () => {
+  const input = newProject().input;
+  vi.mocked(backend.intermittent).mockResolvedValue({ ...input, segments: [[-50, -30], [-10, 10], [30, 50]].map(([x1, x2]) => ({ start_mm: [x1, 0], end_mm: [x2, 0], effective_width_mm: 2 })) });
+  await renderApp();
+  fireEvent.click(screen.getByText('Прерывистый шов'));
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Заменить выбранный шов' })); });
+  expect(backend.intermittent).toHaveBeenCalledWith({ input, segment_index: 0, weld_length_mm: 20, pitch_mm: 40, count: 3 });
+  expect(screen.getByRole('treeitem', { name: 'Шов S3' })).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Отменить' }));
+  expect(screen.queryByRole('treeitem', { name: 'Шов S2' })).toBeNull();
+  expect(screen.queryByText('Есть несохранённые изменения')).toBeNull();
 });
