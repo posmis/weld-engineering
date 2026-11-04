@@ -7,3 +7,7 @@ The user explicitly prohibits pushing GOST documents, books, and their copies an
 ## Target and validation
 
 Initial development targets Windows 10/11 x64. The product requirements prohibit implementation and testing for other operating systems during the initial development. Do not report tests as passed unless they actually ran. The existing Windows workflow has not yet been executed.
+
+## Continuing development
+
+Read docs/development-handoff.md and docs/scope-and-acceptance.md before extending functionality. They preserve the full task context, actual implementation status, evidence, planned stages and acceptance requirements. Never treat an unexecuted Windows workflow as a passed check.
