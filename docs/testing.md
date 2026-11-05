@@ -1,17 +1,18 @@
 # Выполненные проверки — 2026-11-05
 
-Проверенные исходники: `0aee020a29165244d994ddb8f7d31df0e9cc05b6`. [Windows run 41997088682 — SUCCESS](https://github.com/posmis/weld-engineering/actions/runs/41997088682). Цель — Windows x64, runner windows-2022. Linux/macOS сборки и испытания приложения не выполнялись.
+Проверенные исходники: `5ff05677bdd277ead840aaea0c9c78f368a2d6c2`. [Windows run 42005026652 — SUCCESS](https://github.com/posmis/weld-engineering/actions/runs/42005026652). Цель — Windows x64, runner windows-2022. Linux/macOS сборки и испытания приложения не выполнялись.
 
-- Rust fmt/Clippy: пройдены. 55 тест core/application/API, 0 failed; harness с нулём тестов не включены в сумму.
+- Rust fmt/Clippy: пройдены. 56 тест core/application/API, 0 failed; harness с нулём тестов не включены в сумму.
 - Frontend: 61 тест в каждом из трёх свежих процессов. Покрыты генератор групп, устаревший preview, незаполненная нагрузка, сохранность всех случаев и Undo; карта/знаки/ноль/экстремальный диапазон/устаревший снимок, масштаб, перенос и отмена, casebook, debounce и поздние ответы. IPC в unit-тестах подменяется; это не native integration.
 - TypeScript/Vite, Windows dev-check и release EXE: пройдены.
 - NSIS current-user installer: построен и установлен в изолированную директорию CI. Hash установленного EXE совпал с исходным после точной штатной замены Tauri bundle marker UNK→NSS; остальные байты проверяются полностью.
+- Настройки: show_grid сохраняется независимо от snap_grid, старый JSON без show_grid читается без сброса прочих полей. Нативный restart подтвердил видимую сетку при выключенной привязке. Границы осей находятся выше HUD и внутри viewport при открытом/закрытом dock.
 - Настоящее установленное окно: дерево/свойства, ввод/перенос/привязки/Undo/zoom/pan, сохранение и перезапуск SQLite, независимые случаи и прерывистые швы. Проверены σz/τy, слой F/M, сохранность проекта при выборе вида и refit после скрытия результатов. Новый сценарий прошёл отмену preview нативным закрытием, применение прямоугольника, сохранность нагрузок, расчёт 2/2 и восстановление прежней геометрии/результатов одним Undo.
 - Нативное сохранение PDF по выбранному пути и независимый pypdf: две страницы, кириллица, математические знаки, оба исходных JSON-снимка и OFL-лицензия шрифта.
 - Реальный API-процесс: loopback only, авторизация, аналитический ответ, OpenAPI schemas через Test-Json и настоящий запрос собранного C# client; новый маршрут генерации группы с последующим расчётом и проверкой A/C.
 - Uninstall: EXE удалён, SQLite-проекты сохранены.
 
-Снимки новой итерации просмотрены визуально: [карта](screenshots/viewport-contour.png), [нагрузка](screenshots/viewport-loads.png), [предпросмотр группы](screenshots/geometry-template.png). [Артефакт с установщиком/EXE](https://github.com/posmis/weld-engineering/actions/runs/41997088682/artifacts/13401485104), retention 7 дней. Нормативные публикации/книги не использовались в CI и не входят в artifacts.
+Снимки исправления перекрытия просмотрены визуально: [сетка и оси](screenshots/viewport-corner-grid.png), [открытая панель результатов](screenshots/viewport-corner-results.png). Предыдущие снимки: [карта](screenshots/viewport-contour.png), [нагрузка](screenshots/viewport-loads.png), [предпросмотр группы](screenshots/geometry-template.png). [Артефакт с установщиком/EXE](https://github.com/posmis/weld-engineering/actions/runs/42005026652/artifacts/13403389475), retention 7 дней. Нормативные публикации/книги не использовались в CI и не входят в artifacts.
 
 Не приняты: независимая инженерная валидация, нормативные методы/материалы/подбор, fatigue/pressure/quality/laser, отдельные пользовательские Windows 10/11 машины, подпись и автообновление, все произвольные пользовательские сценарии. Технический успех CI не равен нормативному pass. [Ограничения](limitations.md), [полный план](completion-status.md).
 
