@@ -36,7 +36,7 @@ export function newProject(): Project {
 export interface SourceLoad {forces?:AppliedForce[];force_n:Vec3;couple_n_mm:Vec3;application:CalculationInput['application']}
 export interface CombinationSource {case_id:string;title:string;factor:number;load:SourceLoad}
 export interface LoadCombination {method_id:'user-linear-load-combination-v1';sources:CombinationSource[]}
-export interface CombinationRequest {schema_version:1;project:Project;title:string;terms:{case_id:string;factor:number}[]}
+export interface CombinationRequest {replace_case_id?:string;schema_version:1;project:Project;title:string;terms:{case_id:string;factor:number}[]}
 export interface LoadCase { combination?:LoadCombination; forces?: AppliedForce[]; id: string; title: string; force_n: Vec3; couple_n_mm: Vec3; application: CalculationInput['application']; last_calculation: CalculationResult | null }
 export interface CaseBook { schema_version: 1; active_id: string; cases: LoadCase[] }
 export interface GoverningValue { value_mpa: number; case_id: string; segment_index: number; endpoint: string }

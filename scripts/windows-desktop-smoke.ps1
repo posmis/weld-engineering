@@ -735,6 +735,71 @@ try {
     if (-not [string]::Equals($actualPath, $reportPath, [StringComparison]::OrdinalIgnoreCase)) { throw "Native save chose '$actualPath' instead of '$reportPath'" }
     $reportBytes = [System.IO.File]::ReadAllBytes($reportPath)
     if ($reportBytes.Length -lt 1000 -or [System.Text.Encoding]::ASCII.GetString($reportBytes, 0, 5) -ne '%PDF-') { throw 'Invalid PDF report output' }
+    Click-Name 'Коэффициенты сочетания'
+    if ((Read-Field 'Коэффициент LC1') -ne '1.25' -or (Read-Field 'Коэффициент LC2') -ne '-0.5') { throw 'Coefficient editor did not restore saved factors' }
+    Set-Field 'Коэффициент LC1' '2'; Set-Field 'Коэффициент LC2' '-0.25'
+    Click-Name 'Применить коэффициенты'
+    $null=Wait-Until { (Read-Field 'force_n z') -eq '1200' -and (Find-Name 'Есть несохранённые изменения') } 'edit replaces existing combination loads'
+    Click-Name 'Отменить'
+    $null=Wait-Until { (Read-Field 'force_n z') -eq '750' -and -not (Find-Name 'Есть несохранённые изменения') } 'one Undo restores original saved factors and results'
+    Click-Name 'Повторить'
+    $null=Wait-Until { (Read-Field 'force_n z') -eq '1200' -and (Find-Name 'Есть несохранённые изменения') } 'Redo restores edited combination'
+    Click-Name 'Рассчитать все'
+    $null=Wait-Until { Find-Name 'Сводка случаев · 3/3 — Все случаи рассчитаны' } 'coefficient edit keeps three cases instead of appending a fourth'
+    Click-Name 'Сохранить ревизию'
+    $null=Wait-Until { Find-Name 'Ревизия сохранена' } 'edited combination saved to SQLite'
+    Save-Preview 'windows-combination-edit-smoke.png'
+    $handle = [IntPtr]$script:window.Current.NativeWindowHandle
+    $null = [WeldDesktopInput]::PostMessage($handle, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero)
+    if (-not $process.WaitForExit(10000)) { throw 'Edited combination application did not close cleanly' }
+    $process = Start-Process -FilePath $executable -PassThru
+    $script:window = Wait-Until {
+        $condition = [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $process.Id)
+        [System.Windows.Automation.AutomationElement]::RootElement.FindFirst([System.Windows.Automation.TreeScope]::Children, $condition)
+    } 'edited combination process restart'
+    $null = Wait-Until { $control=Find-Name 'Настройки приложения' ([System.Windows.Automation.ControlType]::Button);$control -and $control.Current.IsEnabled } 'settings loaded after coefficient edit restart'
+    Open-LatestRevision
+    Activate-Tree 'Нагрузки'
+    if ((Read-Field 'force_n z') -ne '1200') { throw 'Edited load did not survive restart' }
+    Click-Name 'Коэффициенты сочетания'
+    if ((Read-Field 'Коэффициент LC1') -ne '2' -or (Read-Field 'Коэффициент LC2') -ne '-0.25') { throw 'Edited factors did not survive restart' }
+    Click-Name 'Отмена'
+    Click-Name 'Отчёт PDF'
+    $dialog = Wait-Until {
+        [System.Windows.Automation.AutomationElement]::RootElement.FindFirst(
+            [System.Windows.Automation.TreeScope]::Children,
+            [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::NameProperty, 'Weld Engineering — PDF'))
+    } 'native PDF save dialog'
+    $filenameCondition = [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::AutomationIdProperty, '1001')
+    $filename = $dialog.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $filenameCondition)
+    if (-not $filename) { throw 'Native PDF filename input not found' }
+    $reportPath = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../target/weld-combination-edit-report-smoke.pdf'))
+    $filename.SetFocus()
+    # The shell dialog requires actual editing keystrokes, not only UIA SetValue.
+    Set-Clipboard -Value $reportPath
+    [WeldDesktopInput]::keybd_event(0x11, 0, 0, [UIntPtr]::Zero)
+    Key-Press 0x41
+    Key-Press 0x56
+    [WeldDesktopInput]::keybd_event(0x11, 0, 2, [UIntPtr]::Zero)
+    $null = Wait-Until { $filename.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.Value -eq $reportPath } 'native filename entered by keyboard'
+    Key-Press 0x09
+    $saveCondition = [System.Windows.Automation.AndCondition]::new(
+        [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::AutomationIdProperty, '1'),
+        [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Button))
+    $save = $dialog.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $saveCondition)
+    $save.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    $pdfPrefix = 'PDF-отчёт сохранён: '
+    $pdfStatus = Wait-Until {
+        $texts = $script:window.FindAll([System.Windows.Automation.TreeScope]::Descendants,
+            [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Text))
+        foreach ($text in $texts) { if ($text.Current.Name.StartsWith($pdfPrefix)) { return $text.Current.Name } }
+        return $null
+    } 'PDF generated and written by native adapter'
+    $actualPath = $pdfStatus.Substring($pdfPrefix.Length)
+    Write-Output "Synthetic report saved at: $actualPath"
+    if (-not [string]::Equals($actualPath, $reportPath, [StringComparison]::OrdinalIgnoreCase)) { throw "Native save chose '$actualPath' instead of '$reportPath'" }
+    $reportBytes = [System.IO.File]::ReadAllBytes($reportPath)
+    if ($reportBytes.Length -lt 1000 -or [System.Text.Encoding]::ASCII.GetString($reportBytes, 0, 5) -ne '%PDF-') { throw 'Invalid PDF report output' }
     $handle = [IntPtr]$script:window.Current.NativeWindowHandle
     $null = [WeldDesktopInput]::PostMessage($handle, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero)
     if (-not $process.WaitForExit(10000)) { throw 'Restarted desktop did not close cleanly' }

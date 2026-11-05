@@ -84,6 +84,15 @@ try {
     $combResult=Invoke-RestMethod -Method Post -Uri "$base/calculate" -Headers $headers -ContentType 'application/json' -Body ($combination.input | ConvertTo-Json -Depth 100)
     Assert-Contract 'CalculationResult' ($combResult | ConvertTo-Json -Depth 100)
     if ($combination.casebook.cases.Count -ne 3 -or $combResult.traction_mpa[2] -ne 9 -or $combResult.strength_status -ne 'unsupported_calculation') { throw 'Explicit combination 2*600 - 3*(-200) did not produce 9 MPa at A=200' }
+    $editProject=$combination | ConvertTo-Json -Depth 100 | ConvertFrom-Json -AsHashtable
+    $editProject.casebook.cases[0].force_n=@(0,0,999)
+    $editJson=@{schema_version=1;project=$editProject;replace_case_id=$combination.casebook.active_id;title='Edited';terms=@(@{case_id='B';factor=-1},@{case_id='A';factor=1})} | ConvertTo-Json -Depth 100
+    Assert-Contract 'CombinationRequest' $editJson
+    $edited=Invoke-RestMethod -Method Post -Uri "$base/cases/combine" -Headers $headers -ContentType 'application/json' -Body $editJson
+    Assert-Contract 'Project' ($edited | ConvertTo-Json -Depth 100)
+    $editResult=Invoke-RestMethod -Method Post -Uri "$base/calculate" -Headers $headers -ContentType 'application/json' -Body ($edited.input | ConvertTo-Json -Depth 100)
+    Assert-Contract 'CalculationResult' ($editResult | ConvertTo-Json -Depth 100)
+    if ($edited.casebook.cases.Count -ne 3 -or $edited.casebook.active_id -ne $combination.casebook.active_id -or $editResult.traction_mpa[2] -ne 4 -or $edited.casebook.cases[2].combination.sources[0].load.force_n[2] -ne 600) { throw 'Combination edit reread live 999 N instead of frozen 600 N, or changed case identity/count' }
     $massJson='{"schema_version":1,"model":{"mass_kg":10,"gravity_m_s2":[0,0,-10],"acceleration_m_s2":[2,0,0]}}'
     Assert-Contract 'MassLoadRequest' $massJson
     $mass=Invoke-RestMethod -Method Post -Uri "$base/loads/mass" -Headers $headers -ContentType 'application/json' -Body $massJson

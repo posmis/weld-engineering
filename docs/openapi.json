@@ -1307,7 +1307,7 @@
     },
     "/api/v1/cases/combine": {
       "post": {
-        "summary": "Create and activate a frozen user load combination as a new independent case",
+        "summary": "Create a frozen user combination, or replace factors of an existing combination using its stored sources",
         "responses": {
           "200": {
             "description": "Success; computed is not a strength verdict",
@@ -2724,6 +2724,12 @@
             "items": {
               "$ref": "#/components/schemas/CombinationTerm"
             }
+          },
+          "replace_case_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Optional existing combination ID. Replaces factors/title from its frozen sources; terms must name every stored source exactly once. Other cases/results are retained. Does not read live source loads."
           }
         }
       }

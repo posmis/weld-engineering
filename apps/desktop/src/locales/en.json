@@ -238,5 +238,8 @@
   "combinationFactor": "Factor",
   "createCombination": "Create combination",
   "combinationAssumption": "New case = sum of source loads with explicit user factors. Initial ones are editable examples, not normative values. Zero excludes a case; negative factors reverse its loads. Application points and source snapshots are preserved. This frozen case does not update when source cases change. Nested combinations are excluded.",
-  "combinationSnapshot": "Frozen user load combination. Editing loads converts it to an ordinary case; Undo restores the combination. Source cases and factors are listed in the report."
+  "combinationSnapshot": "Frozen user load combination. Editing loads converts it to an ordinary case; Undo restores the combination. Source cases and factors are listed in the report.",
+  "editCombination": "Combination factors",
+  "applyCombination": "Apply factors",
+  "combinationEditAssumption": "Edit factors of the saved combination using frozen source loads, even if live source cases changed or were deleted. Case count and combination ID are retained; its result is cleared. Zero excludes a contribution. Create a new combination to use a different set of source cases."
 }

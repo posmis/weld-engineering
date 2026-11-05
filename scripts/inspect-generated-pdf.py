@@ -60,3 +60,23 @@ assert active["last_calculation"]["input_snapshot"] == comb_project["input"]
 assert active["last_calculation"]["resultant_force_n"] == [10.0, 0.0, 650.0]
 assert active["last_calculation"]["strength_status"] == "unsupported_calculation"
 print("PASS: independent PDF parser reads explicit factors, frozen mass source, factored point loads and the actual combination result snapshot.")
+
+edit_reader = PdfReader(path.with_name("weld-combination-edit-report-smoke.pdf"))
+edit_text = "\n".join(page.extract_text() or "" for page in edit_reader.pages)
+assert "user-linear-load-combination-v1" in edit_text
+assert "коэффициент 2" in edit_text and "коэффициент -0.25" in edit_text
+assert "?" not in edit_text
+edit_project = json.loads(edit_reader.attachments["weld-project.json"][0])
+assert len(edit_project["casebook"]["cases"]) == 3
+assert edit_project["casebook"]["active_id"] == comb_project["casebook"]["active_id"]
+edit_case = next(c for c in edit_project["casebook"]["cases"] if c["id"] == edit_project["casebook"]["active_id"])
+edit_sources = edit_case["combination"]["sources"]
+assert [s["factor"] for s in edit_sources] == [2.0,-0.25]
+assert [s["load"] for s in edit_sources] == [s["load"] for s in sources]
+assert [s["case_id"] for s in edit_sources] == [s["case_id"] for s in sources]
+assert [f["force_n"][2] for f in edit_case["forces"]] == [1200.0,25.0,-75.0]
+assert edit_case["last_calculation"]["resultant_force_n"] == [5.0,0.0,1150.0]
+assert edit_case["last_calculation"]["input_snapshot"] == edit_project["input"]
+assert edit_case["last_calculation"]["strength_status"] == "unsupported_calculation"
+assert edit_project["casebook"]["cases"][:2] == comb_project["casebook"]["cases"][:2]
+print("PASS: edited combination keeps its ID/case count/frozen sources and original cases, and PDF contains new factors and the actual 1150 N result.")

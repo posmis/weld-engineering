@@ -50,3 +50,5 @@ API URL v1 и schema_version=1 описывают именно опублико�
 POST `/api/v1/loads/mass`: `MassLoadRequest` → `MassLoadResult`, общие авторизация/лимиты/ошибки. [Модель, SI-единицы и направление силы на крепление](mass-acceleration-loads.md).
 
 POST `/api/v1/cases/combine`: `CombinationRequest` → `Project`, новый активный случай из замороженных исходных нагрузок. Общие авторизация/лимиты/ошибки; [метод и контракт](user-load-combinations.md).
+
+POST cases/combine принимает optional replace_case_id: обновление коэффициентов существующего сочетания из frozen sources, с прежними авторизацией/лимитами. [Подробности](edit-combination-factors.md).

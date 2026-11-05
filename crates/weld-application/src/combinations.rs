@@ -44,6 +44,8 @@ pub struct CombinationTerm {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CombinationRequest {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub replace_case_id: Option<String>,
     pub schema_version: u32,
     pub project: Project,
     pub title: String,
@@ -173,30 +175,66 @@ pub fn create(request: &CombinationRequest) -> Result<Project, AppError> {
         return Err(invalid());
     }
     let book = request.project.casebook.as_ref().ok_or_else(invalid)?;
-    if book.cases.len() >= MAX_CASES {
+    let replace_index = match &request.replace_case_id {
+        Some(id) => Some(
+            book.cases
+                .iter()
+                .position(|c| &c.id == id && c.combination.is_some())
+                .ok_or_else(invalid)?,
+        ),
+        None => None,
+    };
+    if replace_index.is_none() && book.cases.len() >= MAX_CASES {
         return Err(invalid());
     }
     let mut sources = Vec::new();
-    for term in &request.terms {
-        let case = book
-            .cases
-            .iter()
-            .find(|c| c.id == term.case_id)
-            .ok_or_else(invalid)?;
-        if case.combination.is_some() {
+    if let Some(index) = replace_index {
+        let original = book.cases[index]
+            .combination
+            .as_ref()
+            .expect("validated combination");
+        if request.terms.len() != original.sources.len() {
             return Err(invalid());
         }
-        sources.push(CombinationSource {
-            case_id: case.id.clone(),
-            title: case.title.clone(),
-            factor: term.factor,
-            load: SourceLoad {
-                forces: case.forces.clone(),
-                force_n: case.force_n,
-                couple_n_mm: case.couple_n_mm,
-                application: case.application.clone(),
-            },
-        });
+        let mut ids = HashSet::new();
+        if request.terms.iter().any(|t| !ids.insert(&t.case_id)) {
+            return Err(invalid());
+        }
+        // Frozen loads, source names and ordering are immutable. Live cases may
+        // have changed or been removed since creation; never read them here.
+        for source in &original.sources {
+            let term = request
+                .terms
+                .iter()
+                .find(|t| t.case_id == source.case_id)
+                .ok_or_else(invalid)?;
+            sources.push(CombinationSource {
+                factor: term.factor,
+                ..source.clone()
+            });
+        }
+    } else {
+        for term in &request.terms {
+            let case = book
+                .cases
+                .iter()
+                .find(|c| c.id == term.case_id)
+                .ok_or_else(invalid)?;
+            if case.combination.is_some() {
+                return Err(invalid());
+            }
+            sources.push(CombinationSource {
+                case_id: case.id.clone(),
+                title: case.title.clone(),
+                factor: term.factor,
+                load: SourceLoad {
+                    forces: case.forces.clone(),
+                    force_n: case.force_n,
+                    couple_n_mm: case.couple_n_mm,
+                    application: case.application.clone(),
+                },
+            });
+        }
     }
     let model = LoadCombination {
         method_id: CombinationMethod::UserLinearLoadCombinationV1,
@@ -204,7 +242,9 @@ pub fn create(request: &CombinationRequest) -> Result<Project, AppError> {
     };
     let (forces, couple) = loads(&model, &request.project)?;
     let mut result = request.project.clone();
-    let id = uuid::Uuid::new_v4().to_string();
+    let id = replace_index
+        .map(|i| book.cases[i].id.clone())
+        .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
     let case = LoadCase {
         combination: Some(model),
         forces: Some(forces),
@@ -219,7 +259,11 @@ pub fn create(request: &CombinationRequest) -> Result<Project, AppError> {
     result.last_calculation = None;
     let book = result.casebook.as_mut().expect("validated casebook");
     book.active_id = id;
-    book.cases.push(case);
+    if let Some(index) = replace_index {
+        book.cases[index] = case;
+    } else {
+        book.cases.push(case);
+    }
     result.validate()?;
     // The caller must be able to serialize and save the whole audit trail.
     result.to_json()?;
