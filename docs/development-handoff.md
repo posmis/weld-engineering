@@ -103,3 +103,5 @@ Windows run 41905263645 / 17e0205 — полный success: 51 Rust/API, 44 fron
 
 
 2026-11-05: восстановлена доступная среда, main ab54f56 чистый; повторно подтверждён Windows run 41907826120 — success, включая installer/uninstall/SQLite. Следующая итерация [viewport-results.md](viewport-results.md): нагрузки/правые знаки Fz/Mz, карты σz/τx/τy на реальных швах, симметричная шкала, защита от stale snapshot, view-only слой и вписывание точки P. CaseResults больше не отправляет запрос на каждый pointermove без снимков, используется debounce 250 ms. Windows CI этой итерации ещё ожидается; Linux builds/tests не выполнялись.
+
+Windows run 41984279966 / 4c8c2e5: сборки/core/frontend прошли, native карта σz видна в собственном screenshot; UIA ожидал целую подпись, React разделил компоненту и единицы на два Text-узла. Легенда теперь отдаёт цельные строки, dropdown явно закрывается Escape, HUD компактный с научной нотацией и смещённой подписью Mz. Повторная Windows-проверка ожидается.

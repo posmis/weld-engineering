@@ -296,11 +296,11 @@ try {
     $mode = Find-Name 'Вид' ([System.Windows.Automation.ControlType]::ComboBox)
     if (-not $mode) { throw 'Contour view selector is unavailable' }
     $mode.SetFocus(); Key-Press 0x24
-    1..3 | ForEach-Object { Key-Press 0x28 }; Key-Press 0x0D
+    1..3 | ForEach-Object { Key-Press 0x28 }; Key-Press 0x0D; Key-Press 0x1B
     $null = Wait-Until { Find-Name 'Шкала номинальных напряжений' } 'nominal stress contour displayed on the actual weld layout'
     $null = Wait-Until { Find-Name 'σz · MPa' ([System.Windows.Automation.ControlType]::Text) } 'signed normal component selected'
     if (Find-Name 'Есть несохранённые изменения') { throw 'Changing contour view modified the saved project' }
-    $mode.SetFocus(); Key-Press 0x24; Key-Press 0x28; Key-Press 0x28; Key-Press 0x0D
+    $mode.SetFocus(); Key-Press 0x24; Key-Press 0x28; Key-Press 0x28; Key-Press 0x0D; Key-Press 0x1B
     $null = Wait-Until { Find-Name 'τy · MPa' ([System.Windows.Automation.ControlType]::Text) } 'shear component shown with its own scale'
     Click-Name 'Скрыть результаты'
     Save-Preview 'windows-contour-smoke.png'
@@ -308,7 +308,7 @@ try {
     if (Find-Name 'Заданные нагрузки на схеме') { throw 'Load layer did not hide' }
     Click-Name 'F / M'
     $null = Wait-Until { Find-Name 'Заданные нагрузки на схеме' } 'force and couple readout restored'
-    $mode.SetFocus(); Key-Press 0x24; Key-Press 0x0D
+    $mode.SetFocus(); Key-Press 0x24; Key-Press 0x0D; Key-Press 0x1B
     if (Find-Name 'Шкала номинальных напряжений') { throw 'Geometry mode retained a coloured result overlay' }
     Activate-Tree 'Результаты'
     Click-Name 'Отчёт PDF'

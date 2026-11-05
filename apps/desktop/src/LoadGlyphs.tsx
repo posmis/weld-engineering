@@ -15,7 +15,7 @@ export function LoadGlyphs({ input, anchor }: { input: CalculationInput; anchor:
     </g>}
     {Number.isFinite(mz) && mz !== 0 && <g className="moment-glyph" data-load-glyph={mz > 0 ? 'Mz+' : 'Mz-'}>
       <path d={`M${x + 26} ${y} A26 26 0 1 ${mz > 0 ? 0 : 1} ${x - 26} ${y}`}/>
-      <path className="load-arrowhead" d={`M${x - 26} ${y} L${x - 31} ${y - sign * 9} L${x - 21} ${y - sign * 9} Z`}/><text x={x + 29} y={y + 24}>Mz</text>
+      <path className="load-arrowhead" d={`M${x - 26} ${y} L${x - 31} ${y - sign * 9} L${x - 21} ${y - sign * 9} Z`}/><text x={x + 32} y={y + 10}>Mz</text>
     </g>}
   </g>;
 }
