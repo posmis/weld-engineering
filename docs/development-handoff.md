@@ -1,4 +1,4 @@
-> Новый блок: [пользовательские сочетания](user-load-combinations.md), явные коэффициенты и замороженные исходные силы/P/m/g/a, отдельный случай, Rust/Tauri/REST/SQLite/PDF, Undo/Redo. Windows текущего SHA ожидается. UI-переработка остаётся в самом конце. Нормативные документы не публиковать.
+> Новый блок: [пользовательские сочетания](user-load-combinations.md), явные коэффициенты и замороженные исходные силы/P/m/g/a, отдельный случай, Rust/Tauri/REST/SQLite/PDF, Undo/Redo. Windows run 42092433925 / source 86c040c — SUCCESS: 86 Rust/API, 93 frontend ×3, установленный EXE/SQLite/restart/manual/Undo, независимый PDF/parser/HTTP/OpenAPI/NSIS. [Проверки](testing.md). UI-переработка остаётся в самом конце. Нормативные документы не публиковать.
 
 > Новый блок: [нагрузка массы F=m(g−a)](mass-acceleration-loads.md), Rust/Tauri/REST, исходные m/g/a в силе/случаях/JSON/SQLite/PDF, manual/Undo и защита позднего ответа. Windows run 42087714198 / source 84783dc — SUCCESS: 81 Rust/API, 87 frontend ×3, HTTP/OpenAPI/C#, установленный EXE/restart/manual/Undo и независимый PDF/parser/NSIS/uninstall; [проверки](testing.md). Переработка UI остаётся в самом конце; нормативные документы не публиковать.
 
@@ -179,3 +179,5 @@ Run 42022124314 / 8fa0fe3: Rust/frontend/build/API прошли, native прош
 Итог первой UI-итерации: run 42048805215 / 3363a34 — success. Финальные собственные PNG просмотрены; точные 67/78×3 подтверждены логами. Завершающий коммит — только docs/PNG, без изменения проверенного приложения. Полные стандарты/книги остаются вне Git; релиз/облачная среда не публиковались.
 
 Windows run 42090827409 / e3682f7: 86 Rust/API, 93 frontend ×3, TypeScript/Vite/dev/release/NSIS/HTTP/OpenAPI прошли. Native прошёл отмену диалога нативным close, сочетание/Undo/Redo/расчёт 3/3/SQLite/restart, затем immediate-проверка после UIA SetValue опередила React commit. Снимок сбоя уже показывает Fz=751, исчезнувшую модель и сброшенный результат. Сценарий теперь ожидает одновременно новое Fz, отсутствие модели и dirty; после Undo — Fz=750, модель и чистый сохранённый снимок. Никакая проверка не исключена; повторный Windows run ожидается.
+
+Итог 2026-11-06: run 42092433925 / source 86c040c — SUCCESS, desktop rerun-failed-jobs после белого окна WebView2. На неизменном SHA пройдены 86/93×3 и полный installed/PDF путь; PNG просмотрен. Причина белого старта не установлена.
