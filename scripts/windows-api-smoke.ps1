@@ -33,6 +33,16 @@ try {
     Assert-Contract 'CalculationResult' ($result | ConvertTo-Json -Depth 100)
     Assert-Contract 'Capabilities' ($capabilities | ConvertTo-Json -Depth 100)
     Assert-Contract 'AppError' $unauthorized.Content
+    $templateJson = '{"schema_version":1,"kind":"rectangle","width_mm":100,"height_mm":40,"effective_width_mm":2,"origin_mm":[10,-5]}'
+    $group = Invoke-RestMethod -Method Post -Uri "$base/geometry/template" -Headers $headers -ContentType 'application/json' -Body $templateJson
+    Assert-Contract 'GeometryTemplateRequest' $templateJson
+    Assert-Contract 'GeometryTemplateResult' ($group | ConvertTo-Json -Depth 100)
+    $joint = $inputJson | ConvertFrom-Json
+    $joint.segments = $group.segments
+    $groupResult = Invoke-RestMethod -Method Post -Uri "$base/calculate" -Headers $headers -ContentType 'application/json' -Body ($joint | ConvertTo-Json -Depth 100)
+    Assert-Contract 'CalculationResult' ($groupResult | ConvertTo-Json -Depth 100)
+    if ($groupResult.geometry.area_mm2 -ne 560 -or ($groupResult.geometry.centroid_mm -join ',') -ne '10,-5') { throw 'Generated rectangle differs from the independent perimeter/centroid reference' }
+
     $clientOutput = & dotnet run --no-build --configuration Release --project (Join-Path $PSScriptRoot '../examples/inventor-client/WeldClient.csproj') -- $port
     if ($LASTEXITCODE -ne 0 -or ($clientOutput -join ' ') -notmatch 'unsupported_calculation') { throw 'C# client did not complete a real API calculation' }
 

@@ -361,6 +361,26 @@ try {
     Click-Name 'Отменить'
     $null = Wait-Until { Find-Name 'Номинальное распределение напряжений' } 'undo intermittent edit restores casebook snapshots'
     if (Find-Name 'Есть несохранённые изменения') { throw 'Undo intermittent geometry failed to restore saved project' }
+    Click-Name 'Шаблон группы'
+    $null = Wait-Until { Find-Name 'Предварительный просмотр группы швов' ([System.Windows.Automation.ControlType]::Image) } 'Rust-generated group preview'
+    $handle = [IntPtr]$script:window.Current.NativeWindowHandle
+    $null = [WeldDesktopInput]::PostMessage($handle, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero)
+    $null = Wait-Until { -not (Find-Name 'Предварительный просмотр группы швов' ([System.Windows.Automation.ControlType]::Image)) } 'native close dismisses preview without losing the project'
+    if (Find-Name 'Есть несохранённые изменения') { throw 'Preview changed the saved project before Apply' }
+    Click-Name 'Шаблон группы'
+    $null = Wait-Until { Find-Name 'Предварительный просмотр группы швов' ([System.Windows.Automation.ControlType]::Image) } 'reopened group preview'
+    Save-Preview 'windows-template-smoke.png'
+    Click-Name 'Заменить геометрию'
+    $null = Wait-Until { Find-Name 'Шов S4' ([System.Windows.Automation.ControlType]::TreeItem) } 'rectangle creates four actual weld elements'
+    if ((Read-Field 'force_n z') -ne '-600') { throw 'Template replacement changed the active case load' }
+    $null = Wait-Until { Find-Name 'Сводка случаев · 0/2 — Неполная сводка' } 'template invalidates all existing case results'
+    Click-Name 'Рассчитать все'
+    $null = Wait-Until { Find-Name 'Сводка случаев · 2/2 — Все случаи рассчитаны' } 'generated rectangle reaches the real Rust batch calculation'
+    Click-Name 'Отменить'
+    $null = Wait-Until { Find-Name 'Номинальное распределение напряжений' } 'one Undo restores original geometry and stored case distributions'
+    if (Find-Name 'Шов S4' ([System.Windows.Automation.ControlType]::TreeItem)) { throw 'Undo retained generated rectangle elements' }
+    if (Find-Name 'Есть несохранённые изменения') { throw 'Undo template failed to restore the exact saved project' }
+
 
 
 

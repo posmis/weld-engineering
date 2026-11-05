@@ -31,6 +31,12 @@ fn generate_intermittent(
 ) -> Result<CalculationInput, AppError> {
     weld_application::intermittent::generate(&request)
 }
+#[tauri::command]
+fn generate_group_template(
+    request: weld_application::geometry_templates::GeometryTemplateRequest,
+) -> Result<weld_application::geometry_templates::GeometryTemplateResult, AppError> {
+    weld_application::geometry_templates::generate(&request)
+}
 type Store = Mutex<ProjectStore>;
 #[tauri::command]
 fn calculate_joint(input: CalculationInput) -> Result<CalculationResult, AppError> {
@@ -139,6 +145,7 @@ fn main() {
         })
         .invoke_handler(tauri::generate_handler![
             generate_intermittent,
+            generate_group_template,
             save_pdf_report,
             calculate_joint,
             calculate_load_cases,

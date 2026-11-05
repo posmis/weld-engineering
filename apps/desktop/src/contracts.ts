@@ -31,3 +31,7 @@ export interface CaseSummary { total: number; computed: number; complete: boolea
 export interface BatchResult { project: Project; summary: CaseSummary; failures: { case_id: string; error: { code: string; field: string | null } }[] }
 
 export interface IntermittentInput { input: CalculationInput; segment_index: number; weld_length_mm: number; pitch_mm: number; count: number }
+
+export type TemplateKind = 'rectangle' | 'parallel' | 'u_shape' | 'l_shape';
+export interface GeometryTemplateRequest { schema_version: 1; kind: TemplateKind; width_mm: number; height_mm: number; effective_width_mm: number; origin_mm: [number, number] }
+export interface GeometryTemplateResult { schema_version: 1; segments: SegmentInput[] }

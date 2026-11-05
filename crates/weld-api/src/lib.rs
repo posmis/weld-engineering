@@ -119,6 +119,23 @@ async fn intermittent(
         Err(e) => e.into_response(),
     }
 }
+async fn group_template(
+    State(state): State<ApiState>,
+    request: Result<
+        Json<weld_application::geometry_templates::GeometryTemplateRequest>,
+        JsonRejection,
+    >,
+) -> Response {
+    match json_input(request) {
+        Ok(request) => {
+            work(state, move || {
+                weld_application::geometry_templates::generate(&request)
+            })
+            .await
+        }
+        Err(e) => e.into_response(),
+    }
+}
 async fn capabilities() -> Json<serde_json::Value> {
     Json(
         serde_json::json!({"schema_version": 1, "engine_version": env!("CARGO_PKG_VERSION"),
@@ -136,6 +153,7 @@ pub fn router(token: String) -> Router {
     Router::new()
         .route("/api/v1/calculate", post(calculate))
         .route("/api/v1/geometry/intermittent", post(intermittent))
+        .route("/api/v1/geometry/template", post(group_template))
         .route("/api/v1/cases/calculate", post(cases))
         .route("/api/v1/projects/validate", post(validate))
         .route("/api/v1/capabilities", get(capabilities))

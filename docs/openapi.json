@@ -756,6 +756,143 @@
           }
         }
       }
+    },
+    "/api/v1/geometry/template": {
+      "post": {
+        "summary": "Construct an explicit planar line group; dimensions are supplied by the engineer, not a standard",
+        "responses": {
+          "200": {
+            "description": "Success; computed is not a strength verdict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GeometryTemplateResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or incorrect Bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Browser Origin rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Route not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "408": {
+            "description": "Calculation deadline exceeded; worker remains reserved until it exits",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body exceeds 1 MiB",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Use application/json",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input or unsupported application method; see code/field",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Both calculation workers occupied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal calculation task failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GeometryTemplateRequest"
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1440,6 +1577,74 @@
             "type": "integer",
             "minimum": 1,
             "maximum": 256
+          }
+        }
+      },
+      "GeometryTemplateRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schema_version",
+          "kind",
+          "width_mm",
+          "height_mm",
+          "effective_width_mm",
+          "origin_mm"
+        ],
+        "properties": {
+          "schema_version": {
+            "const": 1
+          },
+          "kind": {
+            "enum": [
+              "rectangle",
+              "parallel",
+              "u_shape",
+              "l_shape"
+            ],
+            "description": "Axis-aligned groups; u_shape opens towards +Y; l_shape has left and top edges (Gamma). Not normative GOST joint types."
+          },
+          "width_mm": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "height_mm": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "effective_width_mm": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "origin_mm": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "minItems": 2,
+            "maxItems": 2,
+            "description": "Bounding-box centre, not the effective section centroid."
+          }
+        }
+      },
+      "GeometryTemplateResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schema_version",
+          "segments"
+        ],
+        "properties": {
+          "schema_version": {
+            "const": 1
+          },
+          "segments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Segment"
+            },
+            "minItems": 2,
+            "maxItems": 4
           }
         }
       }

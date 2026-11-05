@@ -6,7 +6,7 @@ import { backend } from './backend';
 import { desktopWindow } from './desktopWindow';
 import { newProject, type CalculationResult } from './contracts';
 
-vi.mock('./backend', () => ({ backend: { getEditorSettings: vi.fn(), saveEditorSettings: vi.fn(), calculate: vi.fn(), calculateCases: vi.fn(), intermittent: vi.fn(), summarizeCases: vi.fn(), save: vi.fn(), list: vi.fn(), open: vi.fn(), import: vi.fn(), export: vi.fn() } }));
+vi.mock('./backend', () => ({ backend: { getEditorSettings: vi.fn(), saveEditorSettings: vi.fn(), calculate: vi.fn(), calculateCases: vi.fn(), intermittent: vi.fn(), groupTemplate: vi.fn(), summarizeCases: vi.fn(), save: vi.fn(), list: vi.fn(), open: vi.fn(), import: vi.fn(), export: vi.fn() } }));
 vi.mock('./desktopWindow', () => ({ desktopWindow: { listenClose: vi.fn(), close: vi.fn() } }));
 beforeEach(() => { vi.mocked(backend.summarizeCases).mockResolvedValue({ total: 2, computed: 0, complete: false, normal_min: null, normal_max: null, shear_max: null }); vi.mocked(backend.getEditorSettings).mockResolvedValue({ ...defaultSettings }); vi.mocked(backend.saveEditorSettings).mockResolvedValue(undefined); vi.mocked(desktopWindow.listenClose).mockResolvedValue(() => {}); vi.mocked(desktopWindow.close).mockResolvedValue(undefined); });
 afterEach(() => { cleanup(); vi.resetAllMocks(); });
@@ -514,4 +514,45 @@ test('central load glyphs wait for the Rust centroid and disappear when the inpu
   expect(container.querySelector('[data-load-glyph="Fz+"]')).toBeTruthy();
   fireEvent.change(screen.getByLabelText('force_n z'), { target: { value: '-600' } });
   expect(container.querySelector('[data-load-glyph]')).toBeNull();
+});
+
+const rectangle = { schema_version: 1 as const, segments: [
+  { start_mm: [-50, -20] as [number, number], end_mm: [50, -20] as [number, number], effective_width_mm: 2 },
+  { start_mm: [50, -20] as [number, number], end_mm: [50, 20] as [number, number], effective_width_mm: 2 },
+  { start_mm: [50, 20] as [number, number], end_mm: [-50, 20] as [number, number], effective_width_mm: 2 },
+  { start_mm: [-50, 20] as [number, number], end_mm: [-50, -20] as [number, number], effective_width_mm: 2 },
+] };
+test('a reviewed group replaces geometry once, preserves all cases and one Undo restores every snapshot', async () => {
+  vi.mocked(backend.groupTemplate).mockResolvedValue(rectangle); vi.mocked(backend.calculate).mockResolvedValue(result()); vi.mocked(backend.save).mockResolvedValue('revision');
+  await renderApp();
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Рассчитать' })); });
+  fireEvent.click(screen.getByRole('treeitem', { name: 'Нагрузки' }));
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Копировать случай' })); });
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Рассчитать' })); });
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Сохранить ревизию' })); });
+  const before = vi.mocked(backend.save).mock.calls[0][0];
+  fireEvent.click(screen.getByRole('button', { name: 'Шаблон группы' }));
+  await screen.findByRole('img', { name: 'Предварительный просмотр группы швов' }, { timeout: 5000 });
+  fireEvent.click(screen.getByRole('button', { name: 'Заменить геометрию' }));
+  expect(screen.queryByRole('dialog')).toBeNull(); expect(screen.getByRole('treeitem', { name: 'Шов S4' })).toBeTruthy();
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Сохранить ревизию' })); });
+  const after = vi.mocked(backend.save).mock.calls[1][0];
+  expect(after.input.segments).toEqual(rectangle.segments); expect(after.input.force_n).toEqual(before.input.force_n);
+  expect(after.casebook?.active_id).toBe(before.casebook?.active_id); expect(after.casebook?.cases.map(c => c.id)).toEqual(before.casebook?.cases.map(c => c.id));
+  expect(after.casebook?.cases.every(c => c.last_calculation === null)).toBe(true);
+  fireEvent.click(screen.getByRole('button', { name: 'Отменить' }));
+  expect(screen.queryByRole('treeitem', { name: 'Шов S4' })).toBeNull();
+  expect(screen.getByText('Номинальные компоненты F/A')).toBeTruthy();
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Сохранить ревизию' })); });
+  expect(vi.mocked(backend.save).mock.calls[2][0]).toEqual(before);
+});
+test('a geometry template never turns an incomplete load draft into zero', async () => {
+  vi.mocked(backend.groupTemplate).mockResolvedValue(rectangle);
+  await renderApp(); fireEvent.change(screen.getByLabelText('force_n z'), { target: { value: '' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Шаблон группы' }));
+  await screen.findByRole('img', { name: 'Предварительный просмотр группы швов' }, { timeout: 5000 });
+  fireEvent.click(screen.getByRole('button', { name: 'Заменить геометрию' }));
+  expect((screen.getByLabelText('force_n z') as HTMLInputElement).value).toBe('');
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Рассчитать' })); });
+  expect(backend.calculate).not.toHaveBeenCalled(); expect(screen.getByRole('alert').textContent).toContain('Обнаружено неконечное число');
 });

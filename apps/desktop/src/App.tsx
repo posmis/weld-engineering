@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ProjectHistory, sameValue, type EditorSnapshot } from './projectHistory';
+import { GeometryTemplateDialog } from './GeometryTemplateDialog';
 import { IntermittentEditor } from './IntermittentEditor';
 import type { StressComponent } from './stressContour';
 import { CaseResults } from './CaseResults';
@@ -24,6 +25,8 @@ import errorsEn from './locales/errors-en.json';
 export function App() {
   const [lang, setLang] = useState<'ru' | 'en'>('ru'); const t = lang === 'ru' ? ru : en;
   const [settings, setSettings] = useState<EditorSettings>(defaultSettings);
+  const [templateOpen, setTemplateOpen] = useState(false);
+  const templateOpenRef = useRef(false); templateOpenRef.current = templateOpen;
   const [settingsOpen, setSettingsOpen] = useState(false), [settingsLoading, setSettingsLoading] = useState(true), [settingsWarning, setSettingsWarning] = useState(false);
   const settingsOpenRef = useRef(false); settingsOpenRef.current = settingsOpen;
   useEffect(() => { let active = true; void backend.getEditorSettings().then(value => { if (active) setSettings(value); }).catch(() => { if (active) setSettingsWarning(true); }).finally(() => { if (active) setSettingsLoading(false); }); return () => { active = false; }; }, []);
@@ -61,6 +64,7 @@ export function App() {
     window.addEventListener('beforeunload', beforeUnload);
     let disposed = false; let unlisten: (() => void) | undefined;
     void desktopWindow.listenClose(event => {
+      if (templateOpenRef.current) { event.preventDefault(); setTemplateOpen(false); return; }
       if (settingsOpenRef.current) { event.preventDefault(); if (!busyRef.current) setSettingsOpen(false); return; }
       if (allowClose.current || (!dirtyRef.current && !busyRef.current)) return;
       event.preventDefault();
@@ -104,7 +108,7 @@ export function App() {
     setMessage(''); setError('');
   }
   function travel(direction: 'undo' | 'redo') {
-    if (busy || pending || settingsOpen || gestureActive) return;
+    if (busy || pending || settingsOpen || templateOpen || gestureActive) return;
     const snapshot = history.current[direction](current.current);
     if (!snapshot) return;
     inputEpoch.current += 1; showSnapshot(snapshot); setMessage(''); setError('');
@@ -188,8 +192,8 @@ export function App() {
     const target = event.target as HTMLElement;
     if (target.closest('input,textarea,[contenteditable="true"]')) return;
     event.preventDefault(); travel(event.key.toLowerCase() === 'y' || event.shiftKey ? 'redo' : 'undo');
-  }} onKeyDown={event => { if (event.key === 'Escape' && !event.defaultPrevented && !pending && !settingsOpen) setRevisions(null); }}>
-    <div className="app-shell" inert={pending !== null || settingsOpen}>
+  }} onKeyDown={event => { if (event.key === 'Escape' && !event.defaultPrevented && !pending && !settingsOpen && !templateOpen) setRevisions(null); }}>
+    <div className="app-shell" inert={pending !== null || settingsOpen || templateOpen}>
       <header className="cad-header"><div className="brand"><span className="brand-mark">W</span><strong>WELD ENGINEERING</strong></div>
         <label className="project-title">{t.title}<input maxLength={200} value={project.title} disabled={blocked || gestureActive} onChange={e => changeProject({ ...project, title: e.target.value })}/></label>
         <div className="header-controls"><button disabled={blocked || settingsLoading || gestureActive} onClick={() => setSettingsOpen(true)}>{t.settings}</button><button onClick={() => setLang(lang === 'ru' ? 'en' : 'ru')}>{lang === 'ru' ? 'EN' : 'RU'}</button><button onClick={() => setDark(!dark)}>{dark ? t.light : t.dark}</button></div>
@@ -199,7 +203,7 @@ export function App() {
           <button onClick={() => run(saveCurrent)}>{t.save}</button><button onClick={() => run(async () => setRevisions(await backend.list()))}>{t.open}</button>
           <button onClick={() => inputFile.current?.click()}>{t.import}</button><button onClick={() => run(exportProject)}>{t.export}</button></div>
         <div className="tool-group"><button disabled={!history.current.canUndo || gestureActive} onClick={() => travel('undo')} title="Ctrl+Z">{t.undo}</button>
-          <button disabled={!history.current.canRedo || gestureActive} onClick={() => travel('redo')} title="Ctrl+Y / Ctrl+Shift+Z">{t.redo}</button><button disabled={project.input.segments.length >= 256 || gestureActive} onClick={addSegment}>{t.add}</button></div>
+          <button disabled={!history.current.canRedo || gestureActive} onClick={() => travel('redo')} title="Ctrl+Y / Ctrl+Shift+Z">{t.redo}</button><button disabled={project.input.segments.length >= 256 || gestureActive} onClick={addSegment}>{t.add}</button><button disabled={gestureActive} onClick={() => setTemplateOpen(true)}>{t.groupTemplate}</button></div>
         <div className="tool-group"><button onClick={() => run(exportPdf)}>{t.pdfReport}</button>
           <button className="primary" onClick={() => run(calculateCurrent)}>{busy ? t.busy : t.calculate}</button>
           <button disabled={!project.casebook} onClick={() => run(calculateAll)}>{t.calculateAll}</button>
@@ -247,7 +251,7 @@ export function App() {
           <option value="geometry">{t.geometryView}</option>{['τx', 'τy', 'σz'].map((name, i) => <option key={name} value={i} disabled={result?.analysis_status !== 'computed'}>{name} · MPa</option>)}
         </select></label><button aria-pressed={showLoads} disabled={blocked || gestureActive} onClick={() => setShowLoads(!showLoads)}>{t.loadLayer}</button></div><span>{project.casebook?.cases.find(c => c.id === project.casebook?.active_id)?.title} · XY · mm</span></div>
         <LayoutEditor key={formKey} input={project.input} centre={result?.geometry.centroid_mm} result={result} displayComponent={displayComponent} showLoads={showLoads} selected={selected} onSelect={selectWeld}
-          onChange={segments => edit({ ...project.input, segments })} disabled={blocked || settingsOpen || settingsLoading} t={t} settings={settings} compact
+          onChange={segments => edit({ ...project.input, segments })} disabled={blocked || settingsOpen || templateOpen || settingsLoading} t={t} settings={settings} compact
           onDragStart={() => { history.current.breakGroup(); setGestureActive(true); dragSnapshot.current = { snapshot: current.current, checkpoint: history.current.checkpoint(), token: {} }; }}
           onDragCancel={() => {
             const original = dragSnapshot.current; if (!original) return;
@@ -268,6 +272,9 @@ export function App() {
         <span className={dirty ? 'dirty-state' : ''}>{dirty ? t.dirty : t.ready}</span><span>{project.input.segments.length} {t.welds.toLowerCase()} · {t.units}</span>
       </footer>
     </div>
+    {templateOpen && <GeometryTemplateDialog t={t} describeError={describe} onCancel={() => setTemplateOpen(false)} onApply={segments => {
+      history.current.breakGroup(); edit({ ...current.current.project.input, segments }); selectWeld(0); setFormKey(k => k + 1); setTemplateOpen(false);
+    }/>}
     {settingsOpen && <SettingsDialog settings={settings} t={t} onCancel={() => setSettingsOpen(false)} onSave={async value => {
       setBusy(true); try { await backend.saveEditorSettings(value); setSettings(value); setSettingsWarning(false); setSettingsOpen(false); } finally { setBusy(false); }
     }}/>}

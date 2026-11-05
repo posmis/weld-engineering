@@ -1,9 +1,10 @@
 import type { EditorSettings } from './editorMovement';
 import { invoke } from '@tauri-apps/api/core';
-import type { BatchResult, CaseSummary, IntermittentInput, CalculationInput, CalculationResult, Project, Revision } from './contracts';
+import type { BatchResult, CaseSummary, GeometryTemplateRequest, GeometryTemplateResult, IntermittentInput, CalculationInput, CalculationResult, Project, Revision } from './contracts';
 export const backend = {
   getEditorSettings: () => invoke<EditorSettings>('get_editor_settings'),
   saveEditorSettings: (settings: EditorSettings) => invoke<void>('save_editor_settings', { settings }),
+  groupTemplate: (request: GeometryTemplateRequest) => invoke<GeometryTemplateResult>('generate_group_template', { request }),
   intermittent: (request: IntermittentInput) => invoke<CalculationInput>('generate_intermittent', { request }),
   savePdf: (bytes: Uint8Array) => invoke<string | null>('save_pdf_report', { bytes: Array.from(bytes) }),
   calculateCases: (project: Project) => invoke<BatchResult>('calculate_load_cases', { project }),

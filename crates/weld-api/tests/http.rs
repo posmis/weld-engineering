@@ -91,7 +91,7 @@ fn published_openapi_contains_the_actual_routes_and_no_unimplemented_strength_en
     let spec: serde_json::Value =
         serde_json::from_str(include_str!("../../../docs/openapi.json")).unwrap();
     assert_eq!(spec["openapi"], "3.1.0");
-    assert_eq!(spec["paths"].as_object().unwrap().len(), 6);
+    assert_eq!(spec["paths"].as_object().unwrap().len(), 7);
     assert!(spec["paths"].get("/api/v1/optimize").is_none());
     assert_eq!(
         spec["components"]["schemas"]["CalculationResult"]["properties"]["strength_status"]
@@ -118,4 +118,24 @@ async fn intermittent_geometry_is_generated_by_the_shared_service() {
         value["segments"][2]["end_mm"],
         serde_json::json!([50.0, 0.0])
     );
+}
+
+#[tokio::test]
+async fn group_template_endpoint_returns_explicit_geometry_usable_by_the_same_calculator() {
+    let request = request(
+        "/api/v1/geometry/template",
+        serde_json::json!({"schema_version":1,"kind":"rectangle","width_mm":100,"height_mm":40,"effective_width_mm":2,"origin_mm":[10,-5]}),
+    );
+    let response = weld_api::router("test-token".into())
+        .oneshot(request)
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let group: weld_application::geometry_templates::GeometryTemplateResult =
+        serde_json::from_slice(&response.into_body().collect().await.unwrap().to_bytes()).unwrap();
+    let mut joint: weld_application::CalculationInput = serde_json::from_value(input()).unwrap();
+    joint.segments = group.segments;
+    let result = weld_application::calculate(&joint).unwrap();
+    assert_eq!(result.geometry.area_mm2, 560.0);
+    assert_eq!(result.geometry.centroid_mm, [10.0, -5.0]);
 }
