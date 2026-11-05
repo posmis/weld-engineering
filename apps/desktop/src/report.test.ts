@@ -31,3 +31,9 @@ test('multi-force report lists every point and uses the Rust resultant for F/A s
     expect(text).toContain('F1 [N]: 0 / 0 / 300');expect(text).toContain('F2 [N]: 0 / 0 / 300');expect(text).toContain('-25 / 0 / 0');expect(text).toContain('(600 N) / (200 mm²) = 3 MPa');
   } finally { draw.mockRestore(); }
 });
+
+
+test('section provenance is printed with its geometric assumptions and no normative verdict',async()=>{
+ const project=newProject();project.input.segments[0]={...project.input.segments[0],effective_width_mm:2.4,section:{kind:'idealized_right_angle_fillet',leg_1_mm:3,leg_2_mm:4}};
+ const draw=vi.spyOn(PDFPage.prototype,'drawText');try{await createReport(project,new Uint8Array(await readFile('src/assets/NotoSans-Regular.ttf')),null);const text=draw.mock.calls.map(c=>c[0]).join('\n');expect(text).toContain('k1 / k2 [mm]: 3 / 4');expect(text).toContain('right-angle-fillet-altitude-v1');expect(text).toContain('соответствие ГОСТ не проверено');}finally{draw.mockRestore();}
+});

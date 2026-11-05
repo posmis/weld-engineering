@@ -56,6 +56,7 @@ pub fn generate(request: &IntermittentInput) -> Result<CalculationInput, AppErro
     let pieces = (0..count).map(|i| {
         let start = i as f64 * request.pitch_mm;
         SegmentInput {
+            section: segment.section.clone(),
             start_mm: point(start),
             end_mm: point(start + request.weld_length_mm),
             effective_width_mm: segment.effective_width_mm,

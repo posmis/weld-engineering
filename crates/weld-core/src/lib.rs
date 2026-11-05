@@ -1,6 +1,7 @@
 //! Experimental mathematical primitives. No normative strength assessment.
 
 pub mod nominal;
+pub mod section;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Error {
@@ -47,7 +48,7 @@ pub struct Point2 {
 pub struct Segment {
     pub start: Point2,
     pub end: Point2,
-    /// User-supplied mathematical width; NOT derived from penetration or leg size.
+    /// Mathematical width; section derivation is explicit at the application boundary.
     pub effective_width: Millimetres,
 }
 

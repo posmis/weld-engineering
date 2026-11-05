@@ -1,5 +1,6 @@
 import type { SegmentInput } from './contracts';
 import { PropertyGroup, PropertyRow, PropertyTable } from './PropertyTable';
+import { WeldSectionEditor } from './WeldSectionEditor';
 import { NumberField } from './NumberField';
 import type ru from './locales/ru.json';
 export function WeldProperties({ segments, selected, onChange, onRemove, disabled, t }: {
@@ -21,9 +22,13 @@ export function WeldProperties({ segments, selected, onChange, onRemove, disable
       {[0,1].map(i=><PropertyRow key={`start-${i}`} label={['X₁','Y₁'][i]} unit="mm"><NumberField label={`S${selected+1} ${['X1','Y1'][i]}`} value={segment.start_mm[i]} onChange={n=>change(i,n)}/></PropertyRow>)}
       <PropertyGroup>{t.endPoint}</PropertyGroup>
       {[0,1].map(i=><PropertyRow key={`end-${i}`} label={['X₂','Y₂'][i]} unit="mm"><NumberField label={`S${selected+1} ${['X2','Y2'][i]}`} value={segment.end_mm[i]} onChange={n=>change(i+2,n)}/></PropertyRow>)}
-      <PropertyRow label={t.width} unit="mm"><NumberField label={`S${selected+1} a`} value={segment.effective_width_mm} onChange={n=>change(4,n)}/></PropertyRow>
+      <PropertyRow label={t.width} unit="mm">{segment.section ? <input aria-label={`S${selected+1} a`} readOnly value={String(segment.effective_width_mm)}/> : <NumberField label={`S${selected+1} a`} value={segment.effective_width_mm} onChange={n=>change(4,n)}/>}</PropertyRow>
     </PropertyTable>
     <button className="remove-weld" aria-label={`${t.remove} S${selected + 1}`} onClick={onRemove}>{t.remove} S{selected + 1}</button>
-    <details className="scope"><summary>{t.sectionModel}</summary><p>{t.scope}</p></details>
+    <details className="scope"><summary>{t.sectionModel}</summary><p>{t.scope}</p>
+      <WeldSectionEditor segment={segment} disabled={disabled} t={t} onApply={(section,width)=>onChange(segments.map((s,i)=>i===selected?{...s,section,effective_width_mm:width}:s))} onManual={()=>{
+        const {section:_section,...manual}=segment;onChange(segments.map((s,i)=>i===selected?manual:s));
+      }}/>
+</details>
   </fieldset>;
 }

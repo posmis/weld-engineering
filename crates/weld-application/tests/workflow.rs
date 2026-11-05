@@ -9,6 +9,7 @@ fn input() -> CalculationInput {
         forces: None,
         schema_version: 1,
         segments: vec![SegmentInput {
+            section: None,
             start_mm: [-50.0, 0.0],
             end_mm: [50.0, 0.0],
             effective_width_mm: 2.0,
@@ -88,6 +89,7 @@ fn overlapping_or_crossing_elements_do_not_double_count_area() {
     );
     request = input();
     request.segments.push(SegmentInput {
+        section: None,
         start_mm: [0.0, -10.0],
         end_mm: [0.0, 10.0],
         effective_width_mm: 2.0,
@@ -190,11 +192,13 @@ fn near_parallel_crossing_is_not_lost_to_a_floating_tolerance() {
     let mut request = input();
     request.segments = vec![
         SegmentInput {
+            section: None,
             start_mm: [0.0, 0.0],
             end_mm: [1.0, 0.0],
             effective_width_mm: 1.0,
         },
         SegmentInput {
+            section: None,
             start_mm: [0.0, -5e-11],
             end_mm: [1.0, 5e-11],
             effective_width_mm: 1.0,
@@ -208,11 +212,13 @@ fn translated_oblique_parallel_segments_are_valid() {
     let mut request = input();
     request.segments = vec![
         SegmentInput {
+            section: None,
             start_mm: [1e12, 1e12],
             end_mm: [1e12 + 10.0, 1e12 + 10.0],
             effective_width_mm: 1.0,
         },
         SegmentInput {
+            section: None,
             start_mm: [1e12, 1e12 + 1.0],
             end_mm: [1e12 + 10.0, 1e12 + 11.0],
             effective_width_mm: 1.0,

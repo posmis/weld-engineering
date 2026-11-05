@@ -6,7 +6,7 @@ import { backend } from './backend';
 import { desktopWindow } from './desktopWindow';
 import { newProject, type CalculationResult } from './contracts';
 
-vi.mock('./backend', () => ({ backend: { getEditorSettings: vi.fn(), saveEditorSettings: vi.fn(), calculate: vi.fn(), calculateCases: vi.fn(), intermittent: vi.fn(), groupTemplate: vi.fn(), transformGroup: vi.fn(), summarizeCases: vi.fn(), save: vi.fn(), list: vi.fn(), open: vi.fn(), import: vi.fn(), export: vi.fn() } }));
+vi.mock('./backend', () => ({ backend: { getEditorSettings: vi.fn(), saveEditorSettings: vi.fn(), calculate: vi.fn(), calculateCases: vi.fn(), intermittent: vi.fn(), groupTemplate: vi.fn(), transformGroup: vi.fn(), deriveSection: vi.fn(), summarizeCases: vi.fn(), save: vi.fn(), list: vi.fn(), open: vi.fn(), import: vi.fn(), export: vi.fn() } }));
 vi.mock('./desktopWindow', () => ({ desktopWindow: { listenClose: vi.fn(), close: vi.fn() } }));
 beforeEach(() => { localStorage.clear(); vi.mocked(backend.summarizeCases).mockResolvedValue({ total: 2, computed: 0, complete: false, normal_min: null, normal_max: null, shear_max: null }); vi.mocked(backend.getEditorSettings).mockResolvedValue({ ...defaultSettings }); vi.mocked(backend.saveEditorSettings).mockResolvedValue(undefined); vi.mocked(desktopWindow.listenClose).mockResolvedValue(() => {}); vi.mocked(desktopWindow.close).mockResolvedValue(undefined); });
 afterEach(() => { cleanup(); vi.resetAllMocks(); });
@@ -713,4 +713,16 @@ test('corrupt or unavailable workspace storage remains visible as an error and c
     expect(screen.getByRole('alert').textContent).toContain('Раскладка не сохранена');
   } finally { write.mockRestore(); }
   fireEvent.click(screen.getByRole('button',{name:'Восстановить стандартную раскладку'}));expect(screen.queryByRole('alert')).toBeNull();expect(screen.queryByText('Есть несохранённые изменения')).toBeNull();
+});
+
+
+test('leg-derived section is applied by Rust, preserved in project and can be explicitly returned to manual width',async()=>{
+ const model={kind:'idealized_right_angle_fillet' as const,leg_1_mm:3,leg_2_mm:4};vi.mocked(backend.deriveSection).mockResolvedValue({schema_version:1,model,effective_width_mm:2.4,method_id:'right-angle-fillet-altitude-v1',status:'idealized_geometry'});vi.mocked(backend.save).mockResolvedValue('revision');
+ await renderApp();fireEvent.click(screen.getByText('Модель сечения'));
+ fireEvent.change(screen.getByLabelText('Катет k₂, mm'),{target:{value:'4'}});
+ await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Рассчитать и применить сечение'}));});
+ expect(backend.deriveSection).toHaveBeenCalledWith({schema_version:1,model});expect((screen.getByLabelText('S1 a') as HTMLInputElement).value).toBe('2.4');expect((screen.getByLabelText('S1 a') as HTMLInputElement).readOnly).toBe(true);
+ await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Сохранить ревизию'}));});expect(vi.mocked(backend.save).mock.calls[0][0].input.segments[0].section).toEqual(model);
+ fireEvent.click(screen.getByRole('button',{name:'Задать ширину вручную'}));expect((screen.getByLabelText('S1 a') as HTMLInputElement).readOnly).toBe(false);
+ fireEvent.click(screen.getByRole('button',{name:'Отменить'}));expect((screen.getByLabelText('S1 a') as HTMLInputElement).readOnly).toBe(true);expect(screen.queryByText('Есть несохранённые изменения')).toBeNull();
 });

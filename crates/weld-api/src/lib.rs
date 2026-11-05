@@ -153,6 +153,15 @@ async fn group_transform(
         Err(e) => e.into_response(),
     }
 }
+async fn section(
+    State(state): State<ApiState>,
+    request: Result<Json<weld_application::sections::SectionRequest>, JsonRejection>,
+) -> Response {
+    match json_input(request) {
+        Ok(request) => work(state, move || weld_application::sections::derive(&request)).await,
+        Err(e) => e.into_response(),
+    }
+}
 async fn capabilities() -> Json<serde_json::Value> {
     Json(
         serde_json::json!({"schema_version": 1, "engine_version": env!("CARGO_PKG_VERSION"),
@@ -172,6 +181,7 @@ pub fn router(token: String) -> Router {
         .route("/api/v1/geometry/intermittent", post(intermittent))
         .route("/api/v1/geometry/template", post(group_template))
         .route("/api/v1/geometry/transform", post(group_transform))
+        .route("/api/v1/sections/derive", post(section))
         .route("/api/v1/cases/calculate", post(cases))
         .route("/api/v1/projects/validate", post(validate))
         .route("/api/v1/capabilities", get(capabilities))

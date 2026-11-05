@@ -1030,6 +1030,143 @@
           }
         }
       }
+    },
+    "/api/v1/sections/derive": {
+      "post": {
+        "summary": "Derive an explicitly idealized geometric fillet throat; no normative eligibility or strength assessment",
+        "responses": {
+          "200": {
+            "description": "Success; computed is not a strength verdict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SectionResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or incorrect Bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Browser Origin rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Route not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "408": {
+            "description": "Calculation deadline exceeded; worker remains reserved until it exits",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body exceeds 1 MiB",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Use application/json",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input or unsupported application method; see code/field",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Both calculation workers occupied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal calculation task failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SectionRequest"
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1094,6 +1231,9 @@
           "effective_width_mm": {
             "type": "number",
             "exclusiveMinimum": 0
+          },
+          "section": {
+            "$ref": "#/components/schemas/SectionModel"
           }
         }
       },
@@ -2020,6 +2160,74 @@
           },
           "application": {
             "$ref": "#/components/schemas/ApplicationPoint"
+          }
+        }
+      },
+      "SectionModel": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "leg_1_mm",
+          "leg_2_mm"
+        ],
+        "properties": {
+          "kind": {
+            "const": "idealized_right_angle_fillet"
+          },
+          "leg_1_mm": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "leg_2_mm": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          }
+        },
+        "description": "Independent geometric idealization: 90-degree root, straight face, no credited penetration/concavity. No GOST compliance or strength rule."
+      },
+      "SectionRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schema_version",
+          "model"
+        ],
+        "properties": {
+          "schema_version": {
+            "const": 1
+          },
+          "model": {
+            "$ref": "#/components/schemas/SectionModel"
+          }
+        }
+      },
+      "SectionResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schema_version",
+          "model",
+          "effective_width_mm",
+          "method_id",
+          "status"
+        ],
+        "properties": {
+          "schema_version": {
+            "const": 1
+          },
+          "model": {
+            "$ref": "#/components/schemas/SectionModel"
+          },
+          "effective_width_mm": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "method_id": {
+            "const": "right-angle-fillet-altitude-v1"
+          },
+          "status": {
+            "const": "idealized_geometry"
           }
         }
       }

@@ -71,6 +71,7 @@ pub fn generate(request: &GeometryTemplateRequest) -> Result<GeometryTemplateRes
         segments: edges
             .into_iter()
             .map(|(start_mm, end_mm)| SegmentInput {
+                section: None,
                 start_mm,
                 end_mm,
                 effective_width_mm: request.effective_width_mm,

@@ -19,7 +19,7 @@
   "force": "Force",
   "couple": "Free moment",
   "noResult": "Enter geometry and calculate.",
-  "scope": "Effective line-section model. Width is specified by the engineer, not inferred from standards, leg size or penetration.",
+  "scope": "Effective line-section model. Explicit width or idealized leg-based geometry; no normative factors or strength acceptance.",
   "unsupported": "Strength assessment unavailable",
   "validation": "The mathematical model has not yet been independently validated.",
   "momentNotice": "The resultant moment is nonzero. This stored result has no stress distribution; use Calculate to obtain a new result.",
@@ -215,5 +215,12 @@
   "resetWorkspace": "Restore default workspace layout",
   "layoutReadError": "Layout could not be read. Default layout is in use.",
   "layoutSaveError": "Layout could not be saved. Change it again or restore the default layout.",
-  "caseProperties": "Load case properties"
+  "caseProperties": "Load case properties",
+  "filletAssumption": "Idealized fillet: 90° root angle, straight face, no penetration or concavity allowance. Geometric throat from two legs; no GOST compliance or strength assessment. Initial sizes are an editable example.",
+  "filletLeg1": "Leg k₁, mm",
+  "filletLeg2": "Leg k₂, mm",
+  "applySection": "Calculate and apply section",
+  "manualSection": "Set width manually",
+  "sectionChanged": "The weld changed during section calculation. Apply again.",
+  "sectionError": "Section could not be derived. Check positive dimensions and numerical range."
 }

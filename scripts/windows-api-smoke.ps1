@@ -72,6 +72,20 @@ try {
     $copyResult=Invoke-RestMethod -Method Post -Uri "$base/calculate" -Headers $headers -ContentType 'application/json' -Body ($joint | ConvertTo-Json -Depth 100)
     if ($copyResult.geometry.area_mm2 -ne 760) { throw 'Segment copy area differs from independent reference' }
 
+    $sectionJson='{"schema_version":1,"model":{"kind":"idealized_right_angle_fillet","leg_1_mm":3,"leg_2_mm":4}}'
+    Assert-Contract 'SectionRequest' $sectionJson
+    $section=Invoke-RestMethod -Method Post -Uri "$base/sections/derive" -Headers $headers -ContentType 'application/json' -Body $sectionJson
+    Assert-Contract 'SectionResult' ($section | ConvertTo-Json -Depth 100)
+    if ($section.status -ne 'idealized_geometry' -or $section.effective_width_mm -ne 2.4) { throw 'Independent 3-4-5 triangle throat reference failed' }
+    $sectionJoint=$inputJson | ConvertFrom-Json -AsHashtable
+    $sectionJoint.segments[0].effective_width_mm=$section.effective_width_mm
+    $sectionJoint.segments[0]['section']=$section.model
+    $sectionInputJson=$sectionJoint | ConvertTo-Json -Depth 100
+    Assert-Contract 'CalculationInput' $sectionInputJson
+    $sectionResult=Invoke-RestMethod -Method Post -Uri "$base/calculate" -Headers $headers -ContentType 'application/json' -Body $sectionInputJson
+    Assert-Contract 'CalculationResult' ($sectionResult | ConvertTo-Json -Depth 100)
+    if ($sectionResult.geometry.area_mm2 -ne 240 -or $sectionResult.traction_mpa[2] -ne 2.5 -or $sectionResult.strength_status -ne 'unsupported_calculation') { throw 'Derived section did not reach the actual nominal calculation' }
+
     $clientOutput = & dotnet run --no-build --configuration Release --project (Join-Path $PSScriptRoot '../examples/inventor-client/WeldClient.csproj') -- $port
     if ($LASTEXITCODE -ne 0 -or ($clientOutput -join ' ') -notmatch 'unsupported_calculation') { throw 'C# client did not complete a real API calculation' }
 

@@ -9,6 +9,7 @@ fn request() -> IntermittentInput {
             forces: None,
             schema_version: 1,
             segments: vec![SegmentInput {
+                section: None,
                 start_mm: [-50.0, 0.0],
                 end_mm: [50.0, 0.0],
                 effective_width_mm: 2.0,
@@ -58,6 +59,7 @@ fn invalid_patterns_and_existing_or_generated_intersections_are_rejected() {
             4 => r.pitch_mm = 41.0,
             5 => r.segment_index = 1,
             _ => r.input.segments.push(SegmentInput {
+                section: None,
                 start_mm: [0.0, -10.0],
                 end_mm: [0.0, 10.0],
                 effective_width_mm: 2.0,

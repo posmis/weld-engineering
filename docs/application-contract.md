@@ -44,3 +44,7 @@ SQLite `user_version=2`: миграция с v1 добавляет только 
 ### Одновременные силы
 
 [Контракт коллекции сил](tree-and-simultaneous-forces.md): optional forces в CalculationInput и LoadCase, optional resultant_force_n в CalculationResult. При forces legacy force_n=[0,0,0]/application=centroid обязательны; couple_n_mm остаётся свободным моментом. Все точки входят в snapshot/PDF, старые JSON без расширения сохраняют прежнюю семантику. Силы внутри случая складываются, независимые случаи между собой не складываются.
+
+### Явная геометрическая модель сечения
+
+Необязательное `SegmentInput.section` хранит `kind=idealized_right_angle_fillet`, `leg_1_mm`, `leg_2_mm`. Команда `derive_section(request)` и POST `/api/v1/sections/derive` выводят геометрическое горло по катетам. Расчёт проверяет согласованность `effective_width_mm` с моделью; независимое редактирование ширины требует явно убрать `section`. Старые проекты без поля сохраняют прежнюю семантику. Это не каталог ГОСТ и не проверка прочности; [формулы, ограничения и проверки](idealized-fillet-section.md).

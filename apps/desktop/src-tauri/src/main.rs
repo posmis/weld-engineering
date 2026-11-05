@@ -43,6 +43,12 @@ fn transform_group(
 ) -> Result<weld_application::geometry_templates::GeometryTemplateResult, AppError> {
     weld_application::geometry_transform::transform(&request)
 }
+#[tauri::command]
+fn derive_section(
+    request: weld_application::sections::SectionRequest,
+) -> Result<weld_application::sections::SectionResult, AppError> {
+    weld_application::sections::derive(&request)
+}
 type Store = Mutex<ProjectStore>;
 #[tauri::command]
 fn calculate_joint(input: CalculationInput) -> Result<CalculationResult, AppError> {
@@ -153,6 +159,7 @@ fn main() {
             generate_intermittent,
             generate_group_template,
             transform_group,
+            derive_section,
             save_pdf_report,
             calculate_joint,
             calculate_load_cases,

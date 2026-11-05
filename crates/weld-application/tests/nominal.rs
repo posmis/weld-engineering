@@ -9,6 +9,7 @@ fn input() -> CalculationInput {
         schema_version: 1,
         segments: [-20.0, 20.0]
             .map(|y| SegmentInput {
+                section: None,
                 start_mm: [-50.0, y],
                 end_mm: [50.0, y],
                 effective_width_mm: 2.0,

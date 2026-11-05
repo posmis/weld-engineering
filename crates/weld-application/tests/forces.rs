@@ -16,6 +16,7 @@ fn input() -> CalculationInput {
     CalculationInput {
         schema_version: 1,
         segments: vec![SegmentInput {
+            section: None,
             start_mm: [-50.0, 0.0],
             end_mm: [50.0, 0.0],
             effective_width_mm: 2.0,

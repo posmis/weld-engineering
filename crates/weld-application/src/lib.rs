@@ -5,6 +5,7 @@ pub mod geometry_templates;
 pub mod geometry_transform;
 pub mod intermittent;
 pub mod projects;
+pub mod sections;
 pub mod settings;
 
 use serde::{Deserialize, Serialize};
@@ -46,6 +47,8 @@ impl From<weld_core::Error> for AppError {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SegmentInput {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub section: Option<sections::SectionModel>,
     pub start_mm: [f64; 2],
     pub end_mm: [f64; 2],
     pub effective_width_mm: f64,
@@ -271,7 +274,7 @@ pub fn validate_input(input: &CalculationInput) -> Result<Vec<Segment>, AppError
             Ok(Segment {
                 start: point(s.start_mm)?,
                 end: point(s.end_mm)?,
-                effective_width: Millimetres::new(s.effective_width_mm)?,
+                effective_width: Millimetres::new(sections::effective_width(s)?)?,
             })
         })
         .collect::<Result<_, AppError>>()?;
@@ -353,6 +356,9 @@ pub fn calculate(input: &CalculationInput) -> Result<CalculationResult, AppError
         "no_strength_acceptance".into(),
         "not_independently_validated".into(),
     ];
+    if input.segments.iter().any(|s| s.section.is_some()) {
+        warnings.push("idealized_section_geometry".into());
+    }
     if ill_conditioned {
         warnings.push("ill_conditioned_section".into());
     }

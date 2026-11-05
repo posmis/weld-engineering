@@ -91,7 +91,7 @@ fn published_openapi_contains_the_actual_routes_and_no_unimplemented_strength_en
     let spec: serde_json::Value =
         serde_json::from_str(include_str!("../../../docs/openapi.json")).unwrap();
     assert_eq!(spec["openapi"], "3.1.0");
-    assert_eq!(spec["paths"].as_object().unwrap().len(), 8);
+    assert_eq!(spec["paths"].as_object().unwrap().len(), 9);
     assert!(spec["paths"].get("/api/v1/optimize").is_none());
     assert_eq!(
         spec["components"]["schemas"]["CalculationResult"]["properties"]["strength_status"]
@@ -184,4 +184,31 @@ async fn simultaneous_forces_are_summed_by_the_real_calculation_route() {
         serde_json::from_value(v["input_snapshot"].clone()).unwrap();
     let original: weld_application::CalculationInput = serde_json::from_value(i).unwrap();
     assert_eq!(snapshot, original);
+}
+
+#[tokio::test]
+async fn section_derivation_endpoint_produces_traceable_geometry_usable_by_calculate() {
+    let body = serde_json::json!({"schema_version":1,"model":{"kind":"idealized_right_angle_fillet","leg_1_mm":3,"leg_2_mm":4}});
+    let response = weld_api::router("test-token".into())
+        .oneshot(request("/api/v1/sections/derive", body))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let value: serde_json::Value =
+        serde_json::from_slice(&response.into_body().collect().await.unwrap().to_bytes()).unwrap();
+    assert_eq!(value["status"], "idealized_geometry");
+    assert_eq!(value["effective_width_mm"], 2.4);
+    let mut i = input();
+    i["segments"][0]["effective_width_mm"] = value["effective_width_mm"].clone();
+    i["segments"][0]["section"] = value["model"].clone();
+    let r = weld_api::router("test-token".into())
+        .oneshot(request("/api/v1/calculate", i))
+        .await
+        .unwrap();
+    assert_eq!(r.status(), StatusCode::OK);
+    let v: serde_json::Value =
+        serde_json::from_slice(&r.into_body().collect().await.unwrap().to_bytes()).unwrap();
+    assert_eq!(v["geometry"]["area_mm2"], 240.0);
+    assert_eq!(v["traction_mpa"][2], 2.5);
+    assert_eq!(v["strength_status"], "unsupported_calculation");
 }

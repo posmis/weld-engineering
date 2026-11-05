@@ -51,6 +51,7 @@ export async function createReport(project: Project, fontBytes: Uint8Array, summ
   } else line('Геометрия вне диапазона графического представления; используйте координаты ниже.');
   line('Участок | X1 / Y1 → X2 / Y2 [mm] | эффективная ширина a [mm]');
   project.input.segments.forEach((s, i) => line(`S${i + 1} | ${vector(s.start_mm)} → ${vector(s.end_mm)} | ${number(s.effective_width_mm)}`));
+  project.input.segments.forEach((s,i)=>{if(s.section){line(`S${i+1}: идеализированный угловой шов 90°; k1 / k2 [mm]: ${vector([s.section.leg_1_mm,s.section.leg_2_mm])}`);line(`Геометрическое горло a=${number(s.effective_width_mm)} mm; right-angle-fillet-altitude-v1. Без учёта провара/вогнутости; соответствие ГОСТ не проверено.`);}});
   const cases = project.casebook?.cases ?? [{ id: 'single', title: 'LC1', ...project.input, last_calculation: project.last_calculation }];
   for (const c of cases) {
     heading(`Нагрузочный случай: ${c.title}`);

@@ -565,12 +565,36 @@ try {
     Click-Name 'Восстановить стандартную раскладку'
     $null = Wait-Until { [Math]::Abs((Find-Name 'Результаты' ([System.Windows.Automation.ControlType]::Group)).Current.BoundingRectangle.Height - 260) -lt 1 } 'reset restores the result dock height'
     Save-Preview 'windows-property-grid-smoke.png'
-
-
-
-
-
-
+    Activate-Tree 'Шов S1'
+    Click-Name 'Модель сечения'
+    Set-Field 'Катет k₁, mm' '3'; Set-Field 'Катет k₂, mm' '4'
+    Click-Name 'Рассчитать и применить сечение'
+    $null = Wait-Until { (Read-Field 'S1 a') -eq '2.4' } 'Rust-derived 3-4-5 fillet throat applied to the weld'
+    if (-not (Find-Name 'S1 a' ([System.Windows.Automation.ControlType]::Edit)).GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.IsReadOnly) { throw 'Derived width is editable without explicitly leaving the section model' }
+    Click-Name 'Рассчитать все'
+    $null = Wait-Until { Find-Name 'Сводка случаев · 2/2 — Все случаи рассчитаны' } 'section model reaches real Rust case calculations'
+    Click-Name 'Сохранить ревизию'
+    $null = Wait-Until { Find-Name 'Ревизия сохранена' } 'section provenance and results stored in SQLite'
+    Save-Preview 'windows-fillet-section-smoke.png'
+    $handle = [IntPtr]$script:window.Current.NativeWindowHandle
+    $null = [WeldDesktopInput]::PostMessage($handle, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero)
+    if (-not $process.WaitForExit(10000)) { throw 'Section application did not close cleanly' }
+    $process = Start-Process -FilePath $executable -PassThru
+    $script:window = Wait-Until {
+        $condition = [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $process.Id)
+        [System.Windows.Automation.AutomationElement]::RootElement.FindFirst([System.Windows.Automation.TreeScope]::Children, $condition)
+    } 'section project process restart'
+    $null = Wait-Until { $control=Find-Name 'Настройки приложения' ([System.Windows.Automation.ControlType]::Button);$control -and $control.Current.IsEnabled } 'settings loaded after section restart'
+    Open-LatestRevision
+    Activate-Tree 'Шов S1'
+    if ((Read-Field 'S1 a') -ne '2.4') { throw 'Derived section width did not survive a process restart' }
+    Click-Name 'Модель сечения'
+    if ((Read-Field 'Катет k₁, mm') -ne '3' -or (Read-Field 'Катет k₂, mm') -ne '4') { throw 'Section source legs were lost' }
+    Click-Name 'Задать ширину вручную'
+    $null = Wait-Until { -not (Find-Name 'S1 a' ([System.Windows.Automation.ControlType]::Edit)).GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.IsReadOnly } 'explicit manual mode re-enables width input'
+    Click-Name 'Отменить'
+    $null = Wait-Until { (Find-Name 'S1 a' ([System.Windows.Automation.ControlType]::Edit)).GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.IsReadOnly } 'Undo restores section provenance'
+    if (Find-Name 'Есть несохранённые изменения') { throw 'Section mode Undo did not restore the saved project and casebook' }
 
 
     $handle = [IntPtr]$script:window.Current.NativeWindowHandle
