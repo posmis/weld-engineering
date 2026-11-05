@@ -35,3 +35,14 @@ test('invalid fields cancel requests; a backend error blocks Apply without hidin
   const last=screen.getByRole('button',{name:'Отмена'});act(()=>last.focus());fireEvent.keyDown(last,{key:'Tab'});
   expect(document.activeElement).toBe(screen.getByLabelText('Операция'));fireEvent.keyDown(document.activeElement!,{key:'Escape'});expect(cancel).toHaveBeenCalledOnce();
 });
+
+test('copy preview rejects a combined-group overlap without allowing an old preview to be applied', async () => {
+  vi.useFakeTimers();vi.mocked(backend.transformGroup).mockResolvedValueOnce({schema_version:1,segments:[...segments,...rotated.segments]}).mockRejectedValueOnce({code:'overlapping_segments'});
+  render(<GeometryTransformDialog segments={segments} copyIndex={0} t={ru} describeError={describe} onApply={()=>{}} onCancel={()=>{}}/>);
+  await act(async()=>{vi.advanceTimersByTime(200);});
+  expect((screen.getByRole('button',{name:'Применить преобразование'}) as HTMLButtonElement).disabled).toBe(false);
+  fireEvent.change(screen.getByLabelText('Смещение Y, mm'),{target:{value:'0'}});
+  expect((screen.getByRole('button',{name:'Применить преобразование'}) as HTMLButtonElement).disabled).toBe(true);
+  await act(async()=>{vi.advanceTimersByTime(200);});
+  expect(screen.getByRole('alert').textContent).toBe('Ошибка преобразования');expect((screen.getByRole('button',{name:'Применить преобразование'}) as HTMLButtonElement).disabled).toBe(true);
+});

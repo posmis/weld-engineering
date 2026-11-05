@@ -624,3 +624,42 @@ test('both column widths change independently without dirtying the project; tree
   expect(screen.getByRole('menu',{name:'Команды дерева'})).toBeTruthy();fireEvent.keyDown(screen.getByRole('menuitem',{name:'Добавить участок'}),{key:'Escape'});
   expect(screen.queryByRole('menu')).toBeNull();expect(document.activeElement).toBe(node);expect(screen.queryByText('Есть несохранённые изменения')).toBeNull();
 });
+
+test('tree force copy has independent values and point, context deletion and each Undo preserve the original', async () => {
+  vi.mocked(backend.save).mockResolvedValue('revision');
+  await renderApp();
+  fireEvent.contextMenu(screen.getByRole('treeitem',{name:'Сила F1'}),{clientX:20,clientY:200});
+  fireEvent.click(screen.getByRole('menuitem',{name:'Копировать силу'}));
+  const copy=screen.getByRole('treeitem',{name:'Сила F1 (копия)'});
+  expect(copy.getAttribute('aria-selected')).toBe('true');expect(document.activeElement).toBe(copy);
+  await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Сохранить ревизию'}));});
+  const copied=vi.mocked(backend.save).mock.calls[0][0].input.forces!;
+  expect(copied).toHaveLength(2);expect(copied[0].id).not.toBe(copied[1].id);expect(copied.map(f=>f.force_n)).toEqual([[0,0,600],[0,0,600]]);
+  fireEvent.change(screen.getByLabelText('force_n z'),{target:{value:'-300'}});
+  fireEvent.click(screen.getByLabelText('Приложить силу в центре сечения'));
+  fireEvent.change(screen.getByLabelText('P x'),{target:{value:'35'}});
+  fireEvent.click(screen.getByRole('treeitem',{name:'Сила F1'}));expect((screen.getByLabelText('force_n z') as HTMLInputElement).value).toBe('600');
+  fireEvent.contextMenu(screen.getByRole('treeitem',{name:'Сила F1 (копия)'}),{clientX:20,clientY:200});
+  fireEvent.click(screen.getByRole('menuitem',{name:'Удалить выбранную силу'}));expect(screen.queryByRole('treeitem',{name:'Сила F1 (копия)'})).toBeNull();
+  fireEvent.click(screen.getByRole('button',{name:'Отменить'}));
+  fireEvent.click(screen.getByRole('treeitem',{name:'Сила F1 (копия)'}));expect((screen.getByLabelText('P x') as HTMLInputElement).value).toBe('35');
+});
+
+test('tree weld copy sends the full group to Rust, selects the appended segment and supports one Undo', async () => {
+  const initial=newProject().input.segments;
+  const copied={schema_version:1 as const,segments:[...initial,{start_mm:[-50,10] as [number,number],end_mm:[50,10] as [number,number],effective_width_mm:2}]};
+  vi.mocked(backend.transformGroup).mockResolvedValue(copied);
+  await renderApp();fireEvent.contextMenu(screen.getByRole('treeitem',{name:'Шов S1'}),{clientX:20,clientY:100});
+  fireEvent.click(screen.getByRole('menuitem',{name:'Копировать участок'}));
+  expect(screen.getByRole('dialog',{name:'Копировать участок S1'})).toBeTruthy();
+  await screen.findByRole('img',{name:'Предпросмотр преобразования'},{timeout:5000});
+  expect(backend.transformGroup).toHaveBeenCalledWith({schema_version:1,segments:initial,copy_index:0,transform:{kind:'translate',delta_mm:[0,10]}});
+  fireEvent.click(screen.getByRole('button',{name:'Применить преобразование'}));
+  expect(screen.getByRole('treeitem',{name:'Шов S2'}).getAttribute('aria-selected')).toBe('true');
+  expect((screen.getByLabelText('S2 Y1') as HTMLInputElement).value).toBe('10');
+  fireEvent.click(screen.getByRole('button',{name:'Отменить'}));expect(screen.queryByRole('treeitem',{name:'Шов S2'})).toBeNull();
+  fireEvent.contextMenu(screen.getByRole('treeitem',{name:'Шов S1'}),{clientX:20,clientY:100});
+  fireEvent.click(screen.getByRole('menuitem',{name:'Удалить участок'}));expect(screen.queryByRole('treeitem',{name:'Шов S1'})).toBeNull();
+  expect(screen.getByRole('treeitem',{name:'Сварные швы'}).tabIndex).toBe(0);
+  fireEvent.click(screen.getByRole('button',{name:'Отменить'}));expect(screen.getByRole('treeitem',{name:'Шов S1'})).toBeTruthy();
+});

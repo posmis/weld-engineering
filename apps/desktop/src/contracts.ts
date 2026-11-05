@@ -42,4 +42,4 @@ export interface GeometryTemplateResult { schema_version: 1; segments: SegmentIn
 export type GeometryTransform = { kind: 'translate'; delta_mm: [number, number] }
   | { kind: 'rotate'; origin_mm: [number, number]; angle_deg: number }
   | { kind: 'mirror'; origin_mm: [number, number]; axis: 'x' | 'y' };
-export interface GeometryTransformRequest { schema_version: 1; segments: SegmentInput[]; transform: GeometryTransform }
+export interface GeometryTransformRequest { copy_index?: number; schema_version: 1; segments: SegmentInput[]; transform: GeometryTransform }

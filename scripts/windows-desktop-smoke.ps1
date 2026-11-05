@@ -47,6 +47,14 @@ function Activate-Tree([string]$Name) {
     $item = Wait-Until { $node = Find-Name $Name ([System.Windows.Automation.ControlType]::TreeItem); if ($node -and $node.Current.IsEnabled) { return $node }; return $null } "tree item $Name"
     $item.SetFocus(); Key-Press 0x20
 }
+function Open-TreeContext([string]$Name) {
+    Activate-Tree $Name
+    $node = Find-Name $Name ([System.Windows.Automation.ControlType]::TreeItem)
+    $box = $node.Current.BoundingRectangle
+    $null = [WeldDesktopInput]::SetCursorPos([int]($box.X+30),[int]($box.Y+$box.Height/2))
+    [WeldDesktopInput]::mouse_event(0x0008,0,0,0,[UIntPtr]::Zero); [WeldDesktopInput]::mouse_event(0x0010,0,0,0,[UIntPtr]::Zero)
+    $null = Wait-Until { Find-Name 'Команды дерева' ([System.Windows.Automation.ControlType]::Menu) } 'item context menu'
+}
 function Show-Property([string]$Name) {
     if (Find-Name $Name ([System.Windows.Automation.ControlType]::Edit)) { return }
     if ($Name -match '^S(\d+) ') { Activate-Tree "Шов S$($Matches[1])" }
@@ -481,6 +489,43 @@ try {
     Save-Preview 'windows-tree-forces-smoke.png'
     Click-Name 'Сохранить ревизию'
     $null = Wait-Until { Find-Name 'Ревизия сохранена' } 'force collection snapshots saved to SQLite'
+    Open-TreeContext 'Сила F2'
+    Save-Preview 'windows-item-menu-smoke.png'
+    Click-Name 'Копировать силу'
+    $null = Wait-Until { Find-Name 'Сила F2 (копия)' ([System.Windows.Automation.ControlType]::TreeItem) } 'independent copied force appears in the tree'
+    if ((Read-Field 'force_n z') -ne '300' -or (Read-Field 'P x') -ne '25') { throw 'Force copy lost source values or application point' }
+    Click-Name 'Рассчитать все'
+    $null = Wait-Until { Find-Name 'Сводка случаев · 2/2 — Все случаи рассчитаны' } 'copied force participates in the real batch calculation'
+    Click-Name 'Отменить'
+    if (Find-Name 'Сила F2 (копия)' ([System.Windows.Automation.ControlType]::TreeItem)) { throw 'One Undo did not remove copied force' }
+    if (Find-Name 'Есть несохранённые изменения') { throw 'Force-copy Undo did not restore the saved casebook and results' }
+    Open-TreeContext 'Сила F2'
+    Click-Name 'Удалить выбранную силу'
+    if (Find-Name 'Сила F2' ([System.Windows.Automation.ControlType]::TreeItem)) { throw 'Context deletion retained the force' }
+    Click-Name 'Отменить'
+    $null = Wait-Until { Find-Name 'Сила F2' ([System.Windows.Automation.ControlType]::TreeItem) } 'Undo restores deleted force'
+    if (Find-Name 'Есть несохранённые изменения') { throw 'Force-delete Undo did not restore the saved project' }
+    Open-TreeContext 'Шов S1'
+    Click-Name 'Копировать участок'
+    $null = Wait-Until { Find-Name 'Предпросмотр преобразования' ([System.Windows.Automation.ControlType]::Image) } 'Rust validates combined copied geometry'
+    Save-Preview 'windows-copy-weld-smoke.png'
+    Click-Name 'Применить преобразование'
+    $null = Wait-Until { Find-Name 'Шов S3' ([System.Windows.Automation.ControlType]::TreeItem) } 'copied weld appended to original group'
+    if ((Read-Field 'S3 Y1') -ne '30') { throw 'Copied weld did not use the requested displacement' }
+    Activate-Tree 'Шов S1'
+    if ((Read-Field 'S1 Y1') -ne '20') { throw 'Weld copy moved the original segment' }
+    Click-Name 'Рассчитать все'
+    $null = Wait-Until { Find-Name 'Сводка случаев · 2/2 — Все случаи рассчитаны' } 'copied weld reaches real Rust calculation with existing forces'
+    Click-Name 'Отменить'
+    if (Find-Name 'Шов S3' ([System.Windows.Automation.ControlType]::TreeItem)) { throw 'Undo retained copied weld' }
+    if (Find-Name 'Есть несохранённые изменения') { throw 'Weld-copy Undo did not restore the complete saved snapshot' }
+    Open-TreeContext 'Шов S2'
+    Click-Name 'Удалить участок'
+    if (Find-Name 'Шов S2' ([System.Windows.Automation.ControlType]::TreeItem)) { throw 'Context deletion retained the weld' }
+    Click-Name 'Отменить'
+    $null = Wait-Until { Find-Name 'Шов S2' ([System.Windows.Automation.ControlType]::TreeItem) } 'Undo restores deleted weld'
+    if (Find-Name 'Есть несохранённые изменения') { throw 'Weld-delete Undo did not restore the complete saved snapshot' }
+
 
 
 

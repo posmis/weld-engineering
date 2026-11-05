@@ -202,5 +202,10 @@
   "treeCommands": "Tree commands",
   "forceTitle": "Force name",
   "forcesShort": "forces",
-  "resultantAfterCalculation": "after calculation"
+  "resultantAfterCalculation": "after calculation",
+  "copyWeld": "Copy weld segment",
+  "deleteWeld": "Delete weld segment",
+  "copyForce": "Copy force",
+  "copySuffix": "copy",
+  "copyWeldHelp": "Original welds and loads are preserved. One transformed copy of the selected segment is added; Rust validates the combined group for intersections and overlaps. All case results are cleared. One Undo restores the original project."
 }

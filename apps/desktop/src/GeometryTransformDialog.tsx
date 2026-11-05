@@ -4,17 +4,17 @@ import type { GeometryTransform, GeometryTransformRequest, GeometryTemplateResul
 import { NumberField } from './NumberField';
 import { fitLayout } from './viewport';
 import type ru from './locales/ru.json';
-export function GeometryTransformDialog({ segments, t, describeError, onApply, onCancel }: {
-  segments: SegmentInput[]; t: typeof ru; describeError: (error: unknown) => string;
+export function GeometryTransformDialog({ segments, copyIndex, t, describeError, onApply, onCancel }: {
+  segments: SegmentInput[]; copyIndex?: number; t: typeof ru; describeError: (error: unknown) => string;
   onApply: (segments: SegmentInput[]) => void; onCancel: () => void;
 }) {
   const [kind, setKind] = useState<GeometryTransform['kind']>('translate');
-  const [delta, setDelta] = useState<[number, number]>([0, 0]);
+  const [delta, setDelta] = useState<[number, number]>(copyIndex === undefined ? [0, 0] : [0, 10]);
   const [origin, setOrigin] = useState<[number, number]>([0, 0]);
   const [angle, setAngle] = useState(90), [axis, setAxis] = useState<'x' | 'y'>('x');
-  const request = useMemo<GeometryTransformRequest>(() => ({ schema_version: 1, segments, transform:
+  const request = useMemo<GeometryTransformRequest>(() => ({ schema_version: 1, segments, ...(copyIndex === undefined ? {} : { copy_index: copyIndex }), transform:
     kind === 'translate' ? { kind, delta_mm: delta } : kind === 'rotate' ? { kind, origin_mm: origin, angle_deg: angle } : { kind, origin_mm: origin, axis }
-  }), [segments, kind, delta, origin, angle, axis]);
+  }), [segments, copyIndex, kind, delta, origin, angle, axis]);
   const [preview, setPreview] = useState<{ request: GeometryTransformRequest; value: GeometryTemplateResult } | null>(null);
   const [issue, setIssue] = useState<{ request: GeometryTransformRequest; message: string } | null>(null);
   const root = useRef<HTMLDivElement>(null);
@@ -44,7 +44,7 @@ export function GeometryTransformDialog({ segments, t, describeError, onApply, o
       if (event.shiftKey && document.activeElement === fields[0]) { event.preventDefault(); fields.at(-1)?.focus(); }
       else if (!event.shiftKey && document.activeElement === fields.at(-1)) { event.preventDefault(); fields[0]?.focus(); }
     }
-  }}><h2 id="group-transform-title">{t.transformGroup}</h2><form onSubmit={event => { event.preventDefault(); if (value && view && valid) onApply(value.segments); }}>
+  }}><h2 id="group-transform-title">{copyIndex === undefined ? t.transformGroup : `${t.copyWeld} S${copyIndex+1}`}</h2><form onSubmit={event => { event.preventDefault(); if (value && view && valid) onApply(value.segments); }}>
     <div className="template-body"><fieldset className="template-fields">
       <label className="template-wide">{t.transformKind}<select aria-label={t.transformKind} value={kind} onChange={e => setKind(e.target.value as GeometryTransform['kind'])}>
         {(['translate', 'rotate', 'mirror'] as const).map((v, i) => <option key={v} value={v}>{[t.transformTranslate, t.transformRotate, t.transformMirror][i]}</option>)}
@@ -61,12 +61,12 @@ export function GeometryTransformDialog({ segments, t, describeError, onApply, o
       <p className="hint template-wide">{t.transformDirectionHelp}</p>
     </fieldset><section className="template-preview-pane" aria-label={t.transformPreview}>
       {value && view ? <svg className="template-preview" viewBox="0 0 600 320" role="img" aria-label={t.transformPreview}>
-        {[segments, value.segments].map((group, layer) => <g key={layer} className={layer === 0 ? 'transform-original' : 'transform-proposed'}>{group.map((s, i) => {
+        {[segments, copyIndex === undefined ? value.segments : value.segments.slice(segments.length)].map((group, layer) => <g key={layer} className={layer === 0 ? 'transform-original' : 'transform-proposed'}>{group.map((s, i) => {
           const x = (n: number) => 300 + (n - view.cx) * view.scale, y = (n: number) => 160 - (n - view.cy) * view.scale;
           return <line key={i} x1={x(s.start_mm[0])} y1={y(s.start_mm[1])} x2={x(s.end_mm[0])} y2={y(s.end_mm[1])}/>;
         })}</g>)}
       </svg> : <div className="template-placeholder">{value ? t.bounds : error || t.templatePreparing}</div>}
-      <p className="hint">{t.transformPreviewHelp}</p><p className="hint">{t.transformHelp}</p>
+      <p className="hint">{t.transformPreviewHelp}</p><p className="hint">{copyIndex === undefined ? t.transformHelp : t.copyWeldHelp}</p>
     </section></div>
     {error && <p className="dialog-error" role="alert">{error}</p>}
     <div className="dialog-actions"><button type="submit" className="primary" disabled={!value || !view || !valid}>{t.applyTransform}</button><button type="button" onClick={onCancel}>{t.cancel}</button></div>

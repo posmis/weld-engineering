@@ -11,7 +11,7 @@ import { newProject, type CalculationInput, type Project, type Revision, type Ve
 import { defaultSettings, type EditorSettings } from './editorMovement';
 import { SettingsDialog } from './SettingsDialog';
 import { CadWorkspace } from './CadWorkspace';
-import { forceList, maxForces, replaceForces, updateForce } from './forceInputs';
+import { duplicateForce, forceList, maxForces, replaceForces, updateForce } from './forceInputs';
 import { ModelTree } from './ModelTree';
 import { NumberField } from './NumberField';
 import { ProjectResults } from './ProjectResults';
@@ -28,7 +28,9 @@ export function App() {
   const [lang, setLang] = useState<'ru' | 'en'>('ru'); const t = lang === 'ru' ? ru : en;
   const [settings, setSettings] = useState<EditorSettings>(defaultSettings);
   const [transformOpen, setTransformOpen] = useState(false);
-  const transformOpenRef = useRef(false); transformOpenRef.current = transformOpen;
+  const [copyIndex, setCopyIndex] = useState<number | null>(null);
+  const transformActive = transformOpen || copyIndex !== null;
+  const transformOpenRef = useRef(false); transformOpenRef.current = transformActive;
   const [templateOpen, setTemplateOpen] = useState(false);
   const templateOpenRef = useRef(false); templateOpenRef.current = templateOpen;
   const [settingsOpen, setSettingsOpen] = useState(false), [settingsLoading, setSettingsLoading] = useState(true), [settingsWarning, setSettingsWarning] = useState(false);
@@ -55,6 +57,18 @@ export function App() {
     history.current.breakGroup(); edit(replaceForces(project.input, [...forces, { id, title: `F${n}`, force_n: [0,0,0], application: { kind: 'centroid' } }]));
     selectForce(id);
   }
+  function copyForce(id: string) {
+    const copy = duplicateForce(project.input, id, t.copySuffix); if (!copy) return;
+    history.current.breakGroup(); edit(copy.input); selectForce(copy.id);
+  }
+  function removeForce(id: string) {
+    if (!forces.some(f => f.id === id)) return;
+    history.current.breakGroup(); edit(replaceForces(project.input, forces.filter(f => f.id !== id)));
+  }
+  function removeWeld(index: number) {
+    if (!project.input.segments[index]) return;
+    history.current.breakGroup(); edit({ ...project.input, segments: project.input.segments.filter((_, i) => i !== index) }); selectWeld(Math.max(0,index-1));
+  }
   function editForce(patch: Parameters<typeof updateForce>[2]) { if (activeForce) edit(updateForce(project.input, activeForce.id, patch)); }
   const result = project.last_calculation;
   const baseline = useRef(JSON.stringify(newProject()));
@@ -80,7 +94,7 @@ export function App() {
     window.addEventListener('beforeunload', beforeUnload);
     let disposed = false; let unlisten: (() => void) | undefined;
     void desktopWindow.listenClose(event => {
-      if (transformOpenRef.current) { event.preventDefault(); setTransformOpen(false); return; }
+      if (transformOpenRef.current) { event.preventDefault(); setTransformOpen(false); setCopyIndex(null); return; }
       if (templateOpenRef.current) { event.preventDefault(); setTemplateOpen(false); return; }
       if (settingsOpenRef.current) { event.preventDefault(); if (!busyRef.current) setSettingsOpen(false); return; }
       if (allowClose.current || (!dirtyRef.current && !busyRef.current)) return;
@@ -125,7 +139,7 @@ export function App() {
     setMessage(''); setError('');
   }
   function travel(direction: 'undo' | 'redo') {
-    if (busy || pending || settingsOpen || transformOpen || templateOpen || gestureActive) return;
+    if (busy || pending || settingsOpen || transformActive || templateOpen || gestureActive) return;
     const snapshot = history.current[direction](current.current);
     if (!snapshot) return;
     inputEpoch.current += 1; showSnapshot(snapshot); setMessage(''); setError('');
@@ -210,8 +224,8 @@ export function App() {
     const target = event.target as HTMLElement;
     if (target.closest('input,textarea,[contenteditable="true"]')) return;
     event.preventDefault(); travel(event.key.toLowerCase() === 'y' || event.shiftKey ? 'redo' : 'undo');
-  }} onKeyDown={event => { if (event.key === 'Escape' && !event.defaultPrevented && !pending && !settingsOpen && !transformOpen && !templateOpen) setRevisions(null); }}>
-    <div className="app-shell" inert={pending !== null || settingsOpen || transformOpen || templateOpen}>
+  }} onKeyDown={event => { if (event.key === 'Escape' && !event.defaultPrevented && !pending && !settingsOpen && !transformActive && !templateOpen) setRevisions(null); }}>
+    <div className="app-shell" inert={pending !== null || settingsOpen || transformActive || templateOpen}>
       <header className="cad-header"><div className="brand"><span className="brand-mark">W</span><strong>WELD ENGINEERING</strong></div>
         <label className="project-title">{t.title}<input maxLength={200} value={project.title} disabled={blocked || gestureActive} onChange={e => changeProject({ ...project, title: e.target.value })}/></label>
         <div className="header-controls"><button disabled={blocked || settingsLoading || gestureActive} onClick={() => setSettingsOpen(true)}>{t.settings}</button><button onClick={() => setLang(lang === 'ru' ? 'en' : 'ru')}>{lang === 'ru' ? 'EN' : 'RU'}</button><button onClick={() => setDark(!dark)}>{dark ? t.light : t.dark}</button></div>
@@ -239,13 +253,14 @@ export function App() {
         <div className="dock-title">{t.modelTree}</div>
         <ModelTree count={project.input.segments.length} selected={selected} panel={inspector} disabled={blocked || gestureActive}
           forces={forces} activeForce={activeForce?.id} loadView={loadView} canAddWeld={project.input.segments.length < 256} canAddForce={forces.length < maxForces}
+          onCopyWeld={index => setCopyIndex(index)} onDeleteWeld={removeWeld} onCopyForce={copyForce} onDeleteForce={removeForce}
           onAddWeld={addSegment} onAddForce={addForce} onForce={selectForce} onCouple={() => { setInspector('loads'); setLoadView('couple'); }}
           onWeld={selectWeld} onLoads={() => { setInspector('loads'); setLoadView('overview'); }} onResults={() => setResultsOpen(true)} t={t}/>
       </>} properties={<>
         <div className="dock-title">{t.properties}</div>
         <div className="property-scroll" key={formKey}>
           <section hidden={inspector !== 'weld'} aria-label={t.weldProperties}><WeldProperties segments={project.input.segments} selected={selected} disabled={blocked || gestureActive} t={t}
-            onChange={segments => edit({ ...project.input, segments })} onRemove={() => { edit({ ...project.input, segments: project.input.segments.filter((_, i) => i !== selected) }); selectWeld(Math.max(0, selected - 1)); }}/>
+            onChange={segments => edit({ ...project.input, segments })} onRemove={() => removeWeld(selected)}/>
             {project.input.segments[selected] && <IntermittentEditor key={selected} disabled={blocked || gestureActive} t={t} onApply={params => run(async () => {
               ensureFinite(); const epoch = inputEpoch.current;
               const input = await backend.intermittent({ input: project.input, segment_index: selected, ...params });
@@ -266,7 +281,7 @@ export function App() {
           if (activeForce.application.kind !== 'point') return; const point_mm: Vec3 = [...activeForce.application.point_mm]; point_mm[i] = n;
           editForce({ application: { kind: 'point', point_mm } });
         }}/></label>)}</div>}
-        <button className="remove-weld" onClick={() => { history.current.breakGroup(); edit(replaceForces(project.input, forces.filter(f => f.id !== activeForce.id))); }}>{t.removeForce}</button></>}
+        <button className="remove-weld" onClick={() => removeForce(activeForce.id)}>{t.removeForce}</button></>}
           </fieldset><p className="hint">{t.source}</p></section>
         </div>
       </>} viewport={<section className="cad-viewport" aria-label={t.workspace}>
@@ -274,7 +289,7 @@ export function App() {
           <option value="geometry">{t.geometryView}</option>{['τx', 'τy', 'σz'].map((name, i) => <option key={name} value={i} disabled={result?.analysis_status !== 'computed'}>{name} · MPa</option>)}
         </select></label><button aria-pressed={showLoads} disabled={blocked || gestureActive} onClick={() => setShowLoads(!showLoads)}>{t.loadLayer}</button></div><span>{project.casebook?.cases.find(c => c.id === project.casebook?.active_id)?.title} · XY · mm</span></div>
         <LayoutEditor key={formKey} input={project.input} centre={result?.geometry.centroid_mm} result={result} displayComponent={displayComponent} showLoads={showLoads} selected={selected} onSelect={selectWeld}
-          onChange={segments => edit({ ...project.input, segments })} disabled={blocked || settingsOpen || transformOpen || templateOpen || settingsLoading} t={t} settings={settings} compact
+          onChange={segments => edit({ ...project.input, segments })} disabled={blocked || settingsOpen || transformActive || templateOpen || settingsLoading} t={t} settings={settings} compact
           onDragStart={() => { history.current.breakGroup(); setGestureActive(true); dragSnapshot.current = { snapshot: current.current, checkpoint: history.current.checkpoint(), token: {} }; }}
           onDragCancel={() => {
             const original = dragSnapshot.current; if (!original) return;
@@ -295,8 +310,8 @@ export function App() {
         <span className={dirty ? 'dirty-state' : ''}>{dirty ? t.dirty : t.ready}</span><span>{project.input.segments.length} {t.welds.toLowerCase()} · {t.units}</span>
       </footer>
     </div>
-    {transformOpen && <GeometryTransformDialog segments={project.input.segments} t={t} describeError={describe} onCancel={() => setTransformOpen(false)} onApply={segments => {
-      history.current.breakGroup(); edit({ ...current.current.project.input, segments }); selectWeld(0); setFormKey(k => k + 1); setResultsOpen(false); setTransformOpen(false);
+    {transformActive && <GeometryTransformDialog segments={project.input.segments} copyIndex={copyIndex ?? undefined} t={t} describeError={describe} onCancel={() => { setTransformOpen(false); setCopyIndex(null); }} onApply={segments => {
+      history.current.breakGroup(); edit({ ...current.current.project.input, segments }); selectWeld(copyIndex === null ? 0 : segments.length - 1); setFormKey(k => k + 1); setResultsOpen(false); setTransformOpen(false); setCopyIndex(null);
     }}/>}
     {templateOpen && <GeometryTemplateDialog t={t} describeError={describe} onCancel={() => setTemplateOpen(false)} onApply={segments => {
       history.current.breakGroup(); edit({ ...current.current.project.input, segments }); selectWeld(0); setFormKey(k => k + 1); setResultsOpen(false); setTemplateOpen(false);

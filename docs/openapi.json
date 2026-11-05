@@ -1959,6 +1959,12 @@
                 }
               }
             ]
+          },
+          "copy_index": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 255,
+            "description": "Optional zero-based source segment index. Copy only this segment with the specified transform, append it to unchanged originals and validate the combined group. Absent transforms the whole group."
           }
         }
       },

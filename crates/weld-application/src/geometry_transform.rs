@@ -28,6 +28,8 @@ pub enum Transform {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct GeometryTransformRequest {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub copy_index: Option<usize>,
     pub schema_version: u32,
     pub segments: Vec<SegmentInput>,
     pub transform: Transform,
@@ -42,6 +44,17 @@ pub fn transform(request: &GeometryTransformRequest) -> Result<GeometryTemplateR
         application: ApplicationPoint::Centroid,
     };
     validate_input(&input)?;
+    if let Some(index) = request.copy_index {
+        let source = input
+            .segments
+            .get(index)
+            .ok_or_else(|| AppError::new("invalid_segment", Some("copy_index")))?
+            .clone();
+        if input.segments.len() >= crate::MAX_SEGMENTS {
+            return Err(AppError::new("segment_count", Some("segments")));
+        }
+        input.segments = vec![source];
+    }
     let finite = match request.transform {
         Transform::Translate { delta_mm } => delta_mm.iter().all(|v| v.is_finite()),
         Transform::Rotate {
@@ -98,6 +111,11 @@ pub fn transform(request: &GeometryTransformRequest) -> Result<GeometryTemplateR
         {
             return Err(AppError::new("numerical_range", Some("transform")));
         }
+    }
+    if request.copy_index.is_some() {
+        let copied = input.segments.pop().expect("validated selected segment");
+        input.segments = request.segments.clone();
+        input.segments.push(copied);
     }
     validate_input(&input)?;
     Ok(GeometryTemplateResult {

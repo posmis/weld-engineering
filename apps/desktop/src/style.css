@@ -188,4 +188,4 @@ th, td { padding: 7px 5px; border-bottom: 1px solid var(--line); text-align: lef
 
 .tree-node-icon { display: inline-block; min-width: 16px; text-align: center; font-weight: 700; }
 .force-point { fill: var(--panel); stroke: #aa2e23; stroke-width: 2; }
-.tree-context { min-width: 240px; border: 2px solid var(--accent); }
+.tree-context { min-width: 240px; max-height: calc(100dvh - 16px); overflow-y: auto; border: 2px solid var(--accent); }

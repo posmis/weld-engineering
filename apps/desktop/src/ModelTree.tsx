@@ -1,16 +1,25 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { AppliedForce } from './contracts';
 import type ru from './locales/ru.json';
-export function ModelTree({ count, selected, panel, forces, activeForce, loadView, disabled, canAddWeld, canAddForce, onAddWeld, onAddForce, onForce, onCouple, onWeld, onLoads, onResults, t }: {
+export function ModelTree({ count, selected, panel, forces, activeForce, loadView, disabled, canAddWeld, canAddForce, onCopyWeld, onDeleteWeld, onCopyForce, onDeleteForce, onAddWeld, onAddForce, onForce, onCouple, onWeld, onLoads, onResults, t }: {
   count: number; selected: number; panel: 'weld' | 'loads'; forces: AppliedForce[]; activeForce?: string; loadView: 'overview' | 'force' | 'couple'; disabled: boolean;
+  onCopyWeld: (index: number) => void; onDeleteWeld: (index: number) => void; onCopyForce: (id: string) => void; onDeleteForce: (id: string) => void;
   canAddWeld: boolean; canAddForce: boolean; onAddWeld: () => void; onAddForce: () => void;
   onForce: (id: string) => void; onCouple: () => void; onWeld: (index: number) => void; onLoads: () => void; onResults: () => void; t: typeof ru;
 }) {
   const [expanded, setExpanded] = useState({ welds: true, loads: true });
   const [focus, setFocus] = useState('weld-0');
-  const [context, setContext] = useState<{ x: number; y: number; trigger: HTMLElement } | null>(null);
+  const [context, setContext] = useState<{ x: number; y: number; trigger: HTMLElement; key?: string } | null>(null);
+  const focusAfterAction = useRef(false);
   const root = useRef<HTMLDivElement>(null), menu = useRef<HTMLDivElement>(null);
-  useEffect(() => { setFocus(panel === 'loads' ? !expanded.loads || loadView === 'overview' || (loadView === 'force' && !activeForce) ? 'loads' : loadView === 'couple' ? 'couple' : `force-${activeForce}` : expanded.welds && count ? `weld-${selected}` : 'welds'); }, [selected, panel, expanded, count, activeForce, loadView]);
+  useEffect(() => {
+    const key = panel === 'loads' ? !expanded.loads || loadView === 'overview' || (loadView === 'force' && !activeForce) ? 'loads' : loadView === 'couple' ? 'couple' : `force-${activeForce}` : expanded.welds && count ? `weld-${selected}` : 'welds';
+    setFocus(key);
+    if (focusAfterAction.current) {
+      focusAfterAction.current = false;
+      [...(root.current?.querySelectorAll<HTMLElement>('[data-tree-key]') ?? [])].find(item => item.dataset.treeKey === key)?.focus();
+    }
+  }, [selected, panel, expanded, count, activeForce, loadView]);
   useEffect(() => { if (disabled) setContext(null); }, [disabled]);
   useEffect(() => {
     if (!context) return;
@@ -27,7 +36,7 @@ export function ModelTree({ count, selected, panel, forces, activeForce, loadVie
     else if (key?.startsWith('force-')) onForce(key.slice(6));
     else if (key === 'couple') onCouple();
     else if (key === 'loads') onLoads();
-    setContext({ x: Math.max(8, Math.min(x, window.innerWidth - 260)), y: Math.max(8, Math.min(y, window.innerHeight - 150)), trigger: target.closest<HTMLElement>('[role=treeitem]') ?? target });
+    setContext({ x: Math.max(8, Math.min(x, window.innerWidth - 260)), y: Math.max(8, Math.min(y, window.innerHeight - 250)), key, trigger: target.closest<HTMLElement>('[role=treeitem]') ?? target });
   }
   function leaf(key: string, name: string, active: boolean, action: () => void, icon: string) {
     return <button key={key} role="treeitem" data-tree-key={key} aria-label={name} aria-selected={active} tabIndex={focus === key ? 0 : -1} disabled={disabled} onFocus={() => setFocus(key)} onClick={action}><span className="tree-node-icon" aria-hidden="true">{icon}</span>{name}</button>;
@@ -60,8 +69,16 @@ export function ModelTree({ count, selected, panel, forces, activeForce, loadVie
     if(e.key==='Escape'||e.key==='Tab'){e.preventDefault();e.stopPropagation();close();}
     if(['ArrowDown','ArrowUp','Home','End'].includes(e.key)){e.preventDefault(); const items=[...(menu.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')??[])];const i=items.indexOf(document.activeElement as HTMLButtonElement);items[e.key==='Home'?0:e.key==='End'?items.length-1:(i+(e.key==='ArrowDown'?1:-1)+items.length)%items.length]?.focus();}
   }}>
-    <button role="menuitem" disabled={!canAddWeld} onClick={()=>{setExpanded(v=>({...v,welds:true}));setContext(null);onAddWeld();}}>{t.add}</button>
-    <button role="menuitem" disabled={!canAddForce} onClick={()=>{setExpanded(v=>({...v,loads:true}));setContext(null);onAddForce();}}>{t.addForce}</button>
+    <button role="menuitem" disabled={!canAddWeld} onClick={()=>{focusAfterAction.current=true;setExpanded(v=>({...v,welds:true}));setContext(null);onAddWeld();}}>{t.add}</button>
+    <button role="menuitem" disabled={!canAddForce} onClick={()=>{focusAfterAction.current=true;setExpanded(v=>({...v,loads:true}));setContext(null);onAddForce();}}>{t.addForce}</button>
+    {context.key?.startsWith('weld-') && <>
+      <button role="menuitem" disabled={!canAddWeld} onClick={()=>{const index=Number(context.key!.slice(5));setContext(null);onCopyWeld(index);}}>{t.copyWeld}</button>
+      <button role="menuitem" onClick={()=>{const index=Number(context.key!.slice(5));focusAfterAction.current=true;setContext(null);onDeleteWeld(index);}}>{t.deleteWeld}</button>
+    </>}
+    {context.key?.startsWith('force-') && <>
+      <button role="menuitem" disabled={!canAddForce} onClick={()=>{const id=context.key!.slice(6);focusAfterAction.current=true;setContext(null);onCopyForce(id);}}>{t.copyForce}</button>
+      <button role="menuitem" onClick={()=>{const id=context.key!.slice(6);focusAfterAction.current=true;setContext(null);onDeleteForce(id);}}>{t.removeForce}</button>
+    </>}
     <button role="menuitem" onClick={close}>{t.closeMenu}</button>
   </div>}</>;
 }

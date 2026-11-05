@@ -6,6 +6,7 @@ use weld_application::{
 };
 fn request(op: Transform) -> GeometryTransformRequest {
     GeometryTransformRequest {
+        copy_index: None,
         schema_version: 1,
         segments: generate(&GeometryTemplateRequest {
             schema_version: 1,
@@ -163,4 +164,29 @@ fn schema_invalid_source_nonfinite_overflow_and_precision_loss_are_rejected() {
     .unwrap();
     v["transform"]["angle_deg"] = 10.into();
     assert!(serde_json::from_value::<GeometryTransformRequest>(v).is_err());
+}
+
+#[test]
+fn selected_segment_copy_preserves_originals_and_validates_the_combined_group() {
+    let mut r = request(Transform::Translate {
+        delta_mm: [0.0, 20.0],
+    });
+    r.copy_index = Some(1);
+    let originals = r.segments.clone();
+    let value = transform(&r).unwrap();
+    assert_eq!(geometry(&r).area_mm2, 480.0);
+    assert_eq!(&value.segments[..2], originals.as_slice());
+    assert_eq!(value.segments[2].start_mm, [-50.0, 40.0]);
+    assert_eq!(value.segments[2].end_mm, [50.0, 40.0]);
+    // This copy ends inside the unchanged vertical source edge, so it must be rejected.
+    r.transform = Transform::Translate {
+        delta_mm: [0.0, -20.0],
+    };
+    assert!(transform(&r).is_err());
+    r.transform = Transform::Translate {
+        delta_mm: [0.0, 0.0],
+    };
+    assert!(transform(&r).is_err());
+    r.copy_index = Some(20);
+    assert_eq!(transform(&r).unwrap_err().code, "invalid_segment");
 }

@@ -13,3 +13,17 @@ export function updateForce(input: CalculationInput, id: string, patch: Partial<
   if (!input.forces && patch.title === undefined) return { ...input, ...(patch.force_n ? { force_n: patch.force_n } : {}), ...(patch.application ? { application: patch.application } : {}) };
   return replaceForces(input, forceList(input).map(f => f.id === id ? { ...f, ...patch } : f));
 }
+
+export function duplicateForce(input: CalculationInput, sourceId: string, copySuffix: string): { input: CalculationInput; id: string } | null {
+  const forces = forceList(input), source = forces.find(f => f.id === sourceId);
+  if (!source || forces.length >= maxForces) return null;
+  let count = 1, title = '';
+  do {
+    const suffix = ` (${copySuffix}${count > 1 ? ` ${count}` : ''})`;
+    title = Array.from(source.title).slice(0, 100 - Array.from(suffix).length).join('') + suffix;
+    count++;
+  } while (forces.some(f => f.title === title));
+  const id = crypto.randomUUID();
+  const copy: AppliedForce = { id, title, force_n: [...source.force_n], application: source.application.kind === 'centroid' ? { kind:'centroid' } : { kind:'point',point_mm:[...source.application.point_mm] } };
+  return { input: replaceForces(input,[...forces,copy]), id };
+}

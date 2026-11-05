@@ -63,6 +63,15 @@ try {
     Assert-Contract 'CalculationResult' ($multipleResult | ConvertTo-Json -Depth 100)
     if (($multipleResult.resultant_force_n -join ',') -ne '0,0,600' -or ($multipleResult.traction_mpa -join ',') -ne '0,0,3') { throw 'Independent simultaneous-force reference failed' }
 
+    $copyJson = @{ schema_version=1; segments=$group.segments; copy_index=0; transform=@{kind='translate';delta_mm=@(0,-20)} } | ConvertTo-Json -Depth 100
+    Assert-Contract 'GeometryTransformRequest' $copyJson
+    $copied = Invoke-RestMethod -Method Post -Uri "$base/geometry/transform" -Headers $headers -ContentType 'application/json' -Body $copyJson
+    Assert-Contract 'GeometryTransformResult' ($copied | ConvertTo-Json -Depth 100)
+    if ($copied.segments.Count -ne 5) { throw 'Segment copy did not retain original rectangle edges' }
+    $joint.segments=$copied.segments
+    $copyResult=Invoke-RestMethod -Method Post -Uri "$base/calculate" -Headers $headers -ContentType 'application/json' -Body ($joint | ConvertTo-Json -Depth 100)
+    if ($copyResult.geometry.area_mm2 -ne 760) { throw 'Segment copy area differs from independent reference' }
+
     $clientOutput = & dotnet run --no-build --configuration Release --project (Join-Path $PSScriptRoot '../examples/inventor-client/WeldClient.csproj') -- $port
     if ($LASTEXITCODE -ne 0 -or ($clientOutput -join ' ') -notmatch 'unsupported_calculation') { throw 'C# client did not complete a real API calculation' }
 

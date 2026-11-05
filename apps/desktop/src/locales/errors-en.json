@@ -21,5 +21,6 @@
   "invalid_report": "Cannot prepare PDF report.",
   "report_write_error": "Cannot write PDF report.",
   "invalid_pattern": "Invalid intermittent pattern: check length, pitch, count and available span.",
-  "invalid_forces": "Invalid force list: check names, unique identifiers and the 64-force limit."
+  "invalid_forces": "Invalid force list: check names, unique identifiers and the 64-force limit.",
+  "invalid_segment": "The selected weld segment was not found."
 }
