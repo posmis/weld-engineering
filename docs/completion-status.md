@@ -24,3 +24,5 @@
 Последняя интерфейсная итерация: [viewport-results.md](viewport-results.md), Windows run 41988936171 / a757adc — success (51 Rust/API, 56 frontend ×3, установленный native workflow). Это не закрывает нормативные пробелы таблицы выше.
 
 Последняя геометрическая итерация: [группы по размерам](geometry-templates.md), Windows run 41997088682 / 0aee020 — success (55 Rust/API, 61 frontend ×3, установленный preview/apply/calculate/Undo). Это конструктивные линейные схемы без нормативного выбора соединения и без прочностного verdict.
+
+Последний этап редактора: [перенос/поворот/отражение всей группы](geometry-transform.md), Windows run 42007672260 / 64f5817 — success (61 Rust/API, 64 frontend ×3, все три операции в установленном EXE с расчётом и Undo). Геометрические операции не являются нормативной прочностной проверкой.
