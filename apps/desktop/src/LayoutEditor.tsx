@@ -63,16 +63,16 @@ export function LayoutEditor({ input, centre, result, displayComponent = null, s
     return () => { document.removeEventListener('pointerdown', close); document.removeEventListener('keydown', escape); };
   }, []);
   useEffect(() => { if (disabled) { setContext(null); finishPan(true); } }, [disabled]);
+  const field = displayComponent === null ? null : contourField(input, result, displayComponent);
   const points = input.segments.flatMap(s => [s.start_mm, s.end_mm]);
   if (includeLoadPoint && input.application.kind === 'point' && input.application.point_mm.every(Number.isFinite)) points.push([input.application.point_mm[0], input.application.point_mm[1]]);
-  const fitted = fitLayout(points, size) ?? fitLayout(input.segments.flatMap(s => [s.start_mm, s.end_mm]), size);
+  const fitted = fitLayout(points, size, field ? 260 : 80) ?? fitLayout(input.segments.flatMap(s => [s.start_mm, s.end_mm]), size);
   if (!fitted) return <div className="drawing empty">{t.bounds}</div>;
   const fittedScale = fitted.scale;
   const view = fixedView ?? fitted;
   if (![view.cx, view.cy, view.scale].every(Number.isFinite) || view.scale <= 0) return <div className="drawing empty">{t.bounds}</div>;
   const x = (value: number) => size.width / 2 + (value - view.cx) * view.scale;
   const y = (value: number) => size.height / 2 - (value - view.cy) * view.scale;
-  const field = displayComponent === null ? null : contourField(input, result, displayComponent);
   const loadPoint: Point | undefined = input.application.kind === 'point' ? [input.application.point_mm[0], input.application.point_mm[1]] : centre;
   const loadScreen: Point | null = loadPoint ? [x(loadPoint[0]), y(loadPoint[1])] : null;
   const pointVisible = !!loadScreen && loadScreen.every(Number.isFinite) && loadScreen[0] >= 0 && loadScreen[0] <= size.width && loadScreen[1] >= 0 && loadScreen[1] <= size.height;
@@ -208,7 +208,7 @@ export function LayoutEditor({ input, centre, result, displayComponent = null, s
         <line x1={x(s.start_mm[0])} y1={y(s.start_mm[1])} x2={x(s.end_mm[0])} y2={y(s.end_mm[1])} pointerEvents="none" style={field ? { stroke: `url(#${drawingId}-stress-${i})`, strokeWidth: i === selected ? 9 : 7 } : undefined}/>
         {(['start_mm', 'end_mm'] as const).map(end => <circle key={end} cx={x(s[end][0])} cy={y(s[end][1])} r="8" role="button" aria-label={`S${i + 1} ${end === 'start_mm' ? t.startPoint : t.endPoint}`} tabIndex={disabled ? -1 : 0} aria-disabled={disabled}
           onPointerDown={event => begin(event, i, end)} onKeyDown={event => keyboard(event, i, end)}/>) }
-        <text x={x(s.start_mm[0] / 2 + s.end_mm[0] / 2)} y={y(s.start_mm[1] / 2 + s.end_mm[1] / 2) - 12}>S{i + 1} · a={s.effective_width_mm} mm</text>
+        <text textAnchor="end" x={x(s.start_mm[0] / 2 + s.end_mm[0] / 2)} y={y(s.start_mm[1] / 2 + s.end_mm[1] / 2) - 12}>S{i + 1} · a={s.effective_width_mm} mm</text>
       </g>)}
       {showLoads && pointVisible && loadScreen && <LoadGlyphs input={input} anchor={loadScreen}/>}
       {snap && <circle className="snap-marker" cx={x(snap[0])} cy={y(snap[1])} r="10"/>}

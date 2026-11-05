@@ -10,7 +10,7 @@ export function LoadReadout({ input, pointVisible, pendingCentre, t }: { input: 
   return <div className="viewport-loads" role="group" aria-label={t.loadReadout}>
     <div><strong>F:</strong> {input.force_n.map(number).join(' / ')} N {input.application.kind === 'centroid' && <span title={t.forceAtCentre}>· C</span>}</div>
     <div><strong>M:</strong> {input.couple_n_mm.map(number).join(' / ')} N·mm <span>({t.freeCoupleShort})</span></div>
-    {input.application.kind === 'point' && <div>P: {input.application.point_mm.map(number).join(' / ')} mm {!pointVisible && <span className="view-note">· {t.loadPointOutside}</span>}</div>}
+    {input.application.kind === 'point' && <div>P: {input.application.point_mm.map(number).join(' / ')} mm {!pointVisible && <span className="view-note">{t.loadPointOutside}</span>}</div>}
     {pendingCentre && <div className="view-note">{t.centreAfterCalculation}</div>}
     {!pendingCentre && !pointVisible && input.application.kind === 'centroid' && <div className="view-note">{t.loadPointOutside}</div>}
   </div>;

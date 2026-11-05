@@ -3,6 +3,7 @@ import { afterEach, expect, test, vi } from 'vitest';
 import { LayoutEditor } from './LayoutEditor';
 import { LoadGlyphs } from './LoadGlyphs';
 import { newProject } from './contracts';
+import { fitLayout } from './viewport';
 import { defaultSettings } from './editorMovement';
 import ru from './locales/ru.json';
 afterEach(cleanup);
@@ -24,4 +25,12 @@ test('out-of-plane force and axial couple signs use distinct right-handed XY gly
   expect(container.querySelector('[data-load-glyph="Mz+"] path')?.getAttribute('d')).toContain('0 1 0');
   input.couple_n_mm[2] = -200; rerender(<svg><LoadGlyphs input={input} anchor={[100, 100]}/></svg>);
   expect(container.querySelector('[data-load-glyph="Mz-"] path')?.getAttribute('d')).toContain('0 1 1');
+});
+
+test('fit reserves the legend gutter without changing the XY aspect ratio or model data', () => {
+  const points: [number, number][] = [[-50, 0], [50, 0]];
+  const view = fitLayout(points, { width: 600, height: 200 }, 260)!;
+  const screenX = (value: number) => 300 + (value - view.cx) * view.scale;
+  expect(screenX(-50)).toBeCloseTo(80); expect(screenX(50)).toBeCloseTo(340);
+  expect(points).toEqual([[-50, 0], [50, 0]]);
 });
