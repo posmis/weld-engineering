@@ -26,10 +26,10 @@
 | SQLite и проекты | Миграция v1, revisions, snapshots и JSON реализованы | Миграции, материалы/методы/источники, неизменяемые snapshots | Round trip, rollback, повреждённый ввод, сохранение старого результата |
 | Редактор швов | Перенос, привязки, шаг; undo/redo и навигация; [последний этап](editor-history-navigation.md) | Стандартные соединения, точное разбиение и объединение участков | Windows unit/UI/native tests; сохранение вектора и ширины при переносе; перезапуск настроек |
 | Windows desktop | Классический CAD/CAE workbench: инструменты, дерево/свойства, viewport и dock результатов; RU/EN/темы, Windows checks пройдены | Tauri 2, React/TS/CSS, русский UI, English resources, темы | Windows build; реальное сообщение GUI↔Rust; не имитация результата |
-| 2D рабочее поле | SVG layout, числовое/pointer/keyboard редактирование реализованы; остальные функции planned | Сечение и отдельный layout, числовое/мышиное редактирование, нагрузки | Диаграмма совпадает с данными, воспроизводимый ввод |
+| 2D рабочее поле | SVG layout, редактирование, слой F/M и карты подписанных номинальных компонент; [область](viewport-results.md) | Сечение и отдельный layout, числовое/мышиное редактирование, нагрузки | Диаграмма совпадает с данными, воспроизводимый ввод |
 | Результаты | Реальные математические результаты; strength unsupported | Verified pass/fail, insufficient, unsupported, not validated | Ни один unsupported результат не отображается зелёным pass |
-| Отчёты PDF | Реализованы PDF с кириллицей/формулами/JSON-вложением, Windows native проверка ожидается | Исходные данные, версии, формулы, подстановка, ссылки, рисунки | Открываемый PDF с кириллицей и воспроизводимыми значениями |
-| REST/OpenAPI | Реализован opt-in loopback с OpenAPI, проверка текущей Windows итерации ожидается | Versioned local API, validation, limits, маршруты | Проверка request/response по реальному OpenAPI и smoke tests |
+| Отчёты PDF | PDF с кириллицей/формулами/JSON-вложением, native save и независимый parser проверены на Windows | Исходные данные, версии, формулы, подстановка, ссылки, рисунки | Открываемый PDF с кириллицей и воспроизводимыми значениями |
+| REST/OpenAPI | Opt-in loopback/OpenAPI, настоящий HTTP и C# client проверены на Windows | Versioned local API, validation, limits, маршруты | Проверка request/response по реальному OpenAPI и smoke tests |
 | Inventor | Guide координат/единиц и C# HTTP client, add-in не создаётся | Стабильные CAD-независимые схемы, C# guide | Примеры единиц/координат; add-in сейчас НЕ реализовывать |
 | Сборки/релизы | Windows CI пройден, EXE доступен как CI artifact; релиза нет | Pin toolchain/dependencies, Windows packaging, воспроизводимость | Фактический успешный Windows CI; публикация релиза только по разрешению |
 

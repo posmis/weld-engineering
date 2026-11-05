@@ -1,19 +1,18 @@
-> Последняя итерация: [iteration-02.md](iteration-02.md). Для c5530cf в main прошли 21 Rust-тест, 12 frontend-тестов в каждом из трёх процессов, dev-check, release build и расширенный native smoke с ПКМ/drag/защитой закрытия. Ниже — результаты первой итерации.
+# Выполненные проверки — 2026-11-05
 
-# Выполненные проверки
+Проверенные исходники: `a757adcdd15b4a27ecad0ffb365677f670365b99`. [Windows run 41988936171 — SUCCESS](https://github.com/posmis/weld-engineering/actions/runs/41988936171). Цель — Windows x64, runner windows-2022. Linux/macOS сборки и испытания приложения не выполнялись.
 
-Проверенный код: 445f954, [Windows CI 41836367640](https://github.com/posmis/weld-engineering/actions/runs/41836367640), 2026-11-04.
+- Rust fmt/Clippy: пройдены. 51 тест core/application/API, 0 failed; harness с нулём тестов не включены в сумму.
+- Frontend: 56 тестов в каждом из трёх свежих процессов. Покрыты карта/знаки/ноль/экстремальный диапазон/устаревший снимок, масштаб, перенос и отмена, casebook, debounce и поздние ответы. IPC в unit-тестах подменяется; это не native integration.
+- TypeScript/Vite, Windows dev-check и release EXE: пройдены.
+- NSIS current-user installer: построен и установлен в изолированную директорию CI. Hash установленного EXE совпал с исходным после точной штатной замены Tauri bundle marker UNK→NSS; остальные байты проверяются полностью.
+- Настоящее установленное окно: дерево/свойства, ввод/перенос/привязки/Undo/zoom/pan, сохранение и перезапуск SQLite, независимые случаи и прерывистые швы. Новый сценарий проверил σz/τy, слой F/M, сохранность проекта при выборе вида и refit после скрытия результатов.
+- Нативное сохранение PDF по выбранному пути и независимый pypdf: две страницы, кириллица, математические знаки, оба исходных JSON-снимка и OFL-лицензия шрифта.
+- Реальный API-процесс: loopback only, авторизация, аналитический ответ, OpenAPI schemas через Test-Json и настоящий запрос собранного C# client.
+- Uninstall: EXE удалён, SQLite-проекты сохранены.
 
-- Rust fmt и Clippy — пройдены.
-- weld-core: 10 тестов — пройдены, 0 failed/ignored/filtered.
-- weld-application: 11 тестов — пройдены, 0 failed/ignored/filtered.
-- Frontend: 3 теста — пройдены. Эти unit-тесты используют подменённый IPC boundary; не считать их native integration.
-- TypeScript и Vite production build — пройдены.
-- Windows release EXE — собран.
-- Native UI Automation — пройден с настоящим backend: расчёт в окне → сохранение SQLite → новый проект → открытие исходного снимка.
+Снимки новой итерации просмотрены визуально: [карта](screenshots/viewport-contour.png), [нагрузка](screenshots/viewport-loads.png). [Артефакт с установщиком/EXE](https://github.com/posmis/weld-engineering/actions/runs/41988936171/artifacts/13397308473), retention 7 дней. Нормативные публикации/книги не использовались в CI и не входят в artifacts.
 
-Команды повторения: [desktop-workflow.md](desktop-workflow.md). Сценарий scripts/windows-desktop-smoke.ps1 запускается только на Windows с доступной интерактивной сессией и установленным WebView2. Библиотечные и doctest harness с нулём тестов не включены в число 21.
+Не приняты: независимая инженерная валидация, нормативные методы/материалы/подбор, fatigue/pressure/quality/laser, отдельные пользовательские Windows 10/11 машины, подпись и автообновление, все произвольные пользовательские сценарии. Технический успех CI не равен нормативному pass. [Ограничения](limitations.md), [полный план](completion-status.md).
 
-Не проверено: все пользовательские сценарии и диалоги импорта/экспорта через настоящий файловый picker, installer, цифровая подпись, Windows 10 отдельно от windows-2022, CAD, PDF и REST. Нормативные методики и материалы не реализованы; их нельзя считать прошедшими инженерную верификацию. См. [точные результаты итерации](iteration-01.md).
-
-Перезапускать связанные проверки при изменении кода/зависимостей/конфигурации. Не повторять длительную сборку ради изменения текста документации. Прочностной модуль принимается только после независимых численных примеров и проверки всего пути service→GUI→отчёт в его обоснованной области.
+Исторические проверки сохранены в [iteration-01.md](iteration-01.md), [iteration-02.md](iteration-02.md), [iteration-03.md](iteration-03.md) и тематических документах. Команды повторения — [desktop-workflow.md](desktop-workflow.md), workflow .github/workflows/windows.yml. Документальные изменения без изменения исходников не требуют повторной длительной сборки.
