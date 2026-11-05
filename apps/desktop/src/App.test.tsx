@@ -8,7 +8,7 @@ import { newProject, type CalculationResult } from './contracts';
 
 vi.mock('./backend', () => ({ backend: { getEditorSettings: vi.fn(), saveEditorSettings: vi.fn(), calculate: vi.fn(), calculateCases: vi.fn(), intermittent: vi.fn(), groupTemplate: vi.fn(), transformGroup: vi.fn(), summarizeCases: vi.fn(), save: vi.fn(), list: vi.fn(), open: vi.fn(), import: vi.fn(), export: vi.fn() } }));
 vi.mock('./desktopWindow', () => ({ desktopWindow: { listenClose: vi.fn(), close: vi.fn() } }));
-beforeEach(() => { vi.mocked(backend.summarizeCases).mockResolvedValue({ total: 2, computed: 0, complete: false, normal_min: null, normal_max: null, shear_max: null }); vi.mocked(backend.getEditorSettings).mockResolvedValue({ ...defaultSettings }); vi.mocked(backend.saveEditorSettings).mockResolvedValue(undefined); vi.mocked(desktopWindow.listenClose).mockResolvedValue(() => {}); vi.mocked(desktopWindow.close).mockResolvedValue(undefined); });
+beforeEach(() => { localStorage.clear(); vi.mocked(backend.summarizeCases).mockResolvedValue({ total: 2, computed: 0, complete: false, normal_min: null, normal_max: null, shear_max: null }); vi.mocked(backend.getEditorSettings).mockResolvedValue({ ...defaultSettings }); vi.mocked(backend.saveEditorSettings).mockResolvedValue(undefined); vi.mocked(desktopWindow.listenClose).mockResolvedValue(() => {}); vi.mocked(desktopWindow.close).mockResolvedValue(undefined); });
 afterEach(() => { cleanup(); vi.resetAllMocks(); });
 function result(): CalculationResult {
   return { schema_version: 1, engine_version: 'test', method_id: 'uniform-direct-traction-v1', input_snapshot: newProject().input,
@@ -671,4 +671,46 @@ test('Undo closes an item context menu before segment indices can refer to diffe
   const action=screen.getByRole('menuitem',{name:'Удалить участок'});
   fireEvent.keyDown(action,{key:'z',ctrlKey:true});
   expect(screen.queryByRole('menu')).toBeNull();expect(screen.queryByRole('treeitem',{name:'Шов S2'})).toBeNull();expect(screen.getByRole('treeitem',{name:'Шов S1'})).toBeTruthy();
+});
+
+
+test('engineering property tables retain field identities and show units on each numeric row', async()=>{
+  await renderApp();const weld=screen.getByRole('table',{name:'Шов S1'});
+  expect(weld.textContent).toContain('Параметр');expect(weld.textContent).toContain('Значение');
+  for(const name of ['S1 X1','S1 Y1','S1 X2','S1 Y2','S1 a']) expect(screen.getByLabelText(name).closest('tr')?.textContent).toContain('mm');
+  fireEvent.click(screen.getByRole('treeitem',{name:'Сила F1'}));
+  expect(screen.getByLabelText('force_n z').closest('tr')?.textContent).toContain('N');
+  fireEvent.click(screen.getByLabelText('Приложить силу в центре сечения'));
+  expect(screen.getByLabelText('P x').closest('tr')?.textContent).toContain('mm');
+  fireEvent.click(screen.getByRole('treeitem',{name:'Свободный момент M1'}));
+  expect(screen.getByLabelText('couple_n_mm x').closest('tr')?.textContent).toContain('N·mm');
+});
+
+test('workspace dimensions persist across app instances and reset without changing the project', async()=>{
+  const first=await renderApp();
+  fireEvent.keyDown(screen.getByRole('separator',{name:'Ширина панели модели'}),{key:'ArrowRight'});
+  fireEvent.keyDown(screen.getByRole('separator',{name:'Ширина столбца свойств'}),{key:'ArrowRight'});
+  fireEvent.click(screen.getByRole('button',{name:'Панель результатов'}));
+  fireEvent.keyDown(screen.getByRole('separator',{name:'Высота панели результатов'}),{key:'ArrowUp'});
+  first.unmount();await renderApp();
+  expect(screen.getByRole('separator',{name:'Ширина панели модели'}).getAttribute('aria-valuenow')).toBe('236');
+  expect(screen.getByRole('separator',{name:'Ширина столбца свойств'}).getAttribute('aria-valuenow')).toBe('296');
+  fireEvent.click(screen.getByRole('button',{name:'Панель результатов'}));
+  expect(screen.getByRole('separator',{name:'Высота панели результатов'}).getAttribute('aria-valuenow')).toBe('276');
+  fireEvent.click(screen.getByRole('button',{name:'Восстановить стандартную раскладку'}));
+  expect(screen.getByRole('separator',{name:'Ширина панели модели'}).getAttribute('aria-valuenow')).toBe('220');
+  expect(screen.getByRole('separator',{name:'Ширина столбца свойств'}).getAttribute('aria-valuenow')).toBe('280');
+  expect(screen.getByRole('separator',{name:'Высота панели результатов'}).getAttribute('aria-valuenow')).toBe('260');
+  expect(screen.queryByText('Есть несохранённые изменения')).toBeNull();expect(backend.save).not.toHaveBeenCalled();expect(backend.calculate).not.toHaveBeenCalled();
+});
+
+test('corrupt or unavailable workspace storage remains visible as an error and can recover through explicit reset', async()=>{
+  localStorage.setItem('weld-engineering.workspace.v1','broken');await renderApp();
+  expect(screen.getByRole('alert').textContent).toContain('Раскладка не прочитана');expect(localStorage.getItem('weld-engineering.workspace.v1')).toBe('broken');
+  const write=vi.spyOn(Storage.prototype,'setItem').mockImplementation(()=>{throw new Error('unavailable');});
+  try {
+    fireEvent.click(screen.getByRole('button',{name:'Восстановить стандартную раскладку'}));
+    expect(screen.getByRole('alert').textContent).toContain('Раскладка не сохранена');
+  } finally { write.mockRestore(); }
+  fireEvent.click(screen.getByRole('button',{name:'Восстановить стандартную раскладку'}));expect(screen.queryByRole('alert')).toBeNull();expect(screen.queryByText('Есть несохранённые изменения')).toBeNull();
 });

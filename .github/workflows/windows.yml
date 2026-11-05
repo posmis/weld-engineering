@@ -93,6 +93,7 @@ jobs:
             target/windows-tree-forces-smoke.png
             target/windows-item-menu-smoke.png
             target/windows-copy-weld-smoke.png
+            target/windows-property-grid-smoke.png
             target/weld-report-smoke.pdf
           if-no-files-found: error
           retention-days: 7

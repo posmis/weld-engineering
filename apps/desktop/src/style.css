@@ -2,8 +2,8 @@
 [hidden] { display: none !important; }
 html, body, #root { width: 100%; height: 100%; margin: 0; overflow: hidden; }
 body { font: 15px/1.4 "Segoe UI", Arial, sans-serif; }
-.app { --bg: #cbd5df; --panel: #fff; --text: #14263a; --line: #8194a7; --muted: #344b61; --accent: #005b99; --dock: #25445f; --dock-text: #fff; --input: #fff; height: 100dvh; background: var(--bg); color: var(--text); }
-.dark { --bg: #0d1722; --panel: #1c2c3c; --text: #f1f6fc; --line: #8299ae; --muted: #c0d1e2; --accent: #83d2ff; --dock: #314e69; --dock-text: #fff; --input: #172532; }
+.app { --bg: #d5d7da; --panel: #fff; --text: #1e2227; --line: #8b9097; --muted: #454b52; --accent: #005a9e; --dock: #444a52; --dock-text: #fff; --input: #fff; height: 100dvh; background: var(--bg); color: var(--text); }
+.dark { --bg: #171b20; --panel: #252b32; --text: #f1f3f5; --line: #89929c; --muted: #c5ccd4; --accent: #83c9ff; --dock: #3a414a; --dock-text: #fff; --input: #172532; }
 .app-shell { display: flex; flex-direction: column; height: 100%; min-height: 0; }
 button, input, select { font: inherit; border: 1px solid var(--line); border-radius: 3px; background: var(--input); color: var(--text); }
 button { min-height: 34px; padding: 6px 10px; cursor: pointer; }
@@ -14,9 +14,9 @@ input { width: 100%; }
 button:focus-visible, input:focus, select:focus, [role=treeitem]:focus-visible, [role=separator]:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 input[aria-invalid=true] { border-color: #ba4141; background: #fff1ef; color: #812020; }
 fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
-.cad-header { display: flex; align-items: center; gap: 16px; min-height: 42px; flex-shrink: 0; padding: 5px 12px; background: #19354d; color: #eef4fa; }
+.cad-header { display: flex; align-items: center; gap: 16px; min-height: 42px; flex-shrink: 0; padding: 5px 12px; background: #343a42; color: #eef4fa; }
 .brand { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
-.brand-mark { font-size: 20px; font-weight: 700; color: #90c4e3; }
+.brand-mark { font-size: 20px; font-weight: 700; color: #d4d9df; }
 .brand strong { font-size: 14px; letter-spacing: .6px; }
 .project-title { display: flex; align-items: center; gap: 8px; margin-left: auto; font-size: 12px; white-space: nowrap; }
 .project-title input { width: 180px; min-height: 30px; font-size: 13px; padding: 4px 7px; }
@@ -26,7 +26,7 @@ fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
 .tool-group { display: flex; align-items: center; gap: 4px; padding-right: 10px; border-right: 1px solid var(--line); }
 .tool-group:last-child { border: 0; }
 .toolbar button { font-size: 13px; white-space: nowrap; }
-.primary { background: #185f85; color: #fff; border-color: #185f85; font-weight: 600; }
+.primary { background: #3f4852; color: #fff; border-color: #303841; font-weight: 600; }
 .cad-workspace { flex: 1; min-height: 0; display: grid; grid-template-columns: var(--side-width) 6px var(--properties-width) 6px minmax(0, 1fr); }
 .cad-sidebar, .cad-properties { min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--panel); border-right: 1px solid var(--line); }
 .dock-title { display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; min-height: 30px; padding: 5px 10px; font-size: 13px; font-weight: 600; background: var(--dock); color: var(--dock-text); border-bottom: 1px solid var(--line); }
@@ -67,8 +67,8 @@ h3 span, .width-property > span { float: right; color: var(--muted); font-size: 
 .view-controls .zoom-level { margin-left: auto; color: var(--muted); font-size: 13px; }
 .movement-readout { padding: 4px 9px; color: var(--muted); border-left: 1px solid var(--line); font-size: 13px; }
 .view-controls button[aria-pressed=true] { background: var(--accent); color: var(--panel); }
-.drawing { display: block; flex: 1 1 0%; min-height: 0; width: 100%; height: 0; border: 1px solid var(--line); background: linear-gradient(#f4f7fa, #dfe6ed); color: var(--text); touch-action: none; }
-.dark .drawing { background: linear-gradient(#202e3b, #15202b); }
+.drawing { display: block; flex: 1 1 0%; min-height: 0; width: 100%; height: 0; border: 1px solid var(--line); background: #eef0f2; color: var(--text); touch-action: none; }
+.dark .drawing { background: #20262d; }
 .drawing text { font-size: 16px; fill: var(--text); }
 .drawing.editable { user-select: none; }
 .grid { color: #7d8fa1; }
@@ -189,3 +189,23 @@ th, td { padding: 7px 5px; border-bottom: 1px solid var(--line); text-align: lef
 .tree-node-icon { display: inline-block; min-width: 16px; text-align: center; font-weight: 700; }
 .force-point { fill: var(--panel); stroke: #aa2e23; stroke-width: 2; }
 .tree-context { min-width: 240px; max-height: calc(100dvh - 16px); overflow-y: auto; border: 2px solid var(--accent); }
+
+/* Engineering property grids: stable rows, explicit units, edit cells. */
+.property-table { width: 100%; table-layout: fixed; border-collapse: collapse; margin: 0 0 8px; font-size: 13px; }
+.property-table .parameter-column { width: 43%; }
+.property-table .unit-column { width: 39px; }
+.property-table th, .property-table td { border: 1px solid var(--line); padding: 4px 6px; vertical-align: middle; }
+.property-table thead th { background: var(--bg); text-align: left; font-size: 11px; font-weight: 600; }
+.property-table tbody th { text-align: left; font-weight: 400; color: var(--text); background: color-mix(in srgb, var(--bg) 55%, var(--panel)); overflow-wrap: anywhere; }
+.property-table .property-group th { background: var(--bg); font-weight: 600; font-size: 12px; padding: 4px 6px; }
+.property-table .property-value { padding: 0; background: var(--input); }
+.property-table .property-unit { padding: 4px; font-size: 11px; color: var(--muted); white-space: nowrap; text-align: center; }
+.property-table input:not([type=checkbox]), .property-table select { width: 100%; border: 0; border-radius: 0; min-height: 28px; padding: 4px 6px; font-size: 14px; background: var(--input); }
+.property-table input[type=checkbox] { display: block; width: 16px; height: 16px; min-height: 0; margin: 6px; }
+.property-table input[aria-invalid=true] { outline: 1px solid #b83838; outline-offset: -1px; background: #fff1ef; color: #812020; }
+.property-scroll { padding: 8px; }
+.property-heading { margin-bottom: 7px; }
+.case-controls { margin-bottom: 8px; }
+.case-controls .case-buttons { display: flex; flex-wrap: wrap; gap: 4px; }
+.case-buttons button, .property-scroll .remove-weld { min-height: 28px; padding: 3px 7px; font-size: 12px; }
+.workspace-notice { padding: 5px 8px; margin: 0; font-size: 12px; background: var(--panel); color: var(--text); border-bottom: 1px solid var(--line); }

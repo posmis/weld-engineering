@@ -207,5 +207,12 @@
   "deleteWeld": "Delete weld segment",
   "copyForce": "Copy force",
   "copySuffix": "copy",
-  "copyWeldHelp": "Original welds and loads are preserved. One transformed copy of the selected segment is added; Rust validates the combined group for intersections and overlaps. All case results are cleared. One Undo restores the original project."
+  "copyWeldHelp": "Original welds and loads are preserved. One transformed copy of the selected segment is added; Rust validates the combined group for intersections and overlaps. All case results are cleared. One Undo restores the original project.",
+  "propertyParameter": "Parameter",
+  "propertyValue": "Value",
+  "propertyUnit": "Unit",
+  "forceInCentre": "At centre C",
+  "resetWorkspace": "Restore default workspace layout",
+  "layoutReadError": "Layout could not be read. Default layout is in use.",
+  "layoutSaveError": "Layout could not be saved. Change it again or restore the default layout."
 }

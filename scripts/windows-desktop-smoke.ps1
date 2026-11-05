@@ -315,6 +315,10 @@ try {
     if (Find-Name 'Номинальные компоненты F/A') { throw 'A varying distribution was displayed as uniform F/A' }
     Click-Name 'Сохранить ревизию'
     $null = Wait-Until { Find-Name 'Ревизия сохранена' } 'distribution stored in SQLite'
+    $savedTreeWidth = (Find-Name 'Дерево модели').Current.BoundingRectangle.Width
+    $savedPropertiesWidth = (Find-Name 'Свойства выбранного элемента').Current.BoundingRectangle.Width
+    $savedResultsHeight = (Find-Name 'Результаты' ([System.Windows.Automation.ControlType]::Group)).Current.BoundingRectangle.Height
+
     $null = [WeldDesktopInput]::PostMessage($handle, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero)
     if (-not $process.WaitForExit(10000)) { throw 'Clean native close did not complete' }
     if ($process.ExitCode -ne 0) { throw "Desktop closed with exit $($process.ExitCode)" }
@@ -324,6 +328,10 @@ try {
         [System.Windows.Automation.AutomationElement]::RootElement.FindFirst([System.Windows.Automation.TreeScope]::Children, $condition)
     } 'restarted native window'
     $null = Wait-Until { $control = Find-Name 'Настройки приложения' ([System.Windows.Automation.ControlType]::Button); $control -and $control.Current.IsEnabled } 'persisted preferences loaded'
+    $null = Wait-Until {
+        [Math]::Abs((Find-Name 'Дерево модели').Current.BoundingRectangle.Width - $savedTreeWidth) -lt 1 -and
+        [Math]::Abs((Find-Name 'Свойства выбранного элемента').Current.BoundingRectangle.Width - $savedPropertiesWidth) -lt 1
+    } 'workspace column sizes restored after full process restart'
     Click-Name 'Настройки приложения'
     $step = Wait-Until { Find-Name 'Шаг перемещения, mm' ([System.Windows.Automation.ControlType]::Edit) } 'reopened movement step setting'
     if ($step.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.Value -ne '5') { throw 'Movement step was not persisted across process restart' }
@@ -334,6 +342,7 @@ try {
     Open-LatestRevision
     $null = Wait-Until { Find-Name 'Номинальное распределение напряжений' } 'distribution snapshot restored after full process restart'
     $null = Wait-Until { Find-Name '-18,5 / 21,5' } 'stored analytical bending range preserved'
+    $null = Wait-Until { [Math]::Abs((Find-Name 'Результаты' ([System.Windows.Automation.ControlType]::Group)).Current.BoundingRectangle.Height - $savedResultsHeight) -lt 1 } 'result dock height restored after restart'
     $null = Wait-Until { Find-Name 'Открыт сохранённый снимок. Результат не пересчитан; для нового расчёта нажмите «Рассчитать». Импортированные данные требуют проверки.' } 'distribution provenance without automatic recalculation'
     Click-Name 'Скрыть результаты'
     Activate-Tree 'Результаты'
@@ -525,6 +534,17 @@ try {
     Click-Name 'Отменить'
     $null = Wait-Until { Find-Name 'Шов S2' ([System.Windows.Automation.ControlType]::TreeItem) } 'Undo restores deleted weld'
     if (Find-Name 'Есть несохранённые изменения') { throw 'Weld-delete Undo did not restore the complete saved snapshot' }
+    Click-Name 'Восстановить стандартную раскладку'
+    $null = Wait-Until {
+        [Math]::Abs((Find-Name 'Дерево модели').Current.BoundingRectangle.Width - 220) -lt 1 -and
+        [Math]::Abs((Find-Name 'Свойства выбранного элемента').Current.BoundingRectangle.Width - 280) -lt 1
+    } 'explicit reset restores default workspace dimensions'
+    if (Find-Name 'Есть несохранённые изменения') { throw 'Workspace reset changed the saved project' }
+    Activate-Tree 'Сила F2'
+    $null = Wait-Until { Find-Name 'Сила F2' ([System.Windows.Automation.ControlType]::Table) } 'force property grid is exposed as a real table'
+    if ((Read-Field 'force_n z') -ne '300' -or (Read-Field 'P x') -ne '25') { throw 'Property grid changed force values or units mapping' }
+    Save-Preview 'windows-property-grid-smoke.png'
+
 
 
 

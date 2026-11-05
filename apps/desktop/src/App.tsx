@@ -13,6 +13,7 @@ import { SettingsDialog } from './SettingsDialog';
 import { CadWorkspace } from './CadWorkspace';
 import { duplicateForce, forceList, maxForces, replaceForces, updateForce } from './forceInputs';
 import { ModelTree } from './ModelTree';
+import { PropertyGroup, PropertyRow, PropertyTable } from './PropertyTable';
 import { NumberField } from './NumberField';
 import { ProjectResults } from './ProjectResults';
 import { WeldProperties } from './WeldProperties';
@@ -257,7 +258,6 @@ export function App() {
           onAddWeld={addSegment} onAddForce={addForce} onForce={selectForce} onCouple={() => { setInspector('loads'); setLoadView('couple'); }}
           onWeld={selectWeld} onLoads={() => { setInspector('loads'); setLoadView('overview'); }} onResults={() => setResultsOpen(true)} t={t}/>
       </>} properties={<>
-        <div className="dock-title">{t.properties}</div>
         <div className="property-scroll" key={formKey}>
           <section hidden={inspector !== 'weld'} aria-label={t.weldProperties}><WeldProperties segments={project.input.segments} selected={selected} disabled={blocked || gestureActive} t={t}
             onChange={segments => edit({ ...project.input, segments })} onRemove={() => removeWeld(selected)}/>
@@ -268,20 +268,24 @@ export function App() {
             })}/>}
           </section>
           <section className="loads" hidden={inspector !== 'loads'} aria-label={t.loads}><div className="property-heading">{loadView === 'couple' ? t.freeCoupleNode : activeForce ? `${t.force} ${activeForce.title}` : t.noForces}</div><fieldset disabled={blocked || gestureActive}>
-        <div className="case-controls"><label>{t.loadCase}<select value={project.casebook?.active_id ?? ''} onChange={e => changeCase(activateCase(project, e.target.value))}>
-          {!project.casebook && <option value="">LC1</option>}{project.casebook?.cases.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}</select></label>
-          {project.casebook && <label>{t.caseTitle}<input maxLength={100} value={project.casebook.cases.find(c => c.id === project.casebook?.active_id)?.title ?? ''} onChange={e => changeProject({ ...project, casebook: { ...project.casebook!, cases: project.casebook!.cases.map(c => c.id === project.casebook?.active_id ? { ...c, title: e.target.value } : c) } })}/></label>}
-          <div className="case-buttons"><button disabled={(project.casebook?.cases.length ?? 1) >= maxCases} onClick={() => changeCase(addCase(project, `LC${(project.casebook?.cases.length ?? 1) + 1}`))}>{t.cloneCase}</button><button disabled={!project.casebook || project.casebook.cases.length < 2} onClick={() => changeCase(removeCase(project))}>{t.removeCase}</button></div>
-        </div>
-        {(['force_n', 'couple_n_mm'] as const).map(field => <div className="load-group" key={field} hidden={field === 'force_n' ? loadView === 'couple' || !activeForce : loadView === 'force'}><h3>{field === 'force_n' ? t.force : t.couple} <span>{field === 'force_n' ? 'N' : 'N·mm'}</span></h3>
-          {(field === 'force_n' ? activeForce?.force_n ?? [0,0,0] : project.input[field]).map((value, i) => <label className="component" key={i}>{field === 'force_n' ? 'F' : 'M'}{'xyz'[i]}<NumberField label={`${field} ${'xyz'[i]}`} value={value} onChange={n => setVector(field, i, n)}/></label>)}
-        </div>)}
-        {loadView !== 'couple' && activeForce && <><label className="width-property">{t.forceTitle}<input maxLength={100} value={activeForce.title} onChange={e => editForce({ title: e.target.value })}/></label><label className="checkbox"><input type="checkbox" checked={activeForce.application.kind === 'centroid'} onChange={e => editForce({ application: e.target.checked ? { kind: 'centroid' } : { kind: 'point', point_mm: [0, 0, 0] } })}/>{t.centroid}</label>
-        {activeForce.application.kind === 'point' && <div className="load-group"><h3>{t.point} <span>mm</span></h3>{activeForce.application.point_mm.map((value, i) => <label className="component" key={i}>{'xyz'[i]}<NumberField label={`P ${'xyz'[i]}`} value={value} onChange={n => {
-          if (activeForce.application.kind !== 'point') return; const point_mm: Vec3 = [...activeForce.application.point_mm]; point_mm[i] = n;
-          editForce({ application: { kind: 'point', point_mm } });
-        }}/></label>)}</div>}
-        <button className="remove-weld" onClick={() => removeForce(activeForce.id)}>{t.removeForce}</button></>}
+        <div className="case-controls"><PropertyTable label={t.loadCase} t={t}>
+          <PropertyRow label={t.loadCase}><select aria-label={t.loadCase} value={project.casebook?.active_id ?? ''} onChange={e => changeCase(activateCase(project, e.target.value))}>
+            {!project.casebook && <option value="">LC1</option>}{project.casebook?.cases.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+          </select></PropertyRow>
+          {project.casebook && <PropertyRow label={t.caseTitle}><input aria-label={t.caseTitle} maxLength={100} value={project.casebook.cases.find(c => c.id === project.casebook?.active_id)?.title ?? ''} onChange={e => changeProject({ ...project, casebook: { ...project.casebook!, cases: project.casebook!.cases.map(c => c.id === project.casebook?.active_id ? { ...c, title: e.target.value } : c) } })}/></PropertyRow>}
+        </PropertyTable><div className="case-buttons"><button disabled={(project.casebook?.cases.length ?? 1) >= maxCases} onClick={() => changeCase(addCase(project, `LC${(project.casebook?.cases.length ?? 1) + 1}`))}>{t.cloneCase}</button><button disabled={!project.casebook || project.casebook.cases.length < 2} onClick={() => changeCase(removeCase(project))}>{t.removeCase}</button></div></div>
+        {loadView !== 'couple' && activeForce && <><PropertyTable label={`${t.force} ${activeForce.title}`} t={t}>
+          <PropertyRow label={t.forceTitle}><input aria-label={t.forceTitle} maxLength={100} value={activeForce.title} onChange={e=>editForce({title:e.target.value})}/></PropertyRow>
+          <PropertyGroup>{t.force}</PropertyGroup>
+          {activeForce.force_n.map((value,i)=><PropertyRow key={i} label={`F${'xyz'[i]}`} unit="N"><NumberField label={`force_n ${'xyz'[i]}`} value={value} onChange={n=>setVector('force_n',i,n)}/></PropertyRow>)}
+          <PropertyRow label={t.forceInCentre}><input aria-label={t.centroid} type="checkbox" checked={activeForce.application.kind==='centroid'} onChange={e=>editForce({application:e.target.checked?{kind:'centroid'}:{kind:'point',point_mm:[0,0,0]}})}/></PropertyRow>
+          {activeForce.application.kind==='point' && <><PropertyGroup>{t.point} P</PropertyGroup>{activeForce.application.point_mm.map((value,i)=><PropertyRow key={`p-${i}`} label={`P${'xyz'[i]}`} unit="mm"><NumberField label={`P ${'xyz'[i]}`} value={value} onChange={n=>{
+            if(activeForce.application.kind!=='point')return;const point_mm:Vec3=[...activeForce.application.point_mm];point_mm[i]=n;editForce({application:{kind:'point',point_mm}});
+          }}/></PropertyRow>)}</>}
+        </PropertyTable><button className="remove-weld" onClick={()=>removeForce(activeForce.id)}>{t.removeForce}</button></>}
+        <div hidden={loadView==='force'}><PropertyTable label={t.couple} t={t}><PropertyGroup>{t.couple}</PropertyGroup>
+          {project.input.couple_n_mm.map((value,i)=><PropertyRow key={i} label={`M${'xyz'[i]}`} unit="N·mm"><NumberField label={`couple_n_mm ${'xyz'[i]}`} value={value} onChange={n=>setVector('couple_n_mm',i,n)}/></PropertyRow>)}
+        </PropertyTable></div>
           </fieldset><p className="hint">{t.source}</p></section>
         </div>
       </>} viewport={<section className="cad-viewport" aria-label={t.workspace}>
