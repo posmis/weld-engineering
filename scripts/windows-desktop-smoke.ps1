@@ -40,6 +40,10 @@ function Key-Press([byte]$Key) {
     [WeldDesktopInput]::keybd_event($Key, 0, 2, [UIntPtr]::Zero)
 }
 function Activate-Tree([string]$Name) {
+    if (-not (Find-Name $Name ([System.Windows.Automation.ControlType]::TreeItem))) {
+        $parentName = if ($Name -match '^Шов S') { 'Сварные швы' } elseif ($Name -match '^(Сила |Свободный момент)') { 'Нагрузки' } else { $null }
+        if ($parentName) { $parent = Find-Name $parentName ([System.Windows.Automation.ControlType]::TreeItem); if ($parent) { $parent.SetFocus(); Key-Press 0x27 } }
+    }
     $item = Wait-Until { $node = Find-Name $Name ([System.Windows.Automation.ControlType]::TreeItem); if ($node -and $node.Current.IsEnabled) { return $node }; return $null } "tree item $Name"
     $item.SetFocus(); Key-Press 0x20
 }

@@ -10,7 +10,7 @@ export function ModelTree({ count, selected, panel, forces, activeForce, loadVie
   const [focus, setFocus] = useState('weld-0');
   const [context, setContext] = useState<{ x: number; y: number; trigger: HTMLElement } | null>(null);
   const root = useRef<HTMLDivElement>(null), menu = useRef<HTMLDivElement>(null);
-  useEffect(() => { setFocus(panel === 'loads' ? !expanded.loads || loadView === 'overview' ? 'loads' : loadView === 'couple' ? 'couple' : `force-${activeForce}` : expanded.welds && count ? `weld-${selected}` : 'welds'); }, [selected, panel, expanded, count, activeForce, loadView]);
+  useEffect(() => { setFocus(panel === 'loads' ? !expanded.loads || loadView === 'overview' || (loadView === 'force' && !activeForce) ? 'loads' : loadView === 'couple' ? 'couple' : `force-${activeForce}` : expanded.welds && count ? `weld-${selected}` : 'welds'); }, [selected, panel, expanded, count, activeForce, loadView]);
   useEffect(() => { if (disabled) setContext(null); }, [disabled]);
   useEffect(() => {
     if (!context) return;

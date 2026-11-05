@@ -609,6 +609,9 @@ test('tree context commands add individual simultaneous forces and welds, with i
   fireEvent.click(screen.getByRole('button',{name:'Удалить выбранную силу'}));
   expect(screen.queryByRole('treeitem',{name:'Сила F2'})).toBeNull();
   fireEvent.click(screen.getByRole('button',{name:'Отменить'}));expect(screen.getByRole('treeitem',{name:'Сила F2'})).toBeTruthy();
+  fireEvent.click(screen.getByRole('treeitem',{name:'Сила F1'}));fireEvent.click(screen.getByRole('button',{name:'Удалить выбранную силу'}));
+  fireEvent.click(screen.getByRole('treeitem',{name:'Сила F2'}));fireEvent.click(screen.getByRole('button',{name:'Удалить выбранную силу'}));
+  expect(screen.getByRole('treeitem',{name:'Нагрузки'}).tabIndex).toBe(0);
 });
 
 test('both column widths change independently without dirtying the project; tree context menu supports keyboard cancellation', async()=>{
