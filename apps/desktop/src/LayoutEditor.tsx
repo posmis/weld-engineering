@@ -203,9 +203,8 @@ export function LayoutEditor({ input, centre, result, displayComponent = null, s
           <stop offset="1" stopColor={contourColour(end, field.extent)}/>
         </linearGradient>;
       })}</defs>}
-      <rect width={size.width} height={size.height} fill={settings.snap_grid ? "url(#grid)" : "none"} className="grid"/>
+      {settings.show_grid && <g role="img" aria-label={t.coordinateGrid} pointerEvents="none"><rect width={size.width} height={size.height} fill="url(#grid)" className="grid"/></g>}
       {settings.snap_axes && <g className="world-axes" pointerEvents="none"><path d={`M ${x(0)} 0 V ${size.height} M 0 ${y(0)} H ${size.width}`} className="axis" strokeDasharray="4 4"/></g>}
-      <path d={`M25 ${size.height - 35}h45m-45 0v-45`} className="axis"/><text x="74" y={size.height - 30}>X</text><text x="20" y={size.height - 88}>Y</text>
       {input.segments.map((s, i) => <g key={i} data-segment-index={i} className={i === selected ? 'segment selected' : 'segment'} onClick={() => { if (!disabled) onSelect(i); }}>
         <line x1={x(s.start_mm[0])} y1={y(s.start_mm[1])} x2={x(s.end_mm[0])} y2={y(s.end_mm[1])} className="hit" role="button" aria-label={`${t.moveWhole} S${i + 1}`} tabIndex={disabled ? -1 : 0} aria-disabled={disabled}
           onPointerDown={event => begin(event, i, 'whole')} onKeyDown={event => keyboard(event, i, 'whole')}/>
@@ -219,7 +218,10 @@ export function LayoutEditor({ input, centre, result, displayComponent = null, s
       {centre && <g className="centroid"><circle cx={x(centre[0])} cy={y(centre[1])} r="7"/><text x={x(centre[0]) + 12} y={y(centre[1]) + 22}>C</text></g>}
       {input.application.kind === 'point' && input.application.point_mm.every(Number.isFinite) && <g className="application-point"><circle cx={x(input.application.point_mm[0])} cy={y(input.application.point_mm[1])} r="6"/><text x={x(input.application.point_mm[0]) + 12} y={y(input.application.point_mm[1]) - 10}>P</text></g>}
     </svg>
+    <div className="viewport-corner">
+    <svg className="viewport-orientation" viewBox="0 0 86 78" role="img" aria-label={t.coordinateAxes}><path d="M15 62h45m-45 0v-45" className="axis"/><text x="65" y="67">X</text><text x="10" y="12">Y</text></svg>
     {showLoads && <LoadReadout input={input} pointVisible={pointVisible} pendingCentre={input.application.kind === 'centroid' && !centre} t={t}/>}
+    </div>
     {field && displayComponent !== null && <ContourLegend field={field} component={displayComponent} selected={selected} t={t}/>}
     </div>
     <details className="editor-help" hidden={compact}><summary>{t.editorHelp}</summary><p className="hint">{t.dragHelp}<br/>{t.navigationHelp}<br/>{t.choose}</p></details>

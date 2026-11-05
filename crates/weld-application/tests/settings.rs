@@ -36,7 +36,8 @@ fn version_one_database_migrates_without_losing_project_documents_and_preference
     drop(connection);
     let settings = EditorSettings {
         movement_step_mm: 0.5,
-        snap_grid: true,
+        show_grid: true,
+        snap_grid: false,
         ..Default::default()
     };
     let store = ProjectStore::open(&path).unwrap();
@@ -56,4 +57,15 @@ fn version_one_database_migrates_without_losing_project_documents_and_preference
     assert_eq!(document, "original snapshot");
     drop(connection);
     std::fs::remove_file(path).unwrap();
+}
+
+#[test]
+fn old_preferences_remain_readable_without_grid_visibility() {
+    let mut old = serde_json::to_value(EditorSettings::default()).unwrap();
+    old.as_object_mut().unwrap().remove("show_grid");
+    old["snap_grid"] = true.into();
+    let restored: EditorSettings = serde_json::from_value(old).unwrap();
+    restored.validate().unwrap();
+    assert!(!restored.show_grid);
+    assert!(restored.snap_grid);
 }

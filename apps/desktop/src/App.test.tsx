@@ -211,13 +211,17 @@ test('settings persist across app instances, do not dirty projects, and control 
   const app = await renderApp();
   fireEvent.click(screen.getByText('Настройки приложения'));
   fireEvent.change(screen.getByLabelText('Шаг перемещения, mm'), { target: { value: '5' } });
+  fireEvent.click(screen.getByLabelText('Показывать координатную сетку'));
   await act(async () => { fireEvent.click(screen.getByText('Сохранить настройки')); });
   const settings = vi.mocked(backend.saveEditorSettings).mock.calls[0][0];
   expect(settings.movement_step_mm).toBe(5);
+  expect(settings.show_grid).toBe(true); expect(settings.snap_grid).toBe(false);
+  expect(screen.getByRole('img', { name: 'Координатная сетка' })).toBeTruthy();
   expect(screen.queryByText('Есть несохранённые изменения')).toBeNull();
   expect((screen.getByLabelText('S1 X1') as HTMLInputElement).value).toBe('-50');
   app.unmount(); vi.mocked(backend.getEditorSettings).mockResolvedValue(settings);
   await renderApp();
+  expect(screen.getByRole('img', { name: 'Координатная сетка' })).toBeTruthy();
   fireEvent.keyDown(screen.getByRole('button', { name: 'Переместить шов S1' }), { key: 'ArrowRight' });
   expect((screen.getByLabelText('S1 X1') as HTMLInputElement).value).toBe('-45');
   expect((screen.getByLabelText('S1 X2') as HTMLInputElement).value).toBe('55');
@@ -230,6 +234,7 @@ test('invalid settings and storage errors keep the dialog open; cancel preserves
   fireEvent.click(screen.getByText('Сохранить настройки'));
   expect(backend.saveEditorSettings).not.toHaveBeenCalled();
   fireEvent.change(screen.getByLabelText('Шаг перемещения, mm'), { target: { value: '5' } });
+  fireEvent.click(screen.getByLabelText('Показывать координатную сетку'));
   vi.mocked(backend.saveEditorSettings).mockRejectedValue({ code: 'database_error' });
   await act(async () => { fireEvent.click(screen.getByText('Сохранить настройки')); });
   expect(screen.getByRole('dialog')).toBeTruthy();

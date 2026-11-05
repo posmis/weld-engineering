@@ -22,7 +22,7 @@ export function SettingsDialog({ settings, t, onSave, onCancel }: { settings: Ed
       <input aria-label={[t.movementStep, t.gridStep, t.snapRadius][i]} type="text" inputMode="decimal" value={texts[i]} onChange={e => {
         const raw = e.target.value; setTexts(values => values.map((v, j) => j === i ? raw : v)); const text = raw.trim().replace(',', '.'); setDraft(d => ({ ...d, [key]: text === '' ? NaN : Number(text) }));
       }}/></label>)}
-    {(['snap_grid', 'snap_endpoints', 'snap_midpoints', 'snap_axes'] as const).map((key, i) => <label className="checkbox" key={key}><input type="checkbox" checked={draft[key]} onChange={e => setDraft(d => ({ ...d, [key]: e.target.checked }))}/>{[t.snapGrid, t.snapEndpoints, t.snapMidpoints, t.snapAxes][i]}</label>)}
+    {(['show_grid', 'snap_grid', 'snap_endpoints', 'snap_midpoints', 'snap_axes'] as const).map((key, i) => <label className="checkbox" key={key}><input type="checkbox" checked={draft[key]} onChange={e => setDraft(d => ({ ...d, [key]: e.target.checked }))}/>{[t.showGrid, t.snapGrid, t.snapEndpoints, t.snapMidpoints, t.snapAxes][i]}</label>)}
     <p className="hint">{t.settingsHelp}</p>{error && <p role="alert" className="dialog-error">{error}</p>}
     <div className="dialog-actions"><button onClick={() => { setDraft({ ...defaultSettings }); setTexts([String(defaultSettings.movement_step_mm), String(defaultSettings.grid_step_mm), String(defaultSettings.snap_tolerance_px)]); setError(''); }}>{t.resetSettings}</button><button onClick={() => {
       if (![draft.movement_step_mm, draft.grid_step_mm].every(v => Number.isFinite(v) && v > 0) || !Number.isFinite(draft.snap_tolerance_px) || draft.snap_tolerance_px < 1 || draft.snap_tolerance_px > 64) { setError(t.settingsInvalid); return; }

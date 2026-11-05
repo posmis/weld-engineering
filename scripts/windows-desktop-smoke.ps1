@@ -70,6 +70,17 @@ function Show-Drawing {
         $bounds.Height -gt 0 -and $bounds.Y -ge $windowBounds.Y -and $bounds.Bottom -le $windowBounds.Bottom
     } 'persistent CAD viewport visible'
 }
+function Assert-ViewportCorner {
+    $null = Wait-Until {
+        $axes = Find-Name 'Оси координат XY' ([System.Windows.Automation.ControlType]::Image)
+        $loads = Find-Name 'Заданные нагрузки на схеме'
+        if (-not $axes -or -not $loads) { return $false }
+        $a = $axes.Current.BoundingRectangle
+        $b = $loads.Current.BoundingRectangle
+        $v = (Find-Name 'XY weld layout').Current.BoundingRectangle
+        $a.Width -gt 0 -and $a.Height -gt 0 -and $a.Bottom -lt $b.Top -and $a.Top -ge $v.Top -and $b.Bottom -le $v.Bottom
+    } 'orientation axes above load readout without overlap and inside viewport'
+}
 function Save-Preview([string]$Name) {
     try {
         Add-Type -AssemblyName System.Drawing
@@ -125,6 +136,7 @@ try {
     if ($canvas.Width -lt ($windowBounds.Width * .5)) { throw 'CAD viewport is too narrow' }
     if ((Find-Name 'Рассчитать').Current.IsOffscreen) { throw 'Calculate is not in the top toolbar' }
     if ((Read-Field 'S1 X1') -ne '-50') { throw 'Selected weld properties are incorrect' }
+    Assert-ViewportCorner
     Save-Preview 'windows-ui-smoke.png'
     $sideWidth = $sidebar.Width
     (Find-Name 'Ширина панели модели').SetFocus(); Key-Press 0x27
@@ -163,8 +175,10 @@ try {
     Click-Name 'Настройки приложения'
     $step = Wait-Until { Find-Name 'Шаг перемещения, mm' ([System.Windows.Automation.ControlType]::Edit) } 'movement step setting'
     $step.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue('5')
+    Click-Name 'Показывать координатную сетку'
     Click-Name 'Сохранить настройки'
     $null = Wait-Until { $control = Find-Name 'Настройки приложения' ([System.Windows.Automation.ControlType]::Button); $control -and $control.Current.IsEnabled } 'settings saved'
+    $null = Wait-Until { Find-Name 'Координатная сетка' ([System.Windows.Automation.ControlType]::Image) } 'visible coordinate grid with snapping disabled'
     $before = [double]::Parse((Read-Field 'S1 X1'), [Globalization.CultureInfo]::InvariantCulture)
     $whole = Find-Name 'Переместить шов S1'
     $whole.SetFocus()
@@ -196,6 +210,7 @@ try {
     $null = Wait-Until { Find-Name 'Номинальные компоненты F/A' } 'real Rust calculation result in WebView'
     $null = Wait-Until { Find-Name 'Проверка прочности недоступна' } 'unsupported strength status'
     Activate-Tree 'Нагрузки'
+    Assert-ViewportCorner
     Save-Preview 'windows-results-smoke.png'
     $handle = [IntPtr]$script:window.Current.NativeWindowHandle
     $null = [WeldDesktopInput]::PostMessage($handle, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero)
@@ -276,7 +291,10 @@ try {
     Click-Name 'Настройки приложения'
     $step = Wait-Until { Find-Name 'Шаг перемещения, mm' ([System.Windows.Automation.ControlType]::Edit) } 'reopened movement step setting'
     if ($step.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.Value -ne '5') { throw 'Movement step was not persisted across process restart' }
+    if ((Find-Name 'Показывать координатную сетку').GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern).Current.ToggleState -ne [System.Windows.Automation.ToggleState]::On) { throw 'Grid visibility was not persisted' }
+    if ((Find-Name 'Привязка к сетке').GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern).Current.ToggleState -ne [System.Windows.Automation.ToggleState]::Off) { throw 'Showing grid enabled snapping' }
     Click-Name 'Отмена'
+    $null = Wait-Until { Find-Name 'Координатная сетка' ([System.Windows.Automation.ControlType]::Image) } 'grid display restored after restart'
     Open-LatestRevision
     $null = Wait-Until { Find-Name 'Номинальное распределение напряжений' } 'distribution snapshot restored after full process restart'
     $null = Wait-Until { Find-Name '-18,5 / 21,5' } 'stored analytical bending range preserved'
@@ -309,6 +327,7 @@ try {
         $view = (Find-Name 'XY weld layout').Current.BoundingRectangle
         [Math]::Abs($b.X - $a.X) -gt $view.Width * .4
     } 'contour refits the expanded HTML viewport after hiding results'
+    Assert-ViewportCorner
     Save-Preview 'windows-contour-smoke.png'
     Click-Name 'F / M'
     if (Find-Name 'Заданные нагрузки на схеме') { throw 'Load layer did not hide' }

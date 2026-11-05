@@ -2,10 +2,10 @@ import type { SegmentInput } from './contracts';
 export type Point = [number, number];
 export type EditorSettings = {
   schema_version: number; movement_step_mm: number; grid_step_mm: number; snap_tolerance_px: number;
-  snap_grid: boolean; snap_endpoints: boolean; snap_midpoints: boolean; snap_axes: boolean;
+  show_grid: boolean; snap_grid: boolean; snap_endpoints: boolean; snap_midpoints: boolean; snap_axes: boolean;
 };
 export const defaultSettings: EditorSettings = { schema_version: 1, movement_step_mm: 1, grid_step_mm: 1,
-  snap_tolerance_px: 10, snap_grid: false, snap_endpoints: true, snap_midpoints: false, snap_axes: false };
+  snap_tolerance_px: 10, show_grid: false, snap_grid: false, snap_endpoints: true, snap_midpoints: false, snap_axes: false };
 export type Handle = 'start_mm' | 'end_mm' | 'whole';
 const round = (n: number, step: number) => Math.sign(n) * Math.round(Math.abs(n) / step) * step;
 export function translate(s: SegmentInput, delta: Point): SegmentInput | null {

@@ -28,7 +28,7 @@ Project содержит schema_version, title, input и nullable last_calculati
 
 ### Editor settings v1
 
-`get_editor_settings()` и `save_editor_settings(settings)` работают с отдельной строкой `editor_v1` в таблице `application_settings`. Поля: `schema_version=1`, положительные конечные `movement_step_mm`, `grid_step_mm`, `snap_tolerance_px` в диапазоне 1–64, булевы `snap_grid`, `snap_endpoints`, `snap_midpoints`, `snap_axes`. Неверные значения возвращают `invalid_settings`, неизвестные поля отклоняются. Отсутствующая строка даёт значения по умолчанию; повреждённая строка не перезаписывается автоматически.
+`get_editor_settings()` и `save_editor_settings(settings)` работают с отдельной строкой `editor_v1` в таблице `application_settings`. Поля: `schema_version=1`, положительные конечные `movement_step_mm`, `grid_step_mm`, `snap_tolerance_px` в диапазоне 1–64, булевы `show_grid`, `snap_grid`, `snap_endpoints`, `snap_midpoints`, `snap_axes`. Неверные значения возвращают `invalid_settings`, неизвестные поля отклоняются. Отсутствующая строка даёт значения по умолчанию; повреждённая строка не перезаписывается автоматически.
 
 SQLite `user_version=2`: миграция с v1 добавляет только таблицу настроек, сохраняя исходные документы ревизий. JSON schema проектов остаётся v1. Настройки редактора не входят в расчётный снимок.
 
@@ -38,3 +38,5 @@ SQLite `user_version=2`: миграция с v1 добавляет только 
 
 
 Новая итерация: [независимые нагрузочные случаи](load-cases.md), пакетный расчёт и сводка компонентов с определяющими случаями. Нормативная прочность не включена. Windows CI 41899254686 для 4a3d3b6: success. Нативная команда save_pdf_report(bytes) описана в [pdf-reports.md](pdf-reports.md).
+
+`show_grid` управляет только видимостью координатной сетки, независимо от `snap_grid` (привязки). Это необязательное при чтении старых editor_v1 поле с default=false; при сохранении записывается явно. Миграция SQLite/формата проекта не нужна, прочие настройки не сбрасываются.
