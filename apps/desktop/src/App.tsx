@@ -207,7 +207,8 @@ export function App() {
           <button onClick={() => run(saveCurrent)}>{t.save}</button><button onClick={() => run(async () => setRevisions(await backend.list()))}>{t.open}</button>
           <button onClick={() => inputFile.current?.click()}>{t.import}</button><button onClick={() => run(exportProject)}>{t.export}</button></div>
         <div className="tool-group"><button disabled={!history.current.canUndo || gestureActive} onClick={() => travel('undo')} title="Ctrl+Z">{t.undo}</button>
-          <button disabled={!history.current.canRedo || gestureActive} onClick={() => travel('redo')} title="Ctrl+Y / Ctrl+Shift+Z">{t.redo}</button><button disabled={project.input.segments.length >= 256 || gestureActive} onClick={addSegment}>{t.add}</button><button disabled={gestureActive} onClick={() => setTemplateOpen(true)}>{t.groupTemplate}</button><button disabled={gestureActive} onClick={() => setTransformOpen(true)}>{t.transformGroup}</button></div>
+          <button disabled={!history.current.canRedo || gestureActive} onClick={() => travel('redo')} title="Ctrl+Y / Ctrl+Shift+Z">{t.redo}</button></div>
+        <div className="tool-group"><button disabled={project.input.segments.length >= 256 || gestureActive} onClick={addSegment}>{t.add}</button><button disabled={gestureActive} onClick={() => setTemplateOpen(true)}>{t.groupTemplate}</button><button disabled={gestureActive} onClick={() => setTransformOpen(true)}>{t.transformGroup}</button></div>
         <div className="tool-group"><button onClick={() => run(exportPdf)}>{t.pdfReport}</button>
           <button className="primary" onClick={() => run(calculateCurrent)}>{busy ? t.busy : t.calculate}</button>
           <button disabled={!project.casebook} onClick={() => run(calculateAll)}>{t.calculateAll}</button>

@@ -135,6 +135,9 @@ try {
     if ($canvas.Height -lt ($windowBounds.Height * .55)) { throw 'CAD viewport does not occupy the working height' }
     if ($canvas.Width -lt ($windowBounds.Width * .5)) { throw 'CAD viewport is too narrow' }
     if ((Find-Name 'Рассчитать').Current.IsOffscreen) { throw 'Calculate is not in the top toolbar' }
+    $geometryRow = (Find-Name 'Добавить участок').Current.BoundingRectangle.Y
+    $calculationRow = (Find-Name 'Рассчитать').Current.BoundingRectangle.Y
+    if ([Math]::Abs($geometryRow - $calculationRow) -gt 2) { throw 'Geometry and calculation tools create an unnecessary extra row' }
     if ((Read-Field 'S1 X1') -ne '-50') { throw 'Selected weld properties are incorrect' }
     Assert-ViewportCorner
     Save-Preview 'windows-ui-smoke.png'
