@@ -1,6 +1,7 @@
 //! GUI-independent application boundary. No normative acceptance method is enabled.
 pub mod cases;
 pub mod geometry_templates;
+pub mod geometry_transform;
 pub mod intermittent;
 pub mod projects;
 pub mod settings;

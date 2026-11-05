@@ -43,6 +43,14 @@ try {
     Assert-Contract 'CalculationResult' ($groupResult | ConvertTo-Json -Depth 100)
     if ($groupResult.geometry.area_mm2 -ne 560 -or ($groupResult.geometry.centroid_mm -join ',') -ne '10,-5') { throw 'Generated rectangle differs from the independent perimeter/centroid reference' }
 
+    $transformJson = @{ schema_version = 1; segments = $group.segments; transform = @{ kind = 'rotate'; origin_mm = @(0,0); angle_deg = 90 } } | ConvertTo-Json -Depth 100
+    Assert-Contract 'GeometryTransformRequest' $transformJson
+    $transformed = Invoke-RestMethod -Method Post -Uri "$base/geometry/transform" -Headers $headers -ContentType 'application/json' -Body $transformJson
+    Assert-Contract 'GeometryTransformResult' ($transformed | ConvertTo-Json -Depth 100)
+    $joint.segments = $transformed.segments
+    $rotatedResult = Invoke-RestMethod -Method Post -Uri "$base/calculate" -Headers $headers -ContentType 'application/json' -Body ($joint | ConvertTo-Json -Depth 100)
+    if ($rotatedResult.geometry.area_mm2 -ne 560 -or ($rotatedResult.geometry.centroid_mm -join ',') -ne '5,10') { throw 'Rotated geometry changed area or has an incorrect centroid' }
+
     $clientOutput = & dotnet run --no-build --configuration Release --project (Join-Path $PSScriptRoot '../examples/inventor-client/WeldClient.csproj') -- $port
     if ($LASTEXITCODE -ne 0 -or ($clientOutput -join ' ') -notmatch 'unsupported_calculation') { throw 'C# client did not complete a real API calculation' }
 

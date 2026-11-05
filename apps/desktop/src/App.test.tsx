@@ -6,7 +6,7 @@ import { backend } from './backend';
 import { desktopWindow } from './desktopWindow';
 import { newProject, type CalculationResult } from './contracts';
 
-vi.mock('./backend', () => ({ backend: { getEditorSettings: vi.fn(), saveEditorSettings: vi.fn(), calculate: vi.fn(), calculateCases: vi.fn(), intermittent: vi.fn(), groupTemplate: vi.fn(), summarizeCases: vi.fn(), save: vi.fn(), list: vi.fn(), open: vi.fn(), import: vi.fn(), export: vi.fn() } }));
+vi.mock('./backend', () => ({ backend: { getEditorSettings: vi.fn(), saveEditorSettings: vi.fn(), calculate: vi.fn(), calculateCases: vi.fn(), intermittent: vi.fn(), groupTemplate: vi.fn(), transformGroup: vi.fn(), summarizeCases: vi.fn(), save: vi.fn(), list: vi.fn(), open: vi.fn(), import: vi.fn(), export: vi.fn() } }));
 vi.mock('./desktopWindow', () => ({ desktopWindow: { listenClose: vi.fn(), close: vi.fn() } }));
 beforeEach(() => { vi.mocked(backend.summarizeCases).mockResolvedValue({ total: 2, computed: 0, complete: false, normal_min: null, normal_max: null, shear_max: null }); vi.mocked(backend.getEditorSettings).mockResolvedValue({ ...defaultSettings }); vi.mocked(backend.saveEditorSettings).mockResolvedValue(undefined); vi.mocked(desktopWindow.listenClose).mockResolvedValue(() => {}); vi.mocked(desktopWindow.close).mockResolvedValue(undefined); });
 afterEach(() => { cleanup(); vi.resetAllMocks(); });
@@ -561,4 +561,23 @@ test('a geometry template never turns an incomplete load draft into zero', async
   expect((screen.getByLabelText('force_n z') as HTMLInputElement).value).toBe('');
   await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Рассчитать' })); });
   expect(backend.calculate).not.toHaveBeenCalled(); expect(screen.getByRole('alert').textContent).toContain('Обнаружено неконечное число');
+});
+
+test('transforming geometry preserves global loads and point P, clears results and supports one Undo', async () => {
+  const base = newProject(); base.input.application = { kind: 'point', point_mm: [10, 20, 30] };
+  vi.mocked(backend.list).mockResolvedValue([{ id: 'source', title: base.title, saved_at_unix_ms: '1' }]);
+  vi.mocked(backend.open).mockResolvedValue(base); vi.mocked(backend.save).mockResolvedValue('revision');
+  vi.mocked(backend.transformGroup).mockResolvedValue({ schema_version: 1, segments: [{ start_mm: [0, -50], end_mm: [0, 50], effective_width_mm: 2 }] });
+  await renderApp(); await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Открыть ревизию' })); });
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: new RegExp('^'+base.title+' ·') })); });
+  fireEvent.click(screen.getByRole('button', { name: 'Преобразовать' }));
+  fireEvent.change(screen.getByLabelText('Операция'), { target: { value: 'rotate' } });
+  await screen.findByRole('img', { name: 'Предпросмотр преобразования' }, { timeout: 5000 });
+  fireEvent.click(screen.getByRole('button', { name: 'Применить преобразование' }));
+  expect((screen.getByLabelText('S1 X1') as HTMLInputElement).value).toBe('0');
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Сохранить ревизию' })); });
+  const after=vi.mocked(backend.save).mock.calls[0][0];expect(after.input.application).toEqual(base.input.application);expect(after.input.force_n).toEqual(base.input.force_n);expect(after.input.couple_n_mm).toEqual(base.input.couple_n_mm);expect(after.last_calculation).toBeNull();
+  fireEvent.click(screen.getByRole('button',{name:'Отменить'}));
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Сохранить ревизию' })); });
+  expect(vi.mocked(backend.save).mock.calls[1][0]).toEqual(base);
 });

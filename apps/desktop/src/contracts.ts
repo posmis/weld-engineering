@@ -35,3 +35,8 @@ export interface IntermittentInput { input: CalculationInput; segment_index: num
 export type TemplateKind = 'rectangle' | 'parallel' | 'u_shape' | 'l_shape';
 export interface GeometryTemplateRequest { schema_version: 1; kind: TemplateKind; width_mm: number; height_mm: number; effective_width_mm: number; origin_mm: [number, number] }
 export interface GeometryTemplateResult { schema_version: 1; segments: SegmentInput[] }
+
+export type GeometryTransform = { kind: 'translate'; delta_mm: [number, number] }
+  | { kind: 'rotate'; origin_mm: [number, number]; angle_deg: number }
+  | { kind: 'mirror'; origin_mm: [number, number]; axis: 'x' | 'y' };
+export interface GeometryTransformRequest { schema_version: 1; segments: SegmentInput[]; transform: GeometryTransform }

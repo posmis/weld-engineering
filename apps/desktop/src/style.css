@@ -178,3 +178,5 @@ th, td { padding: 7px 5px; border-bottom: 1px solid var(--line); text-align: lef
 .template-preview text { fill: var(--text); font-size: 17px; }
 .template-placeholder { height: 190px; display: grid; place-items: center; border: 1px solid var(--line); padding: 12px; color: var(--muted); }
 .template-preview-pane > p { font-size: 13px; }
+
+.template-preview .transform-original line { stroke: var(--muted); stroke-dasharray: 7 5; stroke-width: 2; }

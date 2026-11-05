@@ -91,7 +91,7 @@ fn published_openapi_contains_the_actual_routes_and_no_unimplemented_strength_en
     let spec: serde_json::Value =
         serde_json::from_str(include_str!("../../../docs/openapi.json")).unwrap();
     assert_eq!(spec["openapi"], "3.1.0");
-    assert_eq!(spec["paths"].as_object().unwrap().len(), 7);
+    assert_eq!(spec["paths"].as_object().unwrap().len(), 8);
     assert!(spec["paths"].get("/api/v1/optimize").is_none());
     assert_eq!(
         spec["components"]["schemas"]["CalculationResult"]["properties"]["strength_status"]
@@ -138,4 +138,30 @@ async fn group_template_endpoint_returns_explicit_geometry_usable_by_the_same_ca
     let result = weld_application::calculate(&joint).unwrap();
     assert_eq!(result.geometry.area_mm2, 560.0);
     assert_eq!(result.geometry.centroid_mm, [10.0, -5.0]);
+}
+
+#[tokio::test]
+async fn transform_endpoint_returns_rotated_geometry_and_rejects_unknown_operation_fields() {
+    let mut body = serde_json::json!({"schema_version":1,"segments":input()["segments"],"transform":{"kind":"rotate","origin_mm":[0,0],"angle_deg":90}});
+    let response = weld_api::router("test-token".into())
+        .oneshot(request("/api/v1/geometry/transform", body.clone()))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let value: serde_json::Value =
+        serde_json::from_slice(&response.into_body().collect().await.unwrap().to_bytes()).unwrap();
+    assert_eq!(
+        value["segments"][0]["start_mm"],
+        serde_json::json!([0.0, -50.0])
+    );
+    assert_eq!(
+        value["segments"][0]["end_mm"],
+        serde_json::json!([0.0, 50.0])
+    );
+    body["transform"]["rotate_loads"] = true.into();
+    let response = weld_api::router("test-token".into())
+        .oneshot(request("/api/v1/geometry/transform", body))
+        .await
+        .unwrap();
+    assert!(!response.status().is_success());
 }

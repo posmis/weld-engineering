@@ -9,6 +9,7 @@
 | Метод | Маршрут | Назначение |
 |---|---|---|
 | GET | /api/v1/capabilities | Методы, ограничения и явно недоступные функции |
+| POST | /api/v1/geometry/transform | Перенос/поворот/отражение явной XY-геометрии, без изменения нагрузок |
 | POST | /api/v1/geometry/template | Построить явные прямоугольную/параллельную/П/Г-группы |
 | POST | /api/v1/geometry/intermittent | Явные участки прерывистого шва, без нормативных ограничений |
 | POST | /api/v1/calculate | CalculationInput → CalculationResult |

@@ -400,6 +400,40 @@ try {
     $null = Wait-Until { Find-Name 'Номинальное распределение напряжений' } 'one Undo restores original geometry and stored case distributions'
     if (Find-Name 'Шов S4' ([System.Windows.Automation.ControlType]::TreeItem)) { throw 'Undo retained generated rectangle elements' }
     if (Find-Name 'Есть несохранённые изменения') { throw 'Undo template failed to restore the exact saved project' }
+    Click-Name 'Преобразовать'
+    $null = Wait-Until { Find-Name 'Предпросмотр преобразования' ([System.Windows.Automation.ControlType]::Image) } 'Rust transform preview before cancellation'
+    $handle = [IntPtr]$script:window.Current.NativeWindowHandle
+    $null = [WeldDesktopInput]::PostMessage($handle, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero)
+    $null = Wait-Until { -not (Find-Name 'Предпросмотр преобразования' ([System.Windows.Automation.ControlType]::Image)) } 'native close cancels transform preview'
+    if (Find-Name 'Есть несохранённые изменения') { throw 'Transform preview modified the project before Apply' }
+    foreach ($operation in 0..2) {
+        Click-Name 'Преобразовать'
+        $choice = Wait-Until { Find-Name 'Операция' ([System.Windows.Automation.ControlType]::ComboBox) } 'transform operation selector'
+        $choice.SetFocus(); Key-Press 0x24
+        for ($i = 0; $i -lt $operation; $i++) { Key-Press 0x28 }
+        Key-Press 0x0D
+        if ($operation -eq 0) {
+            Set-Field 'Смещение X, mm' '25'; Set-Field 'Смещение Y, mm' '-10'
+            $expectedX = '-25'; $expectedY = '10'
+        } elseif ($operation -eq 1) {
+            if ((Read-Field 'Угол, °') -ne '90') { throw 'Unexpected default rotation angle' }
+            $expectedX = '-20'; $expectedY = '-50'
+        } else { $expectedX = '-50'; $expectedY = '-20' }
+        $null = Wait-Until { Find-Name 'Предпросмотр преобразования' ([System.Windows.Automation.ControlType]::Image) } 'current transformed group preview'
+        if ($operation -eq 1) { Save-Preview 'windows-transform-smoke.png' }
+        Click-Name 'Применить преобразование'
+        if ((Read-Field 'S1 X1') -ne $expectedX -or (Read-Field 'S1 Y1') -ne $expectedY) { throw "Operation $operation returned incorrect coordinates" }
+        if ((Read-Field 'force_n z') -ne '-600') { throw 'Geometry transformation modified the global force' }
+        Activate-Tree 'Результаты'
+        $null = Wait-Until { Find-Name 'Сводка случаев · 0/2 — Неполная сводка' } 'transform invalidates both case results'
+        Click-Name 'Рассчитать все'
+        $null = Wait-Until { Find-Name 'Сводка случаев · 2/2 — Все случаи рассчитаны' } 'transformed geometry reaches real Rust calculation'
+        Click-Name 'Отменить'
+        $null = Wait-Until { Find-Name 'Номинальное распределение напряжений' } 'Undo restores pre-transform calculation'
+        if ((Read-Field 'S1 X1') -ne '-50' -or (Read-Field 'S1 Y1') -ne '20') { throw 'Undo did not restore original geometry' }
+        if (Find-Name 'Есть несохранённые изменения') { throw 'Transform Undo did not restore the exact saved project' }
+    }
+
 
 
 
