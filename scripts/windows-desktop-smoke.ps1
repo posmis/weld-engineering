@@ -373,6 +373,7 @@ try {
     Click-Name 'Заменить геометрию'
     $null = Wait-Until { Find-Name 'Шов S4' ([System.Windows.Automation.ControlType]::TreeItem) } 'rectangle creates four actual weld elements'
     if ((Read-Field 'force_n z') -ne '-600') { throw 'Template replacement changed the active case load' }
+    Activate-Tree 'Результаты'
     $null = Wait-Until { Find-Name 'Сводка случаев · 0/2 — Неполная сводка' } 'template invalidates all existing case results'
     Click-Name 'Рассчитать все'
     $null = Wait-Until { Find-Name 'Сводка случаев · 2/2 — Все случаи рассчитаны' } 'generated rectangle reaches the real Rust batch calculation'

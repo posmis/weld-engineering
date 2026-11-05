@@ -273,8 +273,8 @@ export function App() {
       </footer>
     </div>
     {templateOpen && <GeometryTemplateDialog t={t} describeError={describe} onCancel={() => setTemplateOpen(false)} onApply={segments => {
-      history.current.breakGroup(); edit({ ...current.current.project.input, segments }); selectWeld(0); setFormKey(k => k + 1); setTemplateOpen(false);
-    }/>}
+      history.current.breakGroup(); edit({ ...current.current.project.input, segments }); selectWeld(0); setFormKey(k => k + 1); setResultsOpen(false); setTemplateOpen(false);
+    }}/>}
     {settingsOpen && <SettingsDialog settings={settings} t={t} onCancel={() => setSettingsOpen(false)} onSave={async value => {
       setBusy(true); try { await backend.saveEditorSettings(value); setSettings(value); setSettingsWarning(false); setSettingsOpen(false); } finally { setBusy(false); }
     }}/>}

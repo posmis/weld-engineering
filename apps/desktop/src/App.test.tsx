@@ -542,7 +542,8 @@ test('a reviewed group replaces geometry once, preserves all cases and one Undo 
   expect(after.casebook?.cases.every(c => c.last_calculation === null)).toBe(true);
   fireEvent.click(screen.getByRole('button', { name: 'Отменить' }));
   expect(screen.queryByRole('treeitem', { name: 'Шов S4' })).toBeNull();
-  expect(screen.getByText('Номинальные компоненты F/A')).toBeTruthy();
+  fireEvent.click(screen.getByRole('treeitem', { name: 'Результаты' }));
+  expect(screen.getByRole('heading', { name: 'Номинальные компоненты F/A' })).toBeTruthy();
   await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Сохранить ревизию' })); });
   expect(vi.mocked(backend.save).mock.calls[2][0]).toEqual(before);
 });
