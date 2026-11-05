@@ -214,5 +214,6 @@
   "forceInCentre": "At centre C",
   "resetWorkspace": "Restore default workspace layout",
   "layoutReadError": "Layout could not be read. Default layout is in use.",
-  "layoutSaveError": "Layout could not be saved. Change it again or restore the default layout."
+  "layoutSaveError": "Layout could not be saved. Change it again or restore the default layout.",
+  "caseProperties": "Load case properties"
 }

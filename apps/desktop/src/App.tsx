@@ -268,7 +268,7 @@ export function App() {
             })}/>}
           </section>
           <section className="loads" hidden={inspector !== 'loads'} aria-label={t.loads}><div className="property-heading">{loadView === 'couple' ? t.freeCoupleNode : activeForce ? `${t.force} ${activeForce.title}` : t.noForces}</div><fieldset disabled={blocked || gestureActive}>
-        <div className="case-controls"><PropertyTable label={t.loadCase} t={t}>
+        <div className="case-controls"><PropertyTable label={t.caseProperties} t={t}>
           <PropertyRow label={t.loadCase}><select aria-label={t.loadCase} value={project.casebook?.active_id ?? ''} onChange={e => changeCase(activateCase(project, e.target.value))}>
             {!project.casebook && <option value="">LC1</option>}{project.casebook?.cases.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
           </select></PropertyRow>
