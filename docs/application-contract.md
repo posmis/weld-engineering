@@ -58,3 +58,5 @@ SQLite `user_version=2`: миграция с v1 добавляет только 
 `create_load_combination(request)` / POST cases/combine возвращает проект с новым активным случаем. Optional LoadCase.combination хранит метод и замороженные нагрузки источников/коэффициенты; нагрузки проверяются на согласованность. Живой зависимости от исходных случаев нет. Редактирование нагрузок в GUI снимает модель сочетания; геометрия сохраняет её. [Контракт, эталоны и ограничения](user-load-combinations.md).
 
 Optional CombinationRequest.replace_case_id обновляет коэффициенты существующего сочетания по его замороженным источникам. Все source.id указываются ровно один раз; сохраняются id/позиция/число случаев, сбрасывается только результат цели. [Контракт редактирования](edit-combination-factors.md).
+
+Optional Project.materials хранит MaterialSelection с общим context и nullable base/weld custom-карточками. evaluate_materials(request) / POST materials/evaluate возвращает для четырёх свойств каждой роли user_provided либо unknown/null; пересекающиеся домены отклоняются. Карточки пока не участвуют в механике, изменение сохраняет её снимки. [Полный контракт](custom-materials.md).

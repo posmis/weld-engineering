@@ -1441,6 +1441,143 @@
           }
         }
       }
+    },
+    "/api/v1/materials/evaluate": {
+      "post": {
+        "summary": "Resolve user-provided material properties only in explicit thickness and temperature domains",
+        "responses": {
+          "200": {
+            "description": "Success; computed is not a strength verdict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaterialEvaluation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or incorrect Bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Browser Origin rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Route not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "408": {
+            "description": "Calculation deadline exceeded; worker remains reserved until it exits",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body exceeds 1 MiB",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Use application/json",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input or unsupported application method; see code/field",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Both calculation workers occupied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal calculation task failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MaterialRequest"
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1987,6 +2124,16 @@
           },
           "casebook": {
             "$ref": "#/components/schemas/CaseBook"
+          },
+          "materials": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MaterialSelection"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         }
       },
@@ -2730,6 +2877,279 @@
             "minLength": 1,
             "maxLength": 64,
             "description": "Optional existing combination ID. Replaces factors/title from its frozen sources; terms must name every stored source exactly once. Other cases/results are retained. Does not read live source loads."
+          }
+        }
+      },
+      "CustomProperty": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "value",
+          "thickness_mm",
+          "temperature_c",
+          "source"
+        ],
+        "properties": {
+          "kind": {
+            "enum": [
+              "yield_strength",
+              "tensile_strength",
+              "elastic_modulus",
+              "density"
+            ]
+          },
+          "value": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "thickness_mm": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 2,
+            "items": {
+              "type": "number",
+              "minimum": 0
+            }
+          },
+          "temperature_c": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 2,
+            "items": {
+              "type": "number",
+              "minimum": -273.15
+            }
+          },
+          "source": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          }
+        },
+        "description": "Custom sourced value, thickness (min,max], temperature [min,max], no interpolation. Same-kind overlapping domains are rejected."
+      },
+      "MaterialCard": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "designation",
+          "properties"
+        ],
+        "properties": {
+          "kind": {
+            "const": "custom"
+          },
+          "designation": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "product_form": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "condition": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "properties": {
+            "type": "array",
+            "maxItems": 32,
+            "items": {
+              "$ref": "#/components/schemas/CustomProperty"
+            }
+          }
+        }
+      },
+      "MaterialContext": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "thickness_mm",
+          "temperature_c"
+        ],
+        "properties": {
+          "thickness_mm": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "temperature_c": {
+            "type": "number",
+            "minimum": -273.15
+          }
+        }
+      },
+      "MaterialSelection": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "context"
+        ],
+        "properties": {
+          "context": {
+            "$ref": "#/components/schemas/MaterialContext"
+          },
+          "base": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MaterialCard"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "weld": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MaterialCard"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "MaterialRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schema_version",
+          "selection"
+        ],
+        "properties": {
+          "schema_version": {
+            "const": 1
+          },
+          "selection": {
+            "$ref": "#/components/schemas/MaterialSelection"
+          }
+        }
+      },
+      "ResolvedProperty": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "unit",
+          "value",
+          "source",
+          "status"
+        ],
+        "properties": {
+          "kind": {
+            "enum": [
+              "yield_strength",
+              "tensile_strength",
+              "elastic_modulus",
+              "density"
+            ]
+          },
+          "unit": {
+            "enum": [
+              "MPa",
+              "kg/m3"
+            ]
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "enum": [
+              "unknown",
+              "user_provided"
+            ]
+          }
+        }
+      },
+      "ResolvedMaterial": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "designation",
+          "properties"
+        ],
+        "properties": {
+          "designation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "properties": {
+            "type": "array",
+            "minItems": 4,
+            "maxItems": 4,
+            "items": {
+              "$ref": "#/components/schemas/ResolvedProperty"
+            }
+          }
+        }
+      },
+      "MaterialEvaluation": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schema_version",
+          "selection",
+          "base",
+          "weld"
+        ],
+        "properties": {
+          "schema_version": {
+            "const": 1
+          },
+          "selection": {
+            "$ref": "#/components/schemas/MaterialSelection"
+          },
+          "base": {
+            "$ref": "#/components/schemas/ResolvedMaterial"
+          },
+          "weld": {
+            "$ref": "#/components/schemas/ResolvedMaterial"
           }
         }
       }

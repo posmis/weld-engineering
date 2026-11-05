@@ -56,6 +56,7 @@ fn balanced_eccentric_forces_produce_uniform_total_traction_and_roundtrip() {
     assert_eq!(r.moment_at_centroid_n_mm, [0.0; 3]);
     assert_eq!(r.traction_mpa, Some([0.0, 0.0, 3.0]));
     let p = Project {
+        materials: None,
         schema_version: 1,
         title: "Multiple forces".into(),
         input: i,

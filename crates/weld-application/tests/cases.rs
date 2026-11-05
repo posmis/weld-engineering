@@ -36,6 +36,7 @@ fn project() -> Project {
         ..a.clone()
     };
     Project {
+        materials: None,
         schema_version: 1,
         title: "Cases".into(),
         input,

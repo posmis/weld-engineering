@@ -104,6 +104,7 @@ fn overlapping_or_crossing_elements_do_not_double_count_area() {
 fn sqlite_revision_round_trip_preserves_the_original_snapshot() {
     let store = ProjectStore::in_memory().unwrap();
     let mut project = Project {
+        materials: None,
         casebook: None,
         schema_version: 1,
         title: "Кронштейн".into(),
@@ -131,6 +132,7 @@ fn sqlite_revision_round_trip_preserves_the_original_snapshot() {
 #[test]
 fn stale_snapshot_and_unknown_import_schema_are_rejected() {
     let mut project = Project {
+        materials: None,
         casebook: None,
         schema_version: 1,
         title: "Test".into(),
@@ -174,6 +176,7 @@ fn future_database_migration_does_not_modify_the_database() {
 #[test]
 fn corrupted_snapshot_cannot_expose_stresses_for_unsupported_loading() {
     let mut project = Project {
+        materials: None,
         casebook: None,
         schema_version: 1,
         title: "Test".into(),

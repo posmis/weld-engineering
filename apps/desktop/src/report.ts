@@ -1,10 +1,11 @@
 import { PDFDocument, rgb, type PDFPage } from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
 import fontLicense from './assets/OFL.txt?raw';
-import type { CalculationResult, CaseSummary, Project } from './contracts';
+import {sameValue} from './projectHistory';
+import type { CalculationResult, CaseSummary, Project, MaterialEvaluation, MaterialPropertyKind } from './contracts';
 
 /** Presentation only. All mechanical values and envelopes come from Rust snapshots. */
-export async function createReport(project: Project, fontBytes: Uint8Array, summary: CaseSummary | null, date = new Date()): Promise<Uint8Array> {
+export async function createReport(project: Project, fontBytes: Uint8Array, summary: CaseSummary | null, date = new Date(), materials:MaterialEvaluation|null=null): Promise<Uint8Array> {
   const pdf = await PDFDocument.create(); pdf.registerFontkit(fontkit);
   const font = await pdf.embedFont(fontBytes, { subset: true });
   pdf.setTitle(project.title); pdf.setAuthor('Weld Engineering'); pdf.setSubject('Номинальные напряжения. Нормативная прочность не проверена.'); pdf.setCreationDate(date);
@@ -35,6 +36,18 @@ export async function createReport(project: Project, fontBytes: Uint8Array, summ
   line('Номинальная статическая линейная модель эффективного сечения. Катет, провар и нормативная геометрия автоматически не определяются.');
   line('Расчётное ядро не прошло независимую инженерную валидацию. computed означает только успешное выполнение математического расчёта.');
   line('Снимки результатов могут быть историческими. Импортированные данные требуют проверки; PDF не подтверждает их подлинность.');
+  if(project.materials){
+    if(materials&&(materials.schema_version!==1||!sameValue(JSON.parse(JSON.stringify(materials.selection)),JSON.parse(JSON.stringify(project.materials)))))throw new Error('Material evaluation does not match project');
+    heading('Пользовательские материалы');line('Карточки custom: данные пользователя, не проверенная база ГОСТ. Нормативная прочность не оценена.');
+    line(`Контекст: толщина ${number(project.materials.context.thickness_mm)} mm; температура ${number(project.materials.context.temperature_c)} °C.`);
+    const names:Record<MaterialPropertyKind,string>={yield_strength:'Rp0.2',tensile_strength:'Rm',elastic_modulus:'E',density:'Плотность'};
+    for(const role of ['base','weld'] as const){const card=project.materials[role];heading(role==='base'?'Основной металл':'Наплавленный металл');if(!card){line('Карточка не задана. Свойства неизвестны.');}else{
+      line(`Обозначение: ${card.designation}; kind=custom.`);line(`Форма продукции: ${card.product_form??'неизвестно'}; состояние: ${card.condition??'неизвестно'}.`);
+      for(const p of card.properties){line(`${names[p.kind]}=${number(p.value)} ${p.kind==='density'?'kg/m3':'MPa'}; толщина (${number(p.thickness_mm[0])}; ${number(p.thickness_mm[1])}] mm; температура [${number(p.temperature_c[0])}; ${number(p.temperature_c[1])}] °C.`);line(`Источник свойства: ${p.source}`);}
+    }
+    if(materials){for(const p of materials[role].properties)line(`Для контекста ${names[p.kind]}: ${p.value===null?'неизвестно':`${number(p.value)} ${p.unit}; пользовательские данные, не проверены`}.`);}else{line('Применимость свойств для контекста не вычислена.');}
+    }
+  }
   heading('Схема и общая геометрия');
   const points = project.input.segments.flatMap(s => [s.start_mm, s.end_mm]);
   const xs = points.map(p => p[0]), ys = points.map(p => p[1]);

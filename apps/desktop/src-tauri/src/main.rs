@@ -61,6 +61,12 @@ fn create_load_combination(
 ) -> Result<Project, AppError> {
     weld_application::combinations::create(&request)
 }
+#[tauri::command]
+fn evaluate_materials(
+    request: weld_application::materials::MaterialRequest,
+) -> Result<weld_application::materials::MaterialEvaluation, AppError> {
+    weld_application::materials::evaluate(&request)
+}
 type Store = Mutex<ProjectStore>;
 #[tauri::command]
 fn calculate_joint(input: CalculationInput) -> Result<CalculationResult, AppError> {
@@ -174,6 +180,7 @@ fn main() {
             derive_section,
             derive_mass_load,
             create_load_combination,
+            evaluate_materials,
             save_pdf_report,
             calculate_joint,
             calculate_load_cases,

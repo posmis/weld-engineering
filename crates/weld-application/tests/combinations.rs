@@ -59,6 +59,7 @@ fn request() -> CombinationRequest {
         replace_case_id: None,
         schema_version: 1,
         project: Project {
+            materials: None,
             schema_version: 1,
             title: "Combination reference".into(),
             input,

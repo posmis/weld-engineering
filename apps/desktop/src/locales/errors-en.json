@@ -28,5 +28,7 @@
   "invalid_combination": "Check source cases, title and factors. At least one nonzero factor is required; nested combinations are unsupported.",
   "combination_force_limit": "Combination exceeds 64 nonzero forces. Reduce the number of source forces or cases.",
   "combination_load_mismatch": "Combination loads do not match stored sources and factors.",
-  "combination_source_changed": "Project changed while creating the combination. Try again."
+  "combination_source_changed": "Project changed while creating the combination. Try again.",
+  "invalid_material": "Check designation, properties, sources and thickness/temperature ranges. Values must be finite and positive.",
+  "material_property_overlap": "Ranges overlap for the same property. Adjust bounds so that the value is unambiguous."
 }

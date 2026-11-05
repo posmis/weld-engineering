@@ -93,6 +93,23 @@ try {
     $editResult=Invoke-RestMethod -Method Post -Uri "$base/calculate" -Headers $headers -ContentType 'application/json' -Body ($edited.input | ConvertTo-Json -Depth 100)
     Assert-Contract 'CalculationResult' ($editResult | ConvertTo-Json -Depth 100)
     if ($edited.casebook.cases.Count -ne 3 -or $edited.casebook.active_id -ne $combination.casebook.active_id -or $editResult.traction_mpa[2] -ne 4 -or $edited.casebook.cases[2].combination.sources[0].load.force_n[2] -ne 600) { throw 'Combination edit reread live 999 N instead of frozen 600 N, or changed case identity/count' }
+    $materialCard=@{kind='custom';designation='Synthetic base';product_form=$null;condition=$null;properties=@(@{kind='yield_strength';value=300;thickness_mm=@(0,20);temperature_c=@(20,20);source='User record M-001'})}
+    $selection=@{context=@{thickness_mm=10;temperature_c=20};base=$materialCard;weld=$null}
+    $materialJson=@{schema_version=1;selection=$selection} | ConvertTo-Json -Depth 100
+    Assert-Contract 'MaterialRequest' $materialJson
+    $resolved=Invoke-RestMethod -Method Post -Uri "$base/materials/evaluate" -Headers $headers -ContentType 'application/json' -Body $materialJson
+    Assert-Contract 'MaterialEvaluation' ($resolved | ConvertTo-Json -Depth 100)
+    if ($resolved.base.properties[0].value -ne 300 -or $resolved.base.properties[0].status -ne 'user_provided' -or $null -ne $resolved.weld.properties[0].value) { throw 'Custom material acquired a normative or invented property' }
+    $selection.context.thickness_mm=21
+    $outside=Invoke-RestMethod -Method Post -Uri "$base/materials/evaluate" -Headers $headers -ContentType 'application/json' -Body (@{schema_version=1;selection=$selection}|ConvertTo-Json -Depth 100)
+    Assert-Contract 'MaterialEvaluation' ($outside | ConvertTo-Json -Depth 100)
+    if ($null -ne $outside.base.properties[0].value -or $outside.base.properties[0].status -ne 'unknown') { throw 'Out-of-domain material silently extrapolated or became zero' }
+    $materialProject=$combination | ConvertTo-Json -Depth 100 | ConvertFrom-Json -AsHashtable
+    $materialProject['materials']=$resolved.selection
+    $materialProjectJson=$materialProject | ConvertTo-Json -Depth 100
+    Assert-Contract 'Project' $materialProjectJson
+    $checked=Invoke-RestMethod -Method Post -Uri "$base/projects/validate" -Headers $headers -ContentType 'application/json' -Body $materialProjectJson
+    Assert-Contract 'Project' ($checked | ConvertTo-Json -Depth 100)
     $massJson='{"schema_version":1,"model":{"mass_kg":10,"gravity_m_s2":[0,0,-10],"acceleration_m_s2":[2,0,0]}}'
     Assert-Contract 'MassLoadRequest' $massJson
     $mass=Invoke-RestMethod -Method Post -Uri "$base/loads/mass" -Headers $headers -ContentType 'application/json' -Body $massJson

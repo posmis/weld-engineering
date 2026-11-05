@@ -1,3 +1,4 @@
+import { MaterialDialog } from './MaterialDialog';
 import { CombinationDialog } from './CombinationDialog';
 import { MassLoadEditor } from './MassLoadEditor';
 import { useEffect, useRef, useState } from 'react';
@@ -34,6 +35,8 @@ export function App() {
   const [copyIndex, setCopyIndex] = useState<number | null>(null);
   const transformActive = transformOpen || copyIndex !== null;
   const transformOpenRef = useRef(false); transformOpenRef.current = transformActive;
+  const [materialsOpen,setMaterialsOpen]=useState(false);
+  const materialsOpenRef=useRef(false);materialsOpenRef.current=materialsOpen;
   const [combinationOpen,setCombinationOpen]=useState(false);
   const [combinationEditId,setCombinationEditId]=useState<string|undefined>();
   const combinationOpenRef=useRef(false);combinationOpenRef.current=combinationOpen;
@@ -101,6 +104,7 @@ export function App() {
     let disposed = false; let unlisten: (() => void) | undefined;
     void desktopWindow.listenClose(event => {
       if (transformOpenRef.current) { event.preventDefault(); setTransformOpen(false); setCopyIndex(null); return; }
+      if(materialsOpenRef.current){event.preventDefault();setMaterialsOpen(false);return;}
       if (combinationOpenRef.current) {event.preventDefault();setCombinationOpen(false);return;}
       if (templateOpenRef.current) { event.preventDefault(); setTemplateOpen(false); return; }
       if (settingsOpenRef.current) { event.preventDefault(); if (!busyRef.current) setSettingsOpen(false); return; }
@@ -146,7 +150,7 @@ export function App() {
     setMessage(''); setError('');
   }
   function travel(direction: 'undo' | 'redo') {
-    if (busy || pending || settingsOpen || transformActive || templateOpen || combinationOpen || gestureActive) return;
+    if (busy || pending || settingsOpen || transformActive || templateOpen || combinationOpen || materialsOpen || gestureActive) return;
     const snapshot = history.current[direction](current.current);
     if (!snapshot) return;
     inputEpoch.current += 1; showSnapshot(snapshot); setMessage(''); setError('');
@@ -221,7 +225,8 @@ export function App() {
     const [{ createReport }, { default: fontUrl }] = await Promise.all([import('./report'), import('./assets/NotoSans-Regular.ttf?url')]);
     const response = await fetch(fontUrl); if (!response.ok) throw { code: 'invalid_report' };
     const summary = validated.casebook ? await backend.summarizeCases(validated) : null;
-    const bytes = await createReport(validated, new Uint8Array(await response.arrayBuffer()), summary);
+    const materials=validated.materials?await backend.evaluateMaterials({schema_version:1,selection:validated.materials}):null;
+    const bytes = await createReport(validated, new Uint8Array(await response.arrayBuffer()), summary,new Date(),materials);
     const path = await backend.savePdf(bytes);
     if (path) setMessage(`${t.reportSaved}: ${path}`);
   }
@@ -231,8 +236,8 @@ export function App() {
     const target = event.target as HTMLElement;
     if (target.closest('input,textarea,[contenteditable="true"]')) return;
     event.preventDefault(); travel(event.key.toLowerCase() === 'y' || event.shiftKey ? 'redo' : 'undo');
-  }} onKeyDown={event => { if (event.key === 'Escape' && !event.defaultPrevented && !pending && !settingsOpen && !transformActive && !templateOpen && !combinationOpen) setRevisions(null); }}>
-    <div className="app-shell" inert={pending !== null || settingsOpen || transformActive || templateOpen || combinationOpen}>
+  }} onKeyDown={event => { if (event.key === 'Escape' && !event.defaultPrevented && !pending && !settingsOpen && !transformActive && !templateOpen && !combinationOpen && !materialsOpen) setRevisions(null); }}>
+    <div className="app-shell" inert={pending !== null || settingsOpen || transformActive || templateOpen || combinationOpen || materialsOpen}>
       <header className="cad-header"><div className="brand"><span className="brand-mark">W</span><strong>WELD ENGINEERING</strong></div>
         <label className="project-title">{t.title}<input maxLength={200} value={project.title} disabled={blocked || gestureActive} onChange={e => changeProject({ ...project, title: e.target.value })}/></label>
         <div className="header-controls"><button disabled={blocked || settingsLoading || gestureActive} onClick={() => setSettingsOpen(true)}>{t.settings}</button><button onClick={() => setLang(lang === 'ru' ? 'en' : 'ru')}>{lang === 'ru' ? 'EN' : 'RU'}</button><button onClick={() => setDark(!dark)}>{dark ? t.light : t.dark}</button></div>
@@ -240,7 +245,7 @@ export function App() {
       <fieldset disabled={blocked || gestureActive} className="toolbar" aria-label={t.mainToolbar}>
         <div className="tool-group"><button onClick={() => request({ run: () => replace({ ...newProject(), title: t.newProject }, false) })}>{t.new}</button>
           <button onClick={() => run(saveCurrent)}>{t.save}</button><button onClick={() => run(async () => setRevisions(await backend.list()))}>{t.open}</button>
-          <button onClick={() => inputFile.current?.click()}>{t.import}</button><button onClick={() => run(exportProject)}>{t.export}</button></div>
+          <button onClick={() => inputFile.current?.click()}>{t.import}</button><button onClick={() => run(exportProject)}>{t.export}</button><button onClick={()=>setMaterialsOpen(true)}>{t.materials}</button></div>
         <div className="tool-group"><button disabled={!history.current.canUndo || gestureActive} onClick={() => travel('undo')} title="Ctrl+Z">{t.undo}</button>
           <button disabled={!history.current.canRedo || gestureActive} onClick={() => travel('redo')} title="Ctrl+Y / Ctrl+Shift+Z">{t.redo}</button></div>
         <div className="tool-group"><button disabled={project.input.segments.length >= 256 || gestureActive} onClick={addSegment}>{t.add}</button><button disabled={gestureActive} onClick={() => setTemplateOpen(true)}>{t.groupTemplate}</button><button disabled={gestureActive} onClick={() => setTransformOpen(true)}>{t.transformGroup}</button></div>
@@ -301,7 +306,7 @@ export function App() {
           <option value="geometry">{t.geometryView}</option>{['τx', 'τy', 'σz'].map((name, i) => <option key={name} value={i} disabled={result?.analysis_status !== 'computed'}>{name} · MPa</option>)}
         </select></label><button aria-pressed={showLoads} disabled={blocked || gestureActive} onClick={() => setShowLoads(!showLoads)}>{t.loadLayer}</button></div><span>{project.casebook?.cases.find(c => c.id === project.casebook?.active_id)?.title} · XY · mm</span></div>
         <LayoutEditor key={formKey} input={project.input} centre={result?.geometry.centroid_mm} result={result} displayComponent={displayComponent} showLoads={showLoads} selected={selected} onSelect={selectWeld}
-          onChange={segments => edit({ ...project.input, segments })} disabled={blocked || settingsOpen || transformActive || templateOpen || combinationOpen || settingsLoading} t={t} settings={settings} compact
+          onChange={segments => edit({ ...project.input, segments })} disabled={blocked || settingsOpen || transformActive || templateOpen || combinationOpen || materialsOpen || settingsLoading} t={t} settings={settings} compact
           onDragStart={() => { history.current.breakGroup(); setGestureActive(true); dragSnapshot.current = { snapshot: current.current, checkpoint: history.current.checkpoint(), token: {} }; }}
           onDragCancel={() => {
             const original = dragSnapshot.current; if (!original) return;
@@ -329,6 +334,7 @@ export function App() {
       history.current.breakGroup(); edit({ ...current.current.project.input, segments }); selectWeld(0); setFormKey(k => k + 1); setResultsOpen(false); setTemplateOpen(false);
     }}/>}
     {combinationOpen&&<CombinationDialog key={combinationEditId??'new'} project={project} editCaseId={combinationEditId} t={t} describeError={describe} onCancel={()=>setCombinationOpen(false)} onApply={next=>{changeCase(next);setCombinationOpen(false);setResultsOpen(false);setInspector('loads');setLoadView('overview');}}/>}
+    {materialsOpen&&<MaterialDialog selection={project.materials} t={t} describeError={describe} onCancel={()=>setMaterialsOpen(false)} onApply={materials=>{history.current.breakGroup();changeProject({...current.current.project,materials});setMaterialsOpen(false);setMessage('');setError('');}}/>}
     {settingsOpen && <SettingsDialog settings={settings} t={t} onCancel={() => setSettingsOpen(false)} onSave={async value => {
       setBusy(true); try { await backend.saveEditorSettings(value); setSettings(value); setSettingsWarning(false); setSettingsOpen(false); } finally { setBusy(false); }
     }}/>}

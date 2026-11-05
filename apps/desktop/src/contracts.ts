@@ -25,7 +25,14 @@ export interface CalculationResult {
   analysis_status: 'computed' | 'unsupported_loading'; strength_status: 'unsupported_calculation';
   validation_status: 'not_independently_validated'; warnings: string[];
 }
-export interface Project { schema_version: 1; title: string; input: CalculationInput; last_calculation: CalculationResult | null; casebook?: CaseBook }
+export type MaterialPropertyKind='yield_strength'|'tensile_strength'|'elastic_modulus'|'density';
+export interface CustomProperty {kind:MaterialPropertyKind;value:number;thickness_mm:[number,number];temperature_c:[number,number];source:string}
+export interface MaterialCard {kind:'custom';designation:string;product_form:string|null;condition:string|null;properties:CustomProperty[]}
+export interface MaterialSelection {context:{thickness_mm:number;temperature_c:number};base:MaterialCard|null;weld:MaterialCard|null}
+export interface MaterialRequest {schema_version:1;selection:MaterialSelection}
+export interface ResolvedMaterial {designation:string|null;properties:{kind:MaterialPropertyKind;unit:string;value:number|null;source:string|null;status:'unknown'|'user_provided'}[]}
+export interface MaterialEvaluation {schema_version:1;selection:MaterialSelection;base:ResolvedMaterial;weld:ResolvedMaterial}
+export interface Project { materials?:MaterialSelection; schema_version: 1; title: string; input: CalculationInput; last_calculation: CalculationResult | null; casebook?: CaseBook }
 export interface Revision { id: string; title: string; saved_at_unix_ms: string }
 export function newProject(): Project {
   return { schema_version: 1, title: 'Новый проект', input: { schema_version: 1,

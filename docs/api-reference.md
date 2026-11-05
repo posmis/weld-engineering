@@ -52,3 +52,5 @@ POST `/api/v1/loads/mass`: `MassLoadRequest` → `MassLoadResult`, общие а
 POST `/api/v1/cases/combine`: `CombinationRequest` → `Project`, новый активный случай из замороженных исходных нагрузок. Общие авторизация/лимиты/ошибки; [метод и контракт](user-load-combinations.md).
 
 POST cases/combine принимает optional replace_case_id: обновление коэффициентов существующего сочетания из frozen sources, с прежними авторизацией/лимитами. [Подробности](edit-combination-factors.md).
+
+POST `/api/v1/materials/evaluate`: MaterialRequest → MaterialEvaluation; общий контекст, custom-карточки основного/наплавленного металла, применимые значения либо unknown/null. Авторизация/лимиты прежние. [Метод и ограничения](custom-materials.md).

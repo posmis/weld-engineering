@@ -13,6 +13,8 @@ use std::{
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Project {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub materials: Option<crate::materials::MaterialSelection>,
     pub schema_version: u32,
     pub title: String,
     pub input: CalculationInput,
@@ -40,6 +42,9 @@ impl Project {
         }
         if self.title.trim().is_empty() || self.title.chars().count() > 200 {
             return Err(AppError::new("invalid_title", Some("title")));
+        }
+        if let Some(materials) = &self.materials {
+            crate::materials::validate(materials)?;
         }
         validate_input(&self.input)?;
         if let Some(result) = &self.last_calculation {

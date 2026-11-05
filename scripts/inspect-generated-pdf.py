@@ -80,3 +80,24 @@ assert edit_case["last_calculation"]["input_snapshot"] == edit_project["input"]
 assert edit_case["last_calculation"]["strength_status"] == "unsupported_calculation"
 assert edit_project["casebook"]["cases"][:2] == comb_project["casebook"]["cases"][:2]
 print("PASS: edited combination keeps its ID/case count/frozen sources and original cases, and PDF contains new factors and the actual 1150 N result.")
+
+material_reader = PdfReader(path.with_name("weld-material-report-smoke.pdf"))
+material_text = "\n".join(page.extract_text() or "" for page in material_reader.pages)
+assert "Пользовательские материалы" in material_text
+assert "не проверенная база ГОСТ" in material_text
+assert "Источник свойства: User record M-001" in material_text
+assert "Synthetic base" in material_text and "21 mm" in material_text
+base_section = material_text.split("Основной металл",1)[1].split("Наплавленный металл",1)[0]
+assert "Для контекста Rp0.2: неизвестно" in base_section
+assert "?" not in material_text
+material_project = json.loads(material_reader.attachments["weld-project.json"][0])
+assignment = material_project["materials"]
+assert assignment["context"] == {"thickness_mm":21.0,"temperature_c":20.0}
+assert assignment["base"]["kind"] == "custom"
+assert assignment["base"]["properties"][0] == {"kind":"yield_strength","value":300.0,"thickness_mm":[0.0,20.0],"temperature_c":[20.0,20.0],"source":"User record M-001"}
+assert assignment["weld"] is None
+assert material_project["casebook"] == edit_project["casebook"]
+assert material_project["input"] == edit_project["input"]
+assert material_project["last_calculation"] == edit_project["last_calculation"]
+assert material_project["last_calculation"]["strength_status"] == "unsupported_calculation"
+print("PASS: custom materials, explicit source/ranges and unknown out-of-domain property in PDF; all nominal snapshots preserved and no normative acceptance.")

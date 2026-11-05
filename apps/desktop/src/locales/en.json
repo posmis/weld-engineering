@@ -241,5 +241,30 @@
   "combinationSnapshot": "Frozen user load combination. Editing loads converts it to an ordinary case; Undo restores the combination. Source cases and factors are listed in the report.",
   "editCombination": "Combination factors",
   "applyCombination": "Apply factors",
-  "combinationEditAssumption": "Edit factors of the saved combination using frozen source loads, even if live source cases changed or were deleted. Case count and combination ID are retained; its result is cleared. Zero excludes a contribution. Create a new combination to use a different set of source cases."
+  "combinationEditAssumption": "Edit factors of the saved combination using frozen source loads, even if live source cases changed or were deleted. Case count and combination ID are retained; its result is cleared. Zero excludes a contribution. Create a new combination to use a different set of source cases.",
+  "materials": "Project materials",
+  "materialScope": "The common query context for both cards is explicit and is not inferred from weld width a. User-provided base and weld metal cards. Not a verified standards database. Thickness: (t min; t max], temperature: [T min; T max]. No interpolation; out-of-range properties are unknown. Properties do not yet affect nominal mechanics or strength. Source means a reference, clause or test record; do not paste publications.",
+  "materialThickness": "Analysis thickness, mm",
+  "materialTemperature": "Temperature, °C",
+  "materialBase": "Base metal",
+  "materialWeld": "Weld metal",
+  "materialUse": "Assign card",
+  "materialDesignation": "Designation",
+  "materialForm": "Product form",
+  "materialCondition": "Delivery condition / heat treatment",
+  "materialProperty": "Property",
+  "materialPropertyNames": [
+    "Yield strength Rp0.2",
+    "Tensile strength Rm",
+    "Elastic modulus E",
+    "Density"
+  ],
+  "materialValue": "Value",
+  "materialSource": "Property source",
+  "materialAddProperty": "Add property",
+  "materialCheck": "Check applicability",
+  "materialApply": "Apply materials",
+  "materialResolved": "Applicable properties",
+  "materialUnknown": "Unknown",
+  "materialUserProvided": "User-provided, unverified"
 }

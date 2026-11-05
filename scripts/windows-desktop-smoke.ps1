@@ -800,6 +800,87 @@ try {
     if (-not [string]::Equals($actualPath, $reportPath, [StringComparison]::OrdinalIgnoreCase)) { throw "Native save chose '$actualPath' instead of '$reportPath'" }
     $reportBytes = [System.IO.File]::ReadAllBytes($reportPath)
     if ($reportBytes.Length -lt 1000 -or [System.Text.Encoding]::ASCII.GetString($reportBytes, 0, 5) -ne '%PDF-') { throw 'Invalid PDF report output' }
+    Click-Name 'Материалы проекта'
+    Set-Field 'Расчётная толщина, mm' '10'; Set-Field 'Температура, °C' '20'
+    Click-Name 'Задать карточку Основной металл'
+    Set-Field 'Основной металл · Обозначение' 'Synthetic base'
+    Click-Name 'Добавить свойство Основной металл'
+    Set-Field 'Основной металл · 1 · Значение' '300'
+    Set-Field 'Основной металл · 1 · thickness_mm 1' '20'
+    Set-Field 'Основной металл · 1 · temperature_c 0' '20'; Set-Field 'Основной металл · 1 · temperature_c 1' '20'
+    Set-Field 'Основной металл · 1 · Источник свойства' 'User record M-001'
+    Click-Name 'Проверить применимость'
+    $null=Wait-Until { $button=Find-Name 'Применить материалы' ([System.Windows.Automation.ControlType]::Button);$button -and $button.Current.IsEnabled } 'Rust validates custom material applicability'
+    $null=Wait-Until { Find-Name 'Неизвестно' ([System.Windows.Automation.ControlType]::Text) } 'missing weld material remains explicitly unknown'
+    Click-Name 'Применить материалы'
+    $null=Wait-Until { -not (Find-Name 'Проверить применимость' ([System.Windows.Automation.ControlType]::Button)) -and (Find-Name 'Есть несохранённые изменения') } 'material assignment commits as one project edit'
+    $null=Wait-Until { Find-Name 'Сводка случаев · 3/3 — Все случаи рассчитаны' } 'nominal results do not depend on custom property metadata'
+    Click-Name 'Отменить'
+    $null=Wait-Until { -not (Find-Name 'Есть несохранённые изменения') } 'one Undo restores original material-free project'
+    Click-Name 'Повторить'
+    $null=Wait-Until { Find-Name 'Есть несохранённые изменения' } 'Redo restores custom material cards'
+    Click-Name 'Сохранить ревизию'
+    $null=Wait-Until { Find-Name 'Ревизия сохранена' } 'material cards saved to SQLite'
+    $handle = [IntPtr]$script:window.Current.NativeWindowHandle
+    $null = [WeldDesktopInput]::PostMessage($handle, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero)
+    if (-not $process.WaitForExit(10000)) { throw 'Material application did not close cleanly' }
+    $process = Start-Process -FilePath $executable -PassThru
+    $script:window = Wait-Until {
+        $condition = [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $process.Id)
+        [System.Windows.Automation.AutomationElement]::RootElement.FindFirst([System.Windows.Automation.TreeScope]::Children, $condition)
+    } 'material process restart'
+    $null = Wait-Until { $control=Find-Name 'Настройки приложения' ([System.Windows.Automation.ControlType]::Button);$control -and $control.Current.IsEnabled } 'settings loaded after material restart'
+    Open-LatestRevision
+    Click-Name 'Материалы проекта'
+    if ((Read-Field 'Расчётная толщина, mm') -ne '10' -or (Read-Field 'Основной металл · 1 · Значение') -ne '300' -or (Read-Field 'Основной металл · 1 · Источник свойства') -ne 'User record M-001') { throw 'Material cards or applicability context lost after restart' }
+    Click-Name 'Проверить применимость'
+    $null=Wait-Until { (Find-Name 'Применить материалы' ([System.Windows.Automation.ControlType]::Button)).Current.IsEnabled } 'persisted source still resolves through Rust'
+    Set-Field 'Расчётная толщина, mm' '21'
+    $null=Wait-Until { (Read-Field 'Расчётная толщина, mm') -eq '21' -and -not (Find-Name 'Применить материалы' ([System.Windows.Automation.ControlType]::Button)).Current.IsEnabled } 'context edit invalidates the previous applicability result'
+    Click-Name 'Проверить применимость'
+    $null=Wait-Until { (Find-Name 'Применить материалы' ([System.Windows.Automation.ControlType]::Button)).Current.IsEnabled } 'out-of-range properties return explicit unknown instead of extrapolation'
+    Save-Preview 'windows-materials-smoke.png'
+    Click-Name 'Применить материалы'
+    $null=Wait-Until { -not (Find-Name 'Проверить применимость' ([System.Windows.Automation.ControlType]::Button)) -and (Find-Name 'Есть несохранённые изменения') } 'new material context committed'
+    $null=Wait-Until { Find-Name 'Сводка случаев · 3/3 — Все случаи рассчитаны' } 'custom material context change preserves all nominal case snapshots'
+    Click-Name 'Сохранить ревизию'
+    $null=Wait-Until { Find-Name 'Ревизия сохранена' } 'out-of-domain context saved without fabricating values'
+    Click-Name 'Отчёт PDF'
+    $dialog = Wait-Until {
+        [System.Windows.Automation.AutomationElement]::RootElement.FindFirst(
+            [System.Windows.Automation.TreeScope]::Children,
+            [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::NameProperty, 'Weld Engineering — PDF'))
+    } 'native PDF save dialog'
+    $filenameCondition = [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::AutomationIdProperty, '1001')
+    $filename = $dialog.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $filenameCondition)
+    if (-not $filename) { throw 'Native PDF filename input not found' }
+    $reportPath = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../target/weld-material-report-smoke.pdf'))
+    $filename.SetFocus()
+    # The shell dialog requires actual editing keystrokes, not only UIA SetValue.
+    Set-Clipboard -Value $reportPath
+    [WeldDesktopInput]::keybd_event(0x11, 0, 0, [UIntPtr]::Zero)
+    Key-Press 0x41
+    Key-Press 0x56
+    [WeldDesktopInput]::keybd_event(0x11, 0, 2, [UIntPtr]::Zero)
+    $null = Wait-Until { $filename.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.Value -eq $reportPath } 'native filename entered by keyboard'
+    Key-Press 0x09
+    $saveCondition = [System.Windows.Automation.AndCondition]::new(
+        [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::AutomationIdProperty, '1'),
+        [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Button))
+    $save = $dialog.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $saveCondition)
+    $save.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    $pdfPrefix = 'PDF-отчёт сохранён: '
+    $pdfStatus = Wait-Until {
+        $texts = $script:window.FindAll([System.Windows.Automation.TreeScope]::Descendants,
+            [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Text))
+        foreach ($text in $texts) { if ($text.Current.Name.StartsWith($pdfPrefix)) { return $text.Current.Name } }
+        return $null
+    } 'PDF generated and written by native adapter'
+    $actualPath = $pdfStatus.Substring($pdfPrefix.Length)
+    Write-Output "Synthetic report saved at: $actualPath"
+    if (-not [string]::Equals($actualPath, $reportPath, [StringComparison]::OrdinalIgnoreCase)) { throw "Native save chose '$actualPath' instead of '$reportPath'" }
+    $reportBytes = [System.IO.File]::ReadAllBytes($reportPath)
+    if ($reportBytes.Length -lt 1000 -or [System.Text.Encoding]::ASCII.GetString($reportBytes, 0, 5) -ne '%PDF-') { throw 'Invalid PDF report output' }
     $handle = [IntPtr]$script:window.Current.NativeWindowHandle
     $null = [WeldDesktopInput]::PostMessage($handle, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero)
     if (-not $process.WaitForExit(10000)) { throw 'Restarted desktop did not close cleanly' }

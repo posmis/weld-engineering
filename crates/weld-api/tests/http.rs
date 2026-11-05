@@ -91,7 +91,7 @@ fn published_openapi_contains_the_actual_routes_and_no_unimplemented_strength_en
     let spec: serde_json::Value =
         serde_json::from_str(include_str!("../../../docs/openapi.json")).unwrap();
     assert_eq!(spec["openapi"], "3.1.0");
-    assert_eq!(spec["paths"].as_object().unwrap().len(), 11);
+    assert_eq!(spec["paths"].as_object().unwrap().len(), 12);
     assert!(spec["paths"].get("/api/v1/optimize").is_none());
     assert_eq!(
         spec["components"]["schemas"]["CalculationResult"]["properties"]["strength_status"]
@@ -298,4 +298,36 @@ async fn edit_combination_endpoint_replaces_the_case_using_frozen_not_live_sourc
     let value: serde_json::Value =
         serde_json::from_slice(&r.into_body().collect().await.unwrap().to_bytes()).unwrap();
     assert_eq!(value["traction_mpa"][2], 4.0);
+}
+
+#[tokio::test]
+async fn material_endpoint_returns_unknown_outside_scope_and_never_normative_values() {
+    let selection = serde_json::json!({"context":{"thickness_mm":10,"temperature_c":20},"base":{"kind":"custom","designation":"Synthetic base","product_form":null,"condition":null,"properties":[{"kind":"yield_strength","value":300,"thickness_mm":[0,20],"temperature_c":[20,20],"source":"User test M-001"}]},"weld":null});
+    let response = weld_api::router("test-token".into())
+        .oneshot(request(
+            "/api/v1/materials/evaluate",
+            serde_json::json!({"schema_version":1,"selection":selection}),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let value: serde_json::Value =
+        serde_json::from_slice(&response.into_body().collect().await.unwrap().to_bytes()).unwrap();
+    assert_eq!(value["base"]["properties"][0]["value"], 300.0);
+    assert_eq!(value["base"]["properties"][0]["status"], "user_provided");
+    assert!(value["weld"]["properties"][0]["value"].is_null());
+    let mut selection = value["selection"].clone();
+    selection["context"]["thickness_mm"] = 21.into();
+    let response = weld_api::router("test-token".into())
+        .oneshot(request(
+            "/api/v1/materials/evaluate",
+            serde_json::json!({"schema_version":1,"selection":selection}),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let value: serde_json::Value =
+        serde_json::from_slice(&response.into_body().collect().await.unwrap().to_bytes()).unwrap();
+    assert!(value["base"]["properties"][0]["value"].is_null());
+    assert_eq!(value["base"]["properties"][0]["status"], "unknown");
 }
