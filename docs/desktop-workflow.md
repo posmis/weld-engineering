@@ -193,3 +193,5 @@ Native smoke проверяет старт в fullscreen, высоту и шир
 Редактирование коэффициентов проверено в установленном EXE: [Windows 42121612434 — SUCCESS](https://github.com/posmis/weld-engineering/actions/runs/42121612434), source `e3a0d09`. Undo/Redo, сохранённые источники/ID, SQLite/restart и независимый PDF parser пройдены. [Снимок](screenshots/combination-factors-edit.png).
 
 «Материалы проекта»: явные карточки/источники/диапазоны и общий контекст толщины/температуры. Проверить применимость в Rust, затем применить. Вне диапазона — unknown, не ноль. Undo/Redo/SQLite/JSON/PDF; текущая номинальная механика не использует эти свойства. [Подробности](custom-materials.md).
+
+Пользовательские материалы проверены в установленном EXE: [Windows 42126360576 — SUCCESS](https://github.com/posmis/weld-engineering/actions/runs/42126360576), source `6fceea6`. Unknown вне диапазона, Undo/Redo, SQLite/restart и независимый PDF parser прошли; [снимок](screenshots/custom-materials.png).

@@ -44,4 +44,4 @@
 
 Новый блок [редактирования коэффициентов сочетания](edit-combination-factors.md) реализован; Windows 42121612434 / source e3a0d09 — SUCCESS: 90 Rust/API, 95 frontend ×3, полный native/PDF путь. Это не нормативные сочетания или оценка прочности.
 
-Новый блок [пользовательских материалов проекта](custom-materials.md): карточки, источники/диапазоны и explicit unknown, SQLite/JSON/PDF. Windows текущего SHA ожидается. Верифицированный каталог и нормативная прочность не реализованы.
+Новый блок [пользовательских материалов проекта](custom-materials.md): карточки, источники/диапазоны и explicit unknown, SQLite/JSON/PDF. Windows 42126360576 / source 6fceea6 — SUCCESS: 95 Rust/API, 100 frontend ×3, полный native/PDF путь. Верифицированный каталог и нормативная прочность не реализованы.
