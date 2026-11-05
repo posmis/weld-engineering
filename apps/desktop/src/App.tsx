@@ -1,3 +1,4 @@
+import { CombinationDialog } from './CombinationDialog';
 import { MassLoadEditor } from './MassLoadEditor';
 import { useEffect, useRef, useState } from 'react';
 import { ProjectHistory, sameValue, type EditorSnapshot } from './projectHistory';
@@ -33,6 +34,8 @@ export function App() {
   const [copyIndex, setCopyIndex] = useState<number | null>(null);
   const transformActive = transformOpen || copyIndex !== null;
   const transformOpenRef = useRef(false); transformOpenRef.current = transformActive;
+  const [combinationOpen,setCombinationOpen]=useState(false);
+  const combinationOpenRef=useRef(false);combinationOpenRef.current=combinationOpen;
   const [templateOpen, setTemplateOpen] = useState(false);
   const templateOpenRef = useRef(false); templateOpenRef.current = templateOpen;
   const [settingsOpen, setSettingsOpen] = useState(false), [settingsLoading, setSettingsLoading] = useState(true), [settingsWarning, setSettingsWarning] = useState(false);
@@ -97,6 +100,7 @@ export function App() {
     let disposed = false; let unlisten: (() => void) | undefined;
     void desktopWindow.listenClose(event => {
       if (transformOpenRef.current) { event.preventDefault(); setTransformOpen(false); setCopyIndex(null); return; }
+      if (combinationOpenRef.current) {event.preventDefault();setCombinationOpen(false);return;}
       if (templateOpenRef.current) { event.preventDefault(); setTemplateOpen(false); return; }
       if (settingsOpenRef.current) { event.preventDefault(); if (!busyRef.current) setSettingsOpen(false); return; }
       if (allowClose.current || (!dirtyRef.current && !busyRef.current)) return;
@@ -141,7 +145,7 @@ export function App() {
     setMessage(''); setError('');
   }
   function travel(direction: 'undo' | 'redo') {
-    if (busy || pending || settingsOpen || transformActive || templateOpen || gestureActive) return;
+    if (busy || pending || settingsOpen || transformActive || templateOpen || combinationOpen || gestureActive) return;
     const snapshot = history.current[direction](current.current);
     if (!snapshot) return;
     inputEpoch.current += 1; showSnapshot(snapshot); setMessage(''); setError('');
@@ -226,8 +230,8 @@ export function App() {
     const target = event.target as HTMLElement;
     if (target.closest('input,textarea,[contenteditable="true"]')) return;
     event.preventDefault(); travel(event.key.toLowerCase() === 'y' || event.shiftKey ? 'redo' : 'undo');
-  }} onKeyDown={event => { if (event.key === 'Escape' && !event.defaultPrevented && !pending && !settingsOpen && !transformActive && !templateOpen) setRevisions(null); }}>
-    <div className="app-shell" inert={pending !== null || settingsOpen || transformActive || templateOpen}>
+  }} onKeyDown={event => { if (event.key === 'Escape' && !event.defaultPrevented && !pending && !settingsOpen && !transformActive && !templateOpen && !combinationOpen) setRevisions(null); }}>
+    <div className="app-shell" inert={pending !== null || settingsOpen || transformActive || templateOpen || combinationOpen}>
       <header className="cad-header"><div className="brand"><span className="brand-mark">W</span><strong>WELD ENGINEERING</strong></div>
         <label className="project-title">{t.title}<input maxLength={200} value={project.title} disabled={blocked || gestureActive} onChange={e => changeProject({ ...project, title: e.target.value })}/></label>
         <div className="header-controls"><button disabled={blocked || settingsLoading || gestureActive} onClick={() => setSettingsOpen(true)}>{t.settings}</button><button onClick={() => setLang(lang === 'ru' ? 'en' : 'ru')}>{lang === 'ru' ? 'EN' : 'RU'}</button><button onClick={() => setDark(!dark)}>{dark ? t.light : t.dark}</button></div>
@@ -274,7 +278,8 @@ export function App() {
             {!project.casebook && <option value="">LC1</option>}{project.casebook?.cases.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
           </select></PropertyRow>
           {project.casebook && <PropertyRow label={t.caseTitle}><input aria-label={t.caseTitle} maxLength={100} value={project.casebook.cases.find(c => c.id === project.casebook?.active_id)?.title ?? ''} onChange={e => changeProject({ ...project, casebook: { ...project.casebook!, cases: project.casebook!.cases.map(c => c.id === project.casebook?.active_id ? { ...c, title: e.target.value } : c) } })}/></PropertyRow>}
-        </PropertyTable><div className="case-buttons"><button disabled={(project.casebook?.cases.length ?? 1) >= maxCases} onClick={() => changeCase(addCase(project, `LC${(project.casebook?.cases.length ?? 1) + 1}`))}>{t.cloneCase}</button><button disabled={!project.casebook || project.casebook.cases.length < 2} onClick={() => changeCase(removeCase(project))}>{t.removeCase}</button></div></div>
+        </PropertyTable><div className="case-buttons"><button disabled={(project.casebook?.cases.length ?? 1) >= maxCases} onClick={() => changeCase(addCase(project, `LC${(project.casebook?.cases.length ?? 1) + 1}`))}>{t.cloneCase}</button><button disabled={!project.casebook || project.casebook.cases.length < 2} onClick={() => changeCase(removeCase(project))}>{t.removeCase}</button><button disabled={!project.casebook || project.casebook.cases.length>=maxCases} onClick={()=>setCombinationOpen(true)}>{t.combineCases}</button></div></div>
+        {project.casebook?.cases.find(c=>c.id===project.casebook?.active_id)?.combination&&<p className="hint">{t.combinationSnapshot}</p>}
         {loadView !== 'couple' && activeForce && <><PropertyTable label={`${t.force} ${activeForce.title}`} t={t}>
           <PropertyRow label={t.forceTitle}><input aria-label={t.forceTitle} maxLength={100} value={activeForce.title} onChange={e=>editForce({title:e.target.value})}/></PropertyRow>
           <PropertyGroup>{t.force}</PropertyGroup>
@@ -295,7 +300,7 @@ export function App() {
           <option value="geometry">{t.geometryView}</option>{['τx', 'τy', 'σz'].map((name, i) => <option key={name} value={i} disabled={result?.analysis_status !== 'computed'}>{name} · MPa</option>)}
         </select></label><button aria-pressed={showLoads} disabled={blocked || gestureActive} onClick={() => setShowLoads(!showLoads)}>{t.loadLayer}</button></div><span>{project.casebook?.cases.find(c => c.id === project.casebook?.active_id)?.title} · XY · mm</span></div>
         <LayoutEditor key={formKey} input={project.input} centre={result?.geometry.centroid_mm} result={result} displayComponent={displayComponent} showLoads={showLoads} selected={selected} onSelect={selectWeld}
-          onChange={segments => edit({ ...project.input, segments })} disabled={blocked || settingsOpen || transformActive || templateOpen || settingsLoading} t={t} settings={settings} compact
+          onChange={segments => edit({ ...project.input, segments })} disabled={blocked || settingsOpen || transformActive || templateOpen || combinationOpen || settingsLoading} t={t} settings={settings} compact
           onDragStart={() => { history.current.breakGroup(); setGestureActive(true); dragSnapshot.current = { snapshot: current.current, checkpoint: history.current.checkpoint(), token: {} }; }}
           onDragCancel={() => {
             const original = dragSnapshot.current; if (!original) return;
@@ -322,6 +327,7 @@ export function App() {
     {templateOpen && <GeometryTemplateDialog t={t} describeError={describe} onCancel={() => setTemplateOpen(false)} onApply={segments => {
       history.current.breakGroup(); edit({ ...current.current.project.input, segments }); selectWeld(0); setFormKey(k => k + 1); setResultsOpen(false); setTemplateOpen(false);
     }}/>}
+    {combinationOpen&&<CombinationDialog project={project} t={t} describeError={describe} onCancel={()=>setCombinationOpen(false)} onApply={next=>{changeCase(next);setCombinationOpen(false);setResultsOpen(false);setInspector('loads');setLoadView('overview');}}/>}
     {settingsOpen && <SettingsDialog settings={settings} t={t} onCancel={() => setSettingsOpen(false)} onSave={async value => {
       setBusy(true); try { await backend.saveEditorSettings(value); setSettings(value); setSettingsWarning(false); setSettingsOpen(false); } finally { setBusy(false); }
     }}/>}

@@ -171,6 +171,20 @@ async fn mass_load(
         Err(e) => e.into_response(),
     }
 }
+async fn combination(
+    State(state): State<ApiState>,
+    request: Result<Json<weld_application::combinations::CombinationRequest>, JsonRejection>,
+) -> Response {
+    match json_input(request) {
+        Ok(request) => {
+            work(state, move || {
+                weld_application::combinations::create(&request)
+            })
+            .await
+        }
+        Err(e) => e.into_response(),
+    }
+}
 async fn capabilities() -> Json<serde_json::Value> {
     Json(
         serde_json::json!({"schema_version": 1, "engine_version": env!("CARGO_PKG_VERSION"),
@@ -193,6 +207,7 @@ pub fn router(token: String) -> Router {
         .route("/api/v1/sections/derive", post(section))
         .route("/api/v1/loads/mass", post(mass_load))
         .route("/api/v1/cases/calculate", post(cases))
+        .route("/api/v1/cases/combine", post(combination))
         .route("/api/v1/projects/validate", post(validate))
         .route("/api/v1/capabilities", get(capabilities))
         .route(

@@ -39,3 +39,10 @@ test('copied mass force preserves independent source arrays and case edits prese
  const copied=duplicateForce(original.input,'legacy-force','copy')!;expect(copied.input.forces![1].inertia).toEqual(model);expect(copied.input.forces![1].inertia!.gravity_m_s2).not.toBe(model.gravity_m_s2);
  const cases=addCase(original,'LC2'),changed=editInput(cases,updateForce(cases.input,'legacy-force',{inertia:{...model,mass_kg:20},force_n:[-40,0,-200]}));expect(changed.input.forces![0].inertia!.mass_kg).toBe(20);expect(activateCase(changed,changed.casebook!.cases[0].id).input.forces![0].inertia!.mass_kg).toBe(10);
 });
+
+test('combination provenance survives geometry edits and clone, while a load edit converts only the current case',()=>{
+ let p=addCase(newProject(),'LC2');const model={method_id:'user-linear-load-combination-v1' as const,sources:[{case_id:'source',title:'Original',factor:2,load:{force_n:[0,0,300] as [number,number,number],couple_n_mm:[0,0,0] as [number,number,number],application:{kind:'centroid' as const}}}]};p.casebook!.cases[1].combination=model;
+ const geometry=editInput(p,{...p.input,segments:p.input.segments.map(s=>({...s,effective_width_mm:3}))});expect(geometry.casebook!.cases[1].combination).toEqual(model);
+ const clone=addCase(geometry,'Clone');expect(clone.casebook!.cases[2].combination).toEqual(model);
+ const changed=editInput(clone,{...clone.input,force_n:[0,0,700]});expect(changed.casebook!.cases[2].combination).toBeUndefined();expect(changed.casebook!.cases[1].combination).toEqual(model);
+});

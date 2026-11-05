@@ -91,7 +91,7 @@ fn published_openapi_contains_the_actual_routes_and_no_unimplemented_strength_en
     let spec: serde_json::Value =
         serde_json::from_str(include_str!("../../../docs/openapi.json")).unwrap();
     assert_eq!(spec["openapi"], "3.1.0");
-    assert_eq!(spec["paths"].as_object().unwrap().len(), 10);
+    assert_eq!(spec["paths"].as_object().unwrap().len(), 11);
     assert!(spec["paths"].get("/api/v1/optimize").is_none());
     assert_eq!(
         spec["components"]["schemas"]["CalculationResult"]["properties"]["strength_status"]
@@ -235,4 +235,33 @@ async fn mass_endpoint_returns_signed_attachment_load_usable_by_calculate() {
         v["moment_at_centroid_n_mm"],
         serde_json::json!([-2000.0, 400.0, 400.0])
     );
+}
+
+#[tokio::test]
+async fn user_combination_endpoint_creates_a_real_case_and_refuses_a_changed_audit_trail() {
+    let i = input();
+    let case = |id: &str, f: f64| serde_json::json!({"id":id,"title":id,"force_n":[0,0,f],"couple_n_mm":[0,0,0],"application":{"kind":"centroid"},"last_calculation":null});
+    let mut p = serde_json::json!({"schema_version":1,"title":"HTTP combination","input":i,"last_calculation":null,"casebook":{"schema_version":1,"active_id":"A","cases":[case("A",600.0),case("B",-200.0)]}});
+    p["input"]["force_n"] = serde_json::json!([0, 0, 600]);
+    p["input"]["couple_n_mm"] = serde_json::json!([0, 0, 0]);
+    p["input"]["application"] = serde_json::json!({"kind":"centroid"});
+    let r=weld_api::router("test-token".into()).oneshot(request("/api/v1/cases/combine",serde_json::json!({"schema_version":1,"project":p,"title":"2A - 3B","terms":[{"case_id":"A","factor":2},{"case_id":"B","factor":-3}]}))).await.unwrap();
+    assert_eq!(r.status(), StatusCode::OK);
+    let mut p: serde_json::Value =
+        serde_json::from_slice(&r.into_body().collect().await.unwrap().to_bytes()).unwrap();
+    assert_eq!(p["casebook"]["cases"].as_array().unwrap().len(), 3);
+    let r = weld_api::router("test-token".into())
+        .oneshot(request("/api/v1/calculate", p["input"].clone()))
+        .await
+        .unwrap();
+    assert_eq!(r.status(), StatusCode::OK);
+    let v: serde_json::Value =
+        serde_json::from_slice(&r.into_body().collect().await.unwrap().to_bytes()).unwrap();
+    assert_eq!(v["traction_mpa"][2], 9.0);
+    p["casebook"]["cases"][2]["combination"]["sources"][0]["factor"] = 3.into();
+    let r = weld_api::router("test-token".into())
+        .oneshot(request("/api/v1/cases/calculate", p))
+        .await
+        .unwrap();
+    assert_eq!(r.status(), StatusCode::UNPROCESSABLE_ENTITY);
 }

@@ -1,5 +1,6 @@
 //! Shared geometry, independent load cases, and component envelopes. No load combinations
-//! or normative acceptance factors are inferred from the list of cases.
+//! or normative acceptance factors are inferred from the list of cases. Explicit frozen
+//! combinations are created separately by the combinations module.
 use crate::{
     calculate, projects::Project, AppError, ApplicationPoint, CalculationInput, CalculationResult,
     SCHEMA_VERSION,
@@ -11,6 +12,8 @@ pub const MAX_CASES: usize = 32;
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct LoadCase {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub combination: Option<crate::combinations::LoadCombination>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub forces: Option<Vec<crate::forces::AppliedForce>>,
     pub id: String,
@@ -56,6 +59,7 @@ impl CaseBook {
             {
                 return Err(AppError::new("invalid_cases", Some("casebook.cases")));
             }
+            crate::combinations::validate_case(case, project)?;
             // The same snapshot validator as single-case projects; never recompute history.
             Project {
                 schema_version: project.schema_version,

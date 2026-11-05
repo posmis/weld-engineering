@@ -231,5 +231,12 @@
   "applyMass": "Calculate and apply force",
   "manualForce": "Enter force manually",
   "massChanged": "The force changed during calculation. Apply again.",
-  "massError": "Could not calculate mass load. Check mass and accelerations."
+  "massError": "Could not calculate mass load. Check mass and accelerations.",
+  "combineCases": "Load combination",
+  "combinationDefault": "Combination 1",
+  "combinationTitle": "Combination title",
+  "combinationFactor": "Factor",
+  "createCombination": "Create combination",
+  "combinationAssumption": "New case = sum of source loads with explicit user factors. Initial ones are editable examples, not normative values. Zero excludes a case; negative factors reverse its loads. Application points and source snapshots are preserved. This frozen case does not update when source cases change. Nested combinations are excluded.",
+  "combinationSnapshot": "Frozen user load combination. Editing loads converts it to an ordinary case; Undo restores the combination. Source cases and factors are listed in the report."
 }

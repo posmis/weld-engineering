@@ -24,5 +24,9 @@
   "invalid_forces": "Invalid force list: check names, unique identifiers and the 64-force limit.",
   "invalid_segment": "The selected weld segment was not found.",
   "section_width_mismatch": "Effective width does not match the stored section legs. Apply the section again or switch to manual width.",
-  "mass_force_mismatch": "Force does not match mass and accelerations. Recalculate the load or explicitly switch to manual force input."
+  "mass_force_mismatch": "Force does not match mass and accelerations. Recalculate the load or explicitly switch to manual force input.",
+  "invalid_combination": "Check source cases, title and factors. At least one nonzero factor is required; nested combinations are unsupported.",
+  "combination_force_limit": "Combination exceeds 64 nonzero forces. Reduce the number of source forces or cases.",
+  "combination_load_mismatch": "Combination loads do not match stored sources and factors.",
+  "combination_source_changed": "Project changed while creating the combination. Try again."
 }

@@ -6,7 +6,7 @@ import { backend } from './backend';
 import { desktopWindow } from './desktopWindow';
 import { newProject, type CalculationResult } from './contracts';
 
-vi.mock('./backend', () => ({ backend: { getEditorSettings: vi.fn(), saveEditorSettings: vi.fn(), calculate: vi.fn(), calculateCases: vi.fn(), intermittent: vi.fn(), groupTemplate: vi.fn(), transformGroup: vi.fn(), deriveSection: vi.fn(), deriveMassLoad: vi.fn(), summarizeCases: vi.fn(), save: vi.fn(), list: vi.fn(), open: vi.fn(), import: vi.fn(), export: vi.fn() } }));
+vi.mock('./backend', () => ({ backend: { getEditorSettings: vi.fn(), saveEditorSettings: vi.fn(), calculate: vi.fn(), calculateCases: vi.fn(), intermittent: vi.fn(), groupTemplate: vi.fn(), transformGroup: vi.fn(), deriveSection: vi.fn(), deriveMassLoad: vi.fn(), combineCases: vi.fn(), summarizeCases: vi.fn(), save: vi.fn(), list: vi.fn(), open: vi.fn(), import: vi.fn(), export: vi.fn() } }));
 vi.mock('./desktopWindow', () => ({ desktopWindow: { listenClose: vi.fn(), close: vi.fn() } }));
 beforeEach(() => { localStorage.clear(); vi.mocked(backend.summarizeCases).mockResolvedValue({ total: 2, computed: 0, complete: false, normal_min: null, normal_max: null, shear_max: null }); vi.mocked(backend.getEditorSettings).mockResolvedValue({ ...defaultSettings }); vi.mocked(backend.saveEditorSettings).mockResolvedValue(undefined); vi.mocked(desktopWindow.listenClose).mockResolvedValue(() => {}); vi.mocked(desktopWindow.close).mockResolvedValue(undefined); });
 afterEach(() => { cleanup(); vi.resetAllMocks(); });
@@ -734,4 +734,15 @@ test('mass force converts legacy input to explicit forces and survives save and 
  await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Рассчитать и применить силу'}));});expect(backend.deriveMassLoad).toHaveBeenCalledWith({schema_version:1,model});expect((screen.getByLabelText('force_n x') as HTMLInputElement).value).toBe('-20');expect((screen.getByLabelText('force_n x') as HTMLInputElement).readOnly).toBe(true);
  await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Сохранить ревизию'}));});const input=vi.mocked(backend.save).mock.calls[0][0].input;expect(input.force_n).toEqual([0,0,0]);expect(input.forces![0].inertia).toEqual(model);
  fireEvent.click(screen.getByRole('button',{name:'Задать силу вручную'}));expect((screen.getByLabelText('force_n x') as HTMLInputElement).readOnly).toBe(false);fireEvent.click(screen.getByRole('button',{name:'Отменить'}));expect((screen.getByLabelText('force_n x') as HTMLInputElement).readOnly).toBe(true);expect(screen.queryByText('Есть несохранённые изменения')).toBeNull();
+});
+
+test('combination is one undoable project operation and the modal blocks project shortcuts',async()=>{
+ vi.mocked(backend.save).mockResolvedValue('combination-baseline');vi.mocked(backend.combineCases).mockImplementation(async request=>{
+  const p=structuredClone(request.project),sources=request.terms.map(t=>{const c=p.casebook!.cases.find(c=>c.id===t.case_id)!;return {case_id:c.id,title:c.title,factor:t.factor,load:{force_n:c.force_n,couple_n_mm:c.couple_n_mm,application:c.application}};});
+  const c={id:'combination',title:request.title,force_n:[0,0,0] as [number,number,number],couple_n_mm:[0,0,0] as [number,number,number],application:{kind:'centroid' as const},forces:[{id:'c1-f1',title:'[LC1] F1',force_n:[0,0,600] as [number,number,number],application:{kind:'centroid' as const}},{id:'c2-f1',title:'[LC2] F1',force_n:[0,0,-600] as [number,number,number],application:{kind:'centroid' as const}}],last_calculation:null,combination:{method_id:'user-linear-load-combination-v1' as const,sources}};p.casebook!.cases.push(c);p.casebook!.active_id=c.id;p.input={...p.input,forces:c.forces,force_n:c.force_n,application:c.application,couple_n_mm:c.couple_n_mm};p.last_calculation=null;return p;
+ });
+ await renderApp();fireEvent.click(screen.getByRole('treeitem',{name:'Нагрузки'}));fireEvent.click(screen.getByRole('button',{name:'Копировать случай'}));await act(async()=>fireEvent.click(screen.getByRole('button',{name:'Сохранить ревизию'})));
+ fireEvent.click(screen.getByRole('button',{name:'Сочетание нагрузок'}));fireEvent.keyDown(screen.getByRole('dialog'),{key:'z',ctrlKey:true});expect(screen.getByLabelText('Коэффициент LC2')).toBeTruthy();fireEvent.change(screen.getByLabelText('Коэффициент LC2'),{target:{value:'-1'}});
+ await act(async()=>fireEvent.click(screen.getByRole('button',{name:'Создать сочетание'})));expect(screen.queryByRole('dialog')).toBeNull();expect(screen.getByText(/Снимок пользовательского сочетания/)).toBeTruthy();expect(vi.mocked(backend.combineCases).mock.calls[0][0].terms.map(t=>t.factor)).toEqual([1,-1]);
+ fireEvent.click(screen.getByRole('button',{name:'Отменить'}));expect(screen.queryByText(/Снимок пользовательского сочетания/)).toBeNull();expect(screen.queryByText('Есть несохранённые изменения')).toBeNull();
 });

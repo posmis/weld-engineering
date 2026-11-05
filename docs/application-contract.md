@@ -52,3 +52,7 @@ SQLite `user_version=2`: миграция с v1 добавляет только 
 ### Нагрузка от массы
 
 `AppliedForce.inertia` сохраняет optional `MassLoad` с mass_kg, gravity_m_s2, acceleration_m_s2. Команда derive_mass_load(request) / POST loads/mass выводит F=m(g−a) в N; модель и вектор проверяются на согласованность. Старые данные без поля сохраняют прежнюю семантику. [Полный контракт и ограничения](mass-acceleration-loads.md).
+
+### Пользовательские сочетания
+
+`create_load_combination(request)` / POST cases/combine возвращает проект с новым активным случаем. Optional LoadCase.combination хранит метод и замороженные нагрузки источников/коэффициенты; нагрузки проверяются на согласованность. Живой зависимости от исходных случаев нет. Редактирование нагрузок в GUI снимает модель сочетания; геометрия сохраняет её. [Контракт, эталоны и ограничения](user-load-combinations.md).

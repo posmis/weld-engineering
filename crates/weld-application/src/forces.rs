@@ -43,12 +43,12 @@ pub fn validate(input: &CalculationInput) -> Result<(), AppError> {
     Ok(())
 }
 #[derive(Default, Clone, Copy)]
-struct Sum {
+pub(crate) struct Sum {
     value: f64,
     correction: f64,
 }
 impl Sum {
-    fn add(&mut self, v: f64) -> Result<(), AppError> {
+    pub(crate) fn add(&mut self, v: f64) -> Result<(), AppError> {
         let next = self.value + v;
         self.correction += if self.value.abs() >= v.abs() {
             (self.value - next) + v
@@ -61,7 +61,7 @@ impl Sum {
         }
         Ok(())
     }
-    fn total(self) -> Result<f64, AppError> {
+    pub(crate) fn total(self) -> Result<f64, AppError> {
         let value = self.value + self.correction;
         if value.is_finite() {
             Ok(value)

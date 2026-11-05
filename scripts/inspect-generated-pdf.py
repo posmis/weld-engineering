@@ -40,3 +40,23 @@ assert mass_project["input"]["segments"][0]["section"]["leg_2_mm"] == 4.0
 assert mass_project["last_calculation"]["input_snapshot"] == mass_project["input"]
 assert mass_project["last_calculation"]["strength_status"] == "unsupported_calculation"
 print("PASS: independent PDF parser reads mass/acceleration and fillet section provenance, current result snapshot and unsupported strength status.")
+
+comb_reader = PdfReader(path.with_name("weld-combination-report-smoke.pdf"))
+comb_text = "\n".join(page.extract_text() or "" for page in comb_reader.pages)
+assert "user-linear-load-combination-v1" in comb_text
+assert "коэффициент 1.25" in comb_text and "коэффициент -0.5" in comb_text
+assert "коэффициенты не назначены по нормам" in comb_text
+assert "?" not in comb_text
+comb_project = json.loads(comb_reader.attachments["weld-project.json"][0])
+active = next(c for c in comb_project["casebook"]["cases"] if c["id"] == comb_project["casebook"]["active_id"])
+assert len(comb_project["casebook"]["cases"]) == 3
+assert active["combination"]["method_id"] == "user-linear-load-combination-v1"
+sources = active["combination"]["sources"]
+assert [s["factor"] for s in sources] == [1.25, -0.5]
+assert sources[1]["load"]["forces"][0]["inertia"]["mass_kg"] == 10.0
+assert active["forces"][0]["force_n"] == [0.0, 0.0, 750.0]
+assert [f["force_n"][2] for f in active["forces"]] == [750.0, 50.0, -150.0]
+assert active["last_calculation"]["input_snapshot"] == comb_project["input"]
+assert active["last_calculation"]["resultant_force_n"] == [10.0, 0.0, 650.0]
+assert active["last_calculation"]["strength_status"] == "unsupported_calculation"
+print("PASS: independent PDF parser reads explicit factors, frozen mass source, factored point loads and the actual combination result snapshot.")

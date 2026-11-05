@@ -3,12 +3,14 @@ import { forceFields } from './forceInputs';
 import { sameValue } from './projectHistory';
 export const maxCases = 32;
 function fromProject(project: Project, id: string, title: string): LoadCase {
-  return { id, title, ...forceFields(project.input), force_n: project.input.force_n, couple_n_mm: project.input.couple_n_mm, application: project.input.application, last_calculation: project.last_calculation };
+  const combination=project.casebook?.cases.find(c=>c.id===project.casebook?.active_id)?.combination;
+  return { ...(combination?{combination}:{}), id, title, ...forceFields(project.input), force_n: project.input.force_n, couple_n_mm: project.input.couple_n_mm, application: project.input.application, last_calculation: project.last_calculation };
 }
 export function editInput(project: Project, input: CalculationInput): Project {
+  const loadsChanged = !sameValue({...project.input,segments:[]},{...input,segments:[]});
   const geometryChanged = !sameValue(project.input.segments, input.segments);
   return { ...project, input, last_calculation: null, ...(project.casebook ? { casebook: { ...project.casebook, cases: project.casebook.cases.map(c => c.id === project.casebook?.active_id
-    ? { ...c, ...forceFields(input), force_n: input.force_n, couple_n_mm: input.couple_n_mm, application: input.application, last_calculation: null }
+    ? { ...c, ...(loadsChanged ? {combination:undefined}:{}), ...forceFields(input), force_n: input.force_n, couple_n_mm: input.couple_n_mm, application: input.application, last_calculation: null }
     : geometryChanged ? { ...c, last_calculation: null } : c) } } : {}) };
 }
 export function withCalculation(project: Project, value: CalculationResult): Project {

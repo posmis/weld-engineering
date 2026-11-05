@@ -18,6 +18,7 @@ fn project() -> Project {
         application: ApplicationPoint::Centroid,
     };
     let a = LoadCase {
+        combination: None,
         forces: None,
         id: "a".into(),
         title: "Positive".into(),
@@ -27,6 +28,7 @@ fn project() -> Project {
         last_calculation: None,
     };
     let b = LoadCase {
+        combination: None,
         forces: None,
         id: "b".into(),
         title: "Negative".into(),

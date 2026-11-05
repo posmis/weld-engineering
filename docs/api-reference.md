@@ -48,3 +48,5 @@ API URL v1 и schema_version=1 описывают именно опублико�
 Расширение CalculationInput/LoadCase для нескольких сил: optional `forces` (0–64, собственные application), при котором legacy force_n=[0,0,0], application=centroid. CalculationResult содержит resultant_force_n. Подробности и обратная совместимость — [одновременные силы](tree-and-simultaneous-forces.md). Маршруты/авторизация/лимиты документа не изменены.
 
 POST `/api/v1/loads/mass`: `MassLoadRequest` → `MassLoadResult`, общие авторизация/лимиты/ошибки. [Модель, SI-единицы и направление силы на крепление](mass-acceleration-loads.md).
+
+POST `/api/v1/cases/combine`: `CombinationRequest` → `Project`, новый активный случай из замороженных исходных нагрузок. Общие авторизация/лимиты/ошибки; [метод и контракт](user-load-combinations.md).

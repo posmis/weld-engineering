@@ -72,6 +72,18 @@ try {
     $copyResult=Invoke-RestMethod -Method Post -Uri "$base/calculate" -Headers $headers -ContentType 'application/json' -Body ($joint | ConvertTo-Json -Depth 100)
     if ($copyResult.geometry.area_mm2 -ne 760) { throw 'Segment copy area differs from independent reference' }
 
+    $combInput=$inputJson | ConvertFrom-Json -AsHashtable
+    $combInput.force_n=@(0,0,600);$combInput.couple_n_mm=@(0,0,0);$combInput.application=@{kind='centroid'}
+    $caseA=@{id='A';title='A';force_n=@(0,0,600);couple_n_mm=@(0,0,0);application=@{kind='centroid'};last_calculation=$null}
+    $caseB=@{id='B';title='B';force_n=@(0,0,-200);couple_n_mm=@(0,0,0);application=@{kind='centroid'};last_calculation=$null}
+    $combProject=@{schema_version=1;title='Combination reference';input=$combInput;last_calculation=$null;casebook=@{schema_version=1;active_id='A';cases=@($caseA,$caseB)}}
+    $combJson=@{schema_version=1;project=$combProject;title='2A - 3B';terms=@(@{case_id='A';factor=2},@{case_id='B';factor=-3})} | ConvertTo-Json -Depth 100
+    Assert-Contract 'CombinationRequest' $combJson
+    $combination=Invoke-RestMethod -Method Post -Uri "$base/cases/combine" -Headers $headers -ContentType 'application/json' -Body $combJson
+    Assert-Contract 'Project' ($combination | ConvertTo-Json -Depth 100)
+    $combResult=Invoke-RestMethod -Method Post -Uri "$base/calculate" -Headers $headers -ContentType 'application/json' -Body ($combination.input | ConvertTo-Json -Depth 100)
+    Assert-Contract 'CalculationResult' ($combResult | ConvertTo-Json -Depth 100)
+    if ($combination.casebook.cases.Count -ne 3 -or $combResult.traction_mpa[2] -ne 9 -or $combResult.strength_status -ne 'unsupported_calculation') { throw 'Explicit combination 2*600 - 3*(-200) did not produce 9 MPa at A=200' }
     $massJson='{"schema_version":1,"model":{"mass_kg":10,"gravity_m_s2":[0,0,-10],"acceleration_m_s2":[2,0,0]}}'
     Assert-Contract 'MassLoadRequest' $massJson
     $mass=Invoke-RestMethod -Method Post -Uri "$base/loads/mass" -Headers $headers -ContentType 'application/json' -Body $massJson
