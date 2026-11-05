@@ -696,9 +696,9 @@ try {
     Activate-Tree 'Нагрузки'
     if ((Read-Field 'force_n z') -ne '750') { throw 'Combined force did not survive restart' }
     Set-Field 'force_n z' '751'
-    if (Find-Name 'Снимок пользовательского сочетания. Изменение нагрузок превратит его в обычный случай; Undo восстановит сочетание. Исходные случаи и коэффициенты перечислены в отчёте.') { throw 'Manual force edit retained false combination provenance' }
+    $null=Wait-Until { (Read-Field 'force_n z') -eq '751' -and -not (Find-Name 'Снимок пользовательского сочетания. Изменение нагрузок превратит его в обычный случай; Undo восстановит сочетание. Исходные случаи и коэффициенты перечислены в отчёте.') -and (Find-Name 'Есть несохранённые изменения') } 'manual edit commits the new force, clears provenance and invalidates the saved calculation'
     Click-Name 'Отменить'
-    if ((Read-Field 'force_n z') -ne '750' -or (Find-Name 'Есть несохранённые изменения')) { throw 'Undo failed to restore saved combination and results' }
+    $null=Wait-Until { (Read-Field 'force_n z') -eq '750' -and (Find-Name 'Снимок пользовательского сочетания. Изменение нагрузок превратит его в обычный случай; Undo восстановит сочетание. Исходные случаи и коэффициенты перечислены в отчёте.') -and -not (Find-Name 'Есть несохранённые изменения') } 'Undo restores the force, combination provenance and complete saved snapshot'
     Click-Name 'Отчёт PDF'
     $dialog = Wait-Until {
         [System.Windows.Automation.AutomationElement]::RootElement.FindFirst(
