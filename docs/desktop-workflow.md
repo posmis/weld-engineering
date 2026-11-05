@@ -197,3 +197,5 @@ Native smoke проверяет старт в fullscreen, высоту и шир
 Пользовательские материалы проверены в установленном EXE: [Windows 42126360576 — SUCCESS](https://github.com/posmis/weld-engineering/actions/runs/42126360576), source `6fceea6`. Unknown вне диапазона, Undo/Redo, SQLite/restart и независимый PDF parser прошли; [снимок](screenshots/custom-materials.png).
 
 «Пределы» открывает явный ввод трёх пользовательских порогов/источников без подстановки материалов. В результатах — «Контроль пользовательских пределов», полнота и отношения demand/threshold с точками. При правке нагрузки сводка неполная до расчёта; Undo восстанавливает снимок. Это не нормативный pass. [Подробности](user-nominal-limits.md).
+
+Контроль пользовательских порогов проверен в установленном EXE: [Windows 42129393389 — SUCCESS](https://github.com/posmis/weld-engineering/actions/runs/42129393389), source `9d3cb8b`. Превышение/неполнота/Undo, новые критерии без изменения механики, SQLite/restart и независимый PDF/JSON parser прошли; [снимок](screenshots/user-nominal-limits.png).

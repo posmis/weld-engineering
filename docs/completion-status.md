@@ -46,4 +46,4 @@
 
 Новый блок [пользовательских материалов проекта](custom-materials.md): карточки, источники/диапазоны и explicit unknown, SQLite/JSON/PDF. Windows 42126360576 / source 6fceea6 — SUCCESS: 95 Rust/API, 100 frontend ×3, полный native/PDF путь. Верифицированный каталог и нормативная прочность не реализованы.
 
-Новый блок [пользовательских номинальных порогов](user-nominal-limits.md): независимые положительные пороги/источники, cached-case comparison/полнота/точки, JSON/SQLite/PDF. Windows текущего SHA ожидается. Нормативная прочность и взаимодействие компонент не реализованы.
+Новый блок [пользовательских номинальных порогов](user-nominal-limits.md): независимые положительные пороги/источники, cached-case comparison/полнота/точки, JSON/SQLite/PDF. Windows 42129393389 / source 9d3cb8b — SUCCESS: 100 Rust/API, 106 frontend ×3, полный native/PDF путь. Нормативная прочность и взаимодействие компонент не реализованы.
