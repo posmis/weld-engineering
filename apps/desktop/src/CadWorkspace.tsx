@@ -8,29 +8,33 @@ export function CadWorkspace({ sidebar, properties, viewport, results, resultsOp
   const [initial] = useState(readWorkspaceLayout);
   const [sideWidth, setSideWidth] = useState(initial.layout.tree_width_px), [propertiesWidth, setPropertiesWidth] = useState(initial.layout.properties_width_px), [resultsHeight, setResultsHeight] = useState(initial.layout.results_height_px);
   const [issue, setIssue] = useState<'read' | 'save' | null>(initial.failed ? 'read' : null);
+  const [viewportMinimum, setViewportMinimum] = useState(260);
   const root = useRef<HTMLDivElement>(null), resize = useRef<Resize | null>(null);
   const widths = useRef({ sideWidth, propertiesWidth, resultsHeight }); widths.current = { sideWidth, propertiesWidth, resultsHeight };
   useLayoutEffect(() => {
     const element = root.current; if (!element || typeof ResizeObserver === 'undefined') return;
+    const title = element.querySelector<HTMLElement>('.viewport-title'), controls = element.querySelector<HTMLElement>('.view-controls');
     const fit = () => {
       if (element.clientWidth <= 0 || element.clientHeight <= 0) return;
+      const reserved = Math.max(240, Math.ceil((title?.getBoundingClientRect().height ?? 25) + (controls?.getBoundingClientRect().height ?? 42) + 182));
+      setViewportMinimum(reserved);
       const available = Math.max(400, element.clientWidth - 332);
       let side = widths.current.sideWidth, properties = widths.current.propertiesWidth;
       let excess = Math.max(0, side + properties - available);
       const shrinkSide = Math.min(side - 160, excess / 2); side -= shrinkSide; excess -= shrinkSide;
       const shrinkProperties = Math.min(properties - 240, excess); properties -= shrinkProperties; excess -= shrinkProperties;
       side -= Math.min(side - 160, excess);
-      const height = Math.max(160, Math.min(widths.current.resultsHeight, 4096, element.clientHeight-186));
+      const height = Math.max(80, Math.min(widths.current.resultsHeight, 4096, element.clientHeight-reserved));
       widths.current = {sideWidth:side,propertiesWidth:properties,resultsHeight:height};
       setSideWidth(side); setPropertiesWidth(properties); setResultsHeight(height);
     };
     fit();
     const observer = new ResizeObserver(fit);
-    observer.observe(element); return () => observer.disconnect();
-  }, []);
+    observer.observe(element); if(title)observer.observe(title); if(controls)observer.observe(controls); return () => observer.disconnect();
+  }, [viewport]);
   function limits(kind: Resize['kind']) {
     return kind !== 'results' ? [kind === 'side' ? 160 : 240, Math.max(kind === 'side' ? 160 : 240, Math.min(420, (root.current?.clientWidth || 1024) - (kind === 'side' ? propertiesWidth : sideWidth) - 332))]
-      : [160, Math.max(160, Math.min(4096, (root.current?.clientHeight || 700) - 186))];
+      : [80, Math.max(80, Math.min(4096, (root.current?.clientHeight || 700) - viewportMinimum))];
   }
   function persist(layout?: WorkspaceLayout) {
     const current = widths.current;
@@ -75,7 +79,7 @@ export function CadWorkspace({ sidebar, properties, viewport, results, resultsOp
         }
       }}/>;
   }
-  return <div ref={root} className="cad-workspace" style={{ '--side-width': `${sideWidth}px`, '--properties-width': `${propertiesWidth}px`, '--results-height': `${resultsHeight}px` } as CSSProperties}>
+  return <div ref={root} className="cad-workspace" style={{ '--side-width': `${sideWidth}px`, '--properties-width': `${propertiesWidth}px`, '--results-height': `${resultsHeight}px`, '--viewport-minimum': `${viewportMinimum}px` } as CSSProperties}>
     <aside className="cad-sidebar" aria-label={t.modelOutline}>{sidebar}</aside>
     {separator('side')}
     <aside className="cad-properties" aria-label={t.elementProperties}>

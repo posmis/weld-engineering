@@ -59,7 +59,7 @@ h3 span, .width-property > span { float: right; color: var(--muted); font-size: 
 .scope summary { cursor: pointer; }
 .scope { border-top: 1px solid var(--line); padding-top: 10px; }
 .cad-view { min-height: 0; min-width: 0; display: grid; grid-template-rows: minmax(0, 1fr); }
-.cad-view.with-results { grid-template-rows: minmax(0, 1fr) 6px min(var(--results-height), calc(100% - 186px)); }
+.cad-view.with-results { grid-template-rows: minmax(0, 1fr) 6px min(var(--results-height), max(80px, calc(100% - var(--viewport-minimum)))); }
 .cad-viewport { min-height: 0; min-width: 0; display: flex; flex-direction: column; padding: 8px 10px; }
 .viewport-title { display: flex; justify-content: space-between; align-items: center; min-height: 25px; font-size: 13px; color: var(--muted); }
 .view-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; padding: 5px 0 7px; flex-shrink: 0; }
@@ -209,3 +209,5 @@ th, td { padding: 7px 5px; border-bottom: 1px solid var(--line); text-align: lef
 .case-controls .case-buttons { display: flex; flex-wrap: wrap; gap: 4px; }
 .case-buttons button, .property-scroll .remove-weld { min-height: 28px; padding: 3px 7px; font-size: 12px; }
 .workspace-notice { padding: 5px 8px; margin: 0; font-size: 12px; background: var(--panel); color: var(--text); border-bottom: 1px solid var(--line); }
+
+.viewport-title > span { min-width: 0; max-width: 28%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

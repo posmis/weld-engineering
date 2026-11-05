@@ -118,7 +118,17 @@ function Open-LatestRevision {
     $revision.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
 }
 function Click-Name([string]$Name) {
-    $element = Wait-Until { $control = Find-Name $Name; if ($control -and $control.Current.IsEnabled) { return $control }; return $null } "enabled control $Name"
+    $element = Wait-Until {
+        $condition = [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::NameProperty, $Name)
+        foreach ($control in $script:window.FindAll([System.Windows.Automation.TreeScope]::Descendants, $condition)) {
+            if (-not $control.Current.IsEnabled) { continue }
+            foreach ($patternId in @([System.Windows.Automation.InvokePattern]::Pattern, [System.Windows.Automation.TogglePattern]::Pattern, [System.Windows.Automation.ExpandCollapsePattern]::Pattern)) {
+                $candidate = $null
+                if ($control.TryGetCurrentPattern($patternId,[ref]$candidate)) { return $control }
+            }
+        }
+        return $null
+    } "enabled actionable control $Name"
     $pattern = $null
     if ($element.TryGetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern, [ref]$pattern)) {
         $pattern.Invoke()
@@ -315,6 +325,11 @@ try {
     if (Find-Name 'Номинальные компоненты F/A') { throw 'A varying distribution was displayed as uniform F/A' }
     Click-Name 'Сохранить ревизию'
     $null = Wait-Until { Find-Name 'Ревизия сохранена' } 'distribution stored in SQLite'
+    Click-Name 'Восстановить стандартную раскладку'
+    (Find-Name 'Ширина панели модели').SetFocus(); Key-Press 0x27
+    (Find-Name 'Ширина столбца свойств').SetFocus(); Key-Press 0x25
+    (Find-Name 'Высота панели результатов').SetFocus(); Key-Press 0x26
+    if (Find-Name 'Есть несохранённые изменения') { throw 'Manual workspace layout changed the saved project' }
     $savedTreeWidth = (Find-Name 'Дерево модели').Current.BoundingRectangle.Width
     $savedPropertiesWidth = (Find-Name 'Свойства выбранного элемента').Current.BoundingRectangle.Width
     $savedResultsHeight = (Find-Name 'Результаты' ([System.Windows.Automation.ControlType]::Group)).Current.BoundingRectangle.Height
@@ -543,6 +558,12 @@ try {
     Activate-Tree 'Сила F2'
     $null = Wait-Until { Find-Name 'Сила F2' ([System.Windows.Automation.ControlType]::Table) } 'force property grid is exposed as a real table'
     if ((Read-Field 'force_n z') -ne '300' -or (Read-Field 'P x') -ne '25') { throw 'Property grid changed force values or units mapping' }
+    (Find-Name 'Высота панели результатов').SetFocus(); Key-Press 0x23
+    $null = Wait-Until { (Find-Name 'XY weld layout').Current.BoundingRectangle.Height -ge 159 } 'maximal result dock retains a usable graphical canvas'
+    Assert-ViewportCorner
+    if (Find-Name 'Есть несохранённые изменения') { throw 'Result dock maximum changed the saved project' }
+    Click-Name 'Восстановить стандартную раскладку'
+    $null = Wait-Until { [Math]::Abs((Find-Name 'Результаты' ([System.Windows.Automation.ControlType]::Group)).Current.BoundingRectangle.Height - 260) -lt 1 } 'reset restores the result dock height'
     Save-Preview 'windows-property-grid-smoke.png'
 
 

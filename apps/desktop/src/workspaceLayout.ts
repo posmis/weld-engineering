@@ -9,7 +9,7 @@ export function readWorkspaceLayout(): { layout: WorkspaceLayout; failed: boolea
     if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('invalid layout');
     const v = value as Record<string, unknown>;
     if (v.schema_version !== 1 || Object.keys(v).length !== 4) throw new Error('invalid layout');
-    for (const [key, min, max] of [['tree_width_px',160,420],['properties_width_px',240,420],['results_height_px',160,4096]] as const) {
+    for (const [key, min, max] of [['tree_width_px',160,420],['properties_width_px',240,420],['results_height_px',80,4096]] as const) {
       if (typeof v[key] !== 'number' || !Number.isFinite(v[key]) || v[key] < min || v[key] > max) throw new Error('invalid layout');
     }
     return { layout: v as WorkspaceLayout, failed: false };
