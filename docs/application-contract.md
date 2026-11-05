@@ -40,3 +40,7 @@ SQLite `user_version=2`: миграция с v1 добавляет только 
 Новая итерация: [независимые нагрузочные случаи](load-cases.md), пакетный расчёт и сводка компонентов с определяющими случаями. Нормативная прочность не включена. Windows CI 41899254686 для 4a3d3b6: success. Нативная команда save_pdf_report(bytes) описана в [pdf-reports.md](pdf-reports.md).
 
 `show_grid` управляет только видимостью координатной сетки, независимо от `snap_grid` (привязки). Это необязательное при чтении старых editor_v1 поле с default=false; при сохранении записывается явно. Миграция SQLite/формата проекта не нужна, прочие настройки не сбрасываются.
+
+### Одновременные силы
+
+[Контракт коллекции сил](tree-and-simultaneous-forces.md): optional forces в CalculationInput и LoadCase, optional resultant_force_n в CalculationResult. При forces legacy force_n=[0,0,0]/application=centroid обязательны; couple_n_mm остаётся свободным моментом. Все точки входят в snapshot/PDF, старые JSON без расширения сохраняют прежнюю семантику. Силы внутри случая складываются, независимые случаи между собой не складываются.

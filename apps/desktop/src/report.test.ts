@@ -1,9 +1,9 @@
 // @vitest-environment node
 import { readFile } from 'node:fs/promises';
-import { expect, test } from 'vitest';
-import { PDFArray, PDFDict, PDFDocument, PDFHexString, PDFName } from 'pdf-lib';
+import { expect, test, vi } from 'vitest';
+import { PDFArray, PDFDict, PDFDocument, PDFHexString, PDFName, PDFPage } from 'pdf-lib';
 import { createReport } from './report';
-import { newProject } from './contracts';
+import { newProject, type CalculationResult } from './contracts';
 
 test('Cyrillic multipage report is a readable PDF with the original project attachment and no input mutation', async () => {
   const project = newProject(); project.title = 'Проверка отчёта — инженерный проект';
@@ -18,4 +18,16 @@ test('Cyrillic multipage report is a readable PDF with the original project atta
   const filenames = Array.from({ length: names.size() / 2 }, (_, i) => names.lookup(i * 2, PDFHexString).decodeText());
   expect(filenames).toContain('weld-project.json'); expect(filenames).toContain('NotoSans-OFL.txt');
   expect(JSON.stringify(project)).toBe(before);
+});
+
+
+test('multi-force report lists every point and uses the Rust resultant for F/A substitution', async () => {
+  const project=newProject();project.input={...project.input,force_n:[0,0,0],forces:[{id:'a',title:'F1',force_n:[0,0,300],application:{kind:'point',point_mm:[-25,0,0]}},{id:'b',title:'F2',force_n:[0,0,300],application:{kind:'point',point_mm:[25,0,0]}}]};
+  project.last_calculation={schema_version:1,engine_version:'test',method_id:'uniform-direct-traction-v1',input_snapshot:project.input,geometry:{length_mm:100,area_mm2:200,centroid_mm:[0,0],ix_mm4:0,iy_mm4:166666.66666666666,ixy_mm4:0,polar_mm4:166666.66666666666},moment_at_centroid_n_mm:[0,0,0],resultant_force_n:[0,0,600],traction_mpa:[0,0,3],analysis_status:'computed',strength_status:'unsupported_calculation',validation_status:'not_independently_validated',warnings:[]} satisfies CalculationResult;
+  const draw=vi.spyOn(PDFPage.prototype,'drawText');
+  try {
+    await createReport(project,new Uint8Array(await readFile('src/assets/NotoSans-Regular.ttf')),null);
+    const text=draw.mock.calls.map(c=>c[0]).join('\n');
+    expect(text).toContain('F1 [N]: 0 / 0 / 300');expect(text).toContain('F2 [N]: 0 / 0 / 300');expect(text).toContain('-25 / 0 / 0');expect(text).toContain('(600 N) / (200 mm²) = 3 MPa');
+  } finally { draw.mockRestore(); }
 });

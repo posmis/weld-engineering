@@ -129,11 +129,12 @@ try {
     $null = Wait-Until { Find-Name 'Модель и расчёт' ([System.Windows.Automation.ControlType]::Tree) } 'CAD model tree'
     Show-Drawing
     $canvas = (Find-Name 'XY weld layout').Current.BoundingRectangle
-    $sidebar = (Find-Name 'Дерево модели и свойства').Current.BoundingRectangle
+    $sidebar = (Find-Name 'Дерево модели').Current.BoundingRectangle
     $windowBounds = $script:window.Current.BoundingRectangle
-    if ($canvas.X -lt $sidebar.Right) { throw 'Viewport is not docked to the right of the model tree' }
+    $properties = (Find-Name 'Свойства выбранного элемента').Current.BoundingRectangle
+    if ($properties.X -lt $sidebar.Right -or $canvas.X -lt $properties.Right) { throw 'Tree properties and viewport are not separate columns' }
     if ($canvas.Height -lt ($windowBounds.Height * .55)) { throw 'CAD viewport does not occupy the working height' }
-    if ($canvas.Width -lt ($windowBounds.Width * .5)) { throw 'CAD viewport is too narrow' }
+    if ($canvas.Width -lt ($windowBounds.Width * .4)) { throw 'CAD viewport is too narrow' }
     if ((Find-Name 'Рассчитать').Current.IsOffscreen) { throw 'Calculate is not in the top toolbar' }
     $geometryRow = (Find-Name 'Добавить участок').Current.BoundingRectangle.Y
     $calculationRow = (Find-Name 'Рассчитать').Current.BoundingRectangle.Y
@@ -143,7 +144,11 @@ try {
     Save-Preview 'windows-ui-smoke.png'
     $sideWidth = $sidebar.Width
     (Find-Name 'Ширина панели модели').SetFocus(); Key-Press 0x27
-    $null = Wait-Until { (Find-Name 'Дерево модели и свойства').Current.BoundingRectangle.Width -gt ($sideWidth + 10) } 'sidebar splitter resizes the dock'
+    $null = Wait-Until { (Find-Name 'Дерево модели').Current.BoundingRectangle.Width -gt ($sideWidth + 10) } 'sidebar splitter resizes the dock'
+    Key-Press 0x25
+    $propertiesWidth = (Find-Name 'Свойства выбранного элемента').Current.BoundingRectangle.Width
+    (Find-Name 'Ширина столбца свойств').SetFocus(); Key-Press 0x27
+    $null = Wait-Until { (Find-Name 'Свойства выбранного элемента').Current.BoundingRectangle.Width -gt ($propertiesWidth + 10) } 'properties column has its own splitter'
     Key-Press 0x25
     Show-Drawing
     $bounds = (Find-Name 'XY weld layout').Current.BoundingRectangle
@@ -436,6 +441,27 @@ try {
         if ((Read-Field 'S1 X1') -ne '-50' -or (Read-Field 'S1 Y1') -ne '20') { throw 'Undo did not restore original geometry' }
         if (Find-Name 'Есть несохранённые изменения') { throw 'Transform Undo did not restore the exact saved project' }
     }
+    $loadsNode = Find-Name 'Нагрузки' ([System.Windows.Automation.ControlType]::TreeItem)
+    $box = $loadsNode.Current.BoundingRectangle
+    $null = [WeldDesktopInput]::SetCursorPos([int]($box.X+30),[int]($box.Y+14))
+    [WeldDesktopInput]::mouse_event(0x0008,0,0,0,[UIntPtr]::Zero); [WeldDesktopInput]::mouse_event(0x0010,0,0,0,[UIntPtr]::Zero)
+    $null = Wait-Until { Find-Name 'Добавить силу' ([System.Windows.Automation.ControlType]::MenuItem) } 'tree-specific context menu'
+    Save-Preview 'windows-tree-menu-smoke.png'
+    Click-Name 'Добавить силу'
+    $null = Wait-Until { Find-Name 'Сила F2' ([System.Windows.Automation.ControlType]::TreeItem) } 'simultaneous force inserted into the expanded tree'
+    Set-Field 'force_n z' '300'
+    Click-Name 'Приложить силу в центре сечения'
+    Set-Field 'P x' '25'
+    Activate-Tree 'Сила F1'
+    if ((Read-Field 'force_n z') -ne '-600') { throw 'Adding F2 changed the original force F1' }
+    Activate-Tree 'Сила F2'
+    if ((Read-Field 'force_n z') -ne '300' -or (Read-Field 'P x') -ne '25') { throw 'Selecting a force did not restore its own properties' }
+    Click-Name 'Рассчитать все'
+    $null = Wait-Until { Find-Name 'Сводка случаев · 2/2 — Все случаи рассчитаны' } 'multiple simultaneous forces survive casebook validation and real calculation'
+    Save-Preview 'windows-tree-forces-smoke.png'
+    Click-Name 'Сохранить ревизию'
+    $null = Wait-Until { Find-Name 'Ревизия сохранена' } 'force collection snapshots saved to SQLite'
+
 
 
 

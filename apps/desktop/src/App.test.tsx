@@ -421,7 +421,7 @@ test('result dock opens after calculation and resizing or hiding it preserves th
   await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Сохранить ревизию' })); });
   expect(screen.getByRole('button', { name: 'Панель результатов' }).getAttribute('aria-pressed')).toBe('true');
   fireEvent.keyDown(screen.getByRole('separator', { name: 'Ширина панели модели' }), { key: 'ArrowRight' });
-  expect(screen.getByRole('separator', { name: 'Ширина панели модели' }).getAttribute('aria-valuenow')).toBe('336');
+  expect(screen.getByRole('separator', { name: 'Ширина панели модели' }).getAttribute('aria-valuenow')).toBe('236');
   fireEvent.keyDown(screen.getByRole('separator', { name: 'Высота панели результатов' }), { key: 'ArrowUp' });
   expect(screen.getByRole('separator', { name: 'Высота панели результатов' }).getAttribute('aria-valuenow')).toBe('276');
   expect((screen.getByLabelText('S1 X1') as HTMLInputElement).value).toBe('-50');
@@ -580,4 +580,43 @@ test('transforming geometry preserves global loads and point P, clears results a
   fireEvent.click(screen.getByRole('button',{name:'Отменить'}));
   await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Сохранить ревизию' })); });
   expect(vi.mocked(backend.save).mock.calls[1][0]).toEqual(base);
+});
+
+test('tree context commands add individual simultaneous forces and welds, with independent properties and Undo', async () => {
+  vi.mocked(backend.calculate).mockResolvedValue(result());
+  await renderApp();
+  fireEvent.contextMenu(screen.getByRole('treeitem',{name:'Сварные швы'}),{clientX:20,clientY:100});
+  fireEvent.click(screen.getByRole('menuitem',{name:'Добавить участок'}));
+  expect(screen.getByRole('treeitem',{name:'Шов S2'}).getAttribute('aria-selected')).toBe('true');
+  fireEvent.click(screen.getByRole('button',{name:'Отменить'}));
+  expect(screen.queryByRole('treeitem',{name:'Шов S2'})).toBeNull();
+  fireEvent.contextMenu(screen.getByRole('treeitem',{name:'Нагрузки'}),{clientX:20,clientY:160});
+  fireEvent.click(screen.getByRole('menuitem',{name:'Добавить силу'}));
+  expect(screen.getByRole('treeitem',{name:'Сила F2'}).getAttribute('aria-selected')).toBe('true');
+  expect((screen.getByLabelText('force_n z') as HTMLInputElement).value).toBe('0');
+  fireEvent.change(screen.getByLabelText('force_n z'),{target:{value:'300'}});
+  fireEvent.click(screen.getByLabelText('Приложить силу в центре сечения'));
+  fireEvent.change(screen.getByLabelText('P x'),{target:{value:'25'}});
+  fireEvent.click(screen.getByRole('treeitem',{name:'Сила F1'}));
+  expect((screen.getByLabelText('force_n z') as HTMLInputElement).value).toBe('600');
+  fireEvent.click(screen.getByRole('treeitem',{name:'Сила F2'}));
+  expect((screen.getByLabelText('P x') as HTMLInputElement).value).toBe('25');
+  await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Рассчитать'}));});
+  const input=vi.mocked(backend.calculate).mock.calls[0][0];
+  expect(input.force_n).toEqual([0,0,0]);expect(input.forces?.map(f=>f.force_n[2])).toEqual([600,300]);
+  expect(input.forces?.[1].application).toEqual({kind:'point',point_mm:[25,0,0]});
+  fireEvent.click(screen.getByRole('button',{name:'Удалить выбранную силу'}));
+  expect(screen.queryByRole('treeitem',{name:'Сила F2'})).toBeNull();
+  fireEvent.click(screen.getByRole('button',{name:'Отменить'}));expect(screen.getByRole('treeitem',{name:'Сила F2'})).toBeTruthy();
+});
+
+test('both column widths change independently without dirtying the project; tree context menu supports keyboard cancellation', async()=>{
+  await renderApp();
+  const tree=screen.getByRole('separator',{name:'Ширина панели модели'}), properties=screen.getByRole('separator',{name:'Ширина столбца свойств'});
+  fireEvent.keyDown(tree,{key:'ArrowRight'});fireEvent.keyDown(properties,{key:'ArrowRight'});
+  expect(tree.getAttribute('aria-valuenow')).toBe('236');expect(properties.getAttribute('aria-valuenow')).toBe('296');
+  fireEvent.keyDown(properties,{key:'ArrowLeft'});expect(tree.getAttribute('aria-valuenow')).toBe('236');
+  const node=screen.getByRole('treeitem',{name:'Сила F1'});act(()=>node.focus());fireEvent.keyDown(node,{key:'F10',shiftKey:true});
+  expect(screen.getByRole('menu',{name:'Команды дерева'})).toBeTruthy();fireEvent.keyDown(screen.getByRole('menuitem',{name:'Добавить участок'}),{key:'Escape'});
+  expect(screen.queryByRole('menu')).toBeNull();expect(document.activeElement).toBe(node);expect(screen.queryByText('Есть несохранённые изменения')).toBeNull();
 });

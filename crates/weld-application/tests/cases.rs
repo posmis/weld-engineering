@@ -5,6 +5,7 @@ use weld_application::{
 };
 fn project() -> Project {
     let input = CalculationInput {
+        forces: None,
         schema_version: 1,
         segments: vec![SegmentInput {
             start_mm: [-50.0, 0.0],
@@ -16,6 +17,7 @@ fn project() -> Project {
         application: ApplicationPoint::Centroid,
     };
     let a = LoadCase {
+        forces: None,
         id: "a".into(),
         title: "Positive".into(),
         force_n: input.force_n,
@@ -24,6 +26,7 @@ fn project() -> Project {
         last_calculation: None,
     };
     let b = LoadCase {
+        forces: None,
         id: "b".into(),
         title: "Negative".into(),
         force_n: [0.0, 0.0, -1000.0],

@@ -6,6 +6,7 @@ use weld_application::{
 fn request() -> IntermittentInput {
     IntermittentInput {
         input: CalculationInput {
+            forces: None,
             schema_version: 1,
             segments: vec![SegmentInput {
                 start_mm: [-50.0, 0.0],

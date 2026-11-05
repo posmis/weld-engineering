@@ -65,6 +65,12 @@ impl Project {
                     .traction_mpa
                     .as_ref()
                     .is_none_or(|v| v.iter().all(|x| x.is_finite()));
+            let finite = finite
+                && result
+                    .resultant_force_n
+                    .as_ref()
+                    .is_none_or(|v| v.iter().all(|x| x.is_finite()))
+                && (result.input_snapshot.forces.is_some() == result.resultant_force_n.is_some());
             let consistent = match result.analysis_status {
                 crate::AnalysisStatus::Computed => {
                     (result.traction_mpa.is_some()

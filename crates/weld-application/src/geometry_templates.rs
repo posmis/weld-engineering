@@ -66,6 +66,7 @@ pub fn generate(request: &GeometryTemplateRequest) -> Result<GeometryTemplateRes
         TemplateKind::LShape => vec![(a, d), (d, c)],
     };
     let input = CalculationInput {
+        forces: None,
         schema_version: SCHEMA_VERSION,
         segments: edges
             .into_iter()

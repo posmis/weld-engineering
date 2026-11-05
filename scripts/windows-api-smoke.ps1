@@ -51,6 +51,18 @@ try {
     $rotatedResult = Invoke-RestMethod -Method Post -Uri "$base/calculate" -Headers $headers -ContentType 'application/json' -Body ($joint | ConvertTo-Json -Depth 100)
     if ($rotatedResult.geometry.area_mm2 -ne 560 -or ($rotatedResult.geometry.centroid_mm -join ',') -ne '5,10') { throw 'Rotated geometry changed area or has an incorrect centroid' }
 
+    $multiple = $inputJson | ConvertFrom-Json
+    $multiple.force_n = @(0,0,0)
+    $multiple.forces = @(
+        @{id='a';title='F1';force_n=@(0,0,300);application=@{kind='point';point_mm=@(-25,0,0)}},
+        @{id='b';title='F2';force_n=@(0,0,300);application=@{kind='point';point_mm=@(25,0,0)}}
+    )
+    $multipleJson = $multiple | ConvertTo-Json -Depth 100
+    Assert-Contract 'CalculationInput' $multipleJson
+    $multipleResult = Invoke-RestMethod -Method Post -Uri "$base/calculate" -Headers $headers -ContentType 'application/json' -Body $multipleJson
+    Assert-Contract 'CalculationResult' ($multipleResult | ConvertTo-Json -Depth 100)
+    if (($multipleResult.resultant_force_n -join ',') -ne '0,0,600' -or ($multipleResult.traction_mpa -join ',') -ne '0,0,3') { throw 'Independent simultaneous-force reference failed' }
+
     $clientOutput = & dotnet run --no-build --configuration Release --project (Join-Path $PSScriptRoot '../examples/inventor-client/WeldClient.csproj') -- $port
     if ($LASTEXITCODE -ne 0 -or ($clientOutput -join ' ') -notmatch 'unsupported_calculation') { throw 'C# client did not complete a real API calculation' }
 

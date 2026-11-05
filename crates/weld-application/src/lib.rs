@@ -1,5 +1,6 @@
 //! GUI-independent application boundary. No normative acceptance method is enabled.
 pub mod cases;
+pub mod forces;
 pub mod geometry_templates;
 pub mod geometry_transform;
 pub mod intermittent;
@@ -60,6 +61,8 @@ pub enum ApplicationPoint {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CalculationInput {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub forces: Option<Vec<forces::AppliedForce>>,
     pub schema_version: u32,
     pub segments: Vec<SegmentInput>,
     pub force_n: [f64; 3],
@@ -113,6 +116,8 @@ pub struct NominalDistribution {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CalculationResult {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub resultant_force_n: Option<[f64; 3]>,
     pub schema_version: u32,
     pub engine_version: String,
     pub method_id: String,
@@ -258,6 +263,7 @@ pub fn validate_input(input: &CalculationInput) -> Result<Vec<Segment>, AppError
     if input.segments.is_empty() || input.segments.len() > MAX_SEGMENTS {
         return Err(AppError::new("segment_count", Some("segments")));
     }
+    forces::validate(input)?;
     let segments: Vec<Segment> = input
         .segments
         .iter()
@@ -294,25 +300,15 @@ pub fn validate_input(input: &CalculationInput) -> Result<Vec<Segment>, AppError
 pub fn calculate(input: &CalculationInput) -> Result<CalculationResult, AppError> {
     let segments = validate_input(input)?;
     let geometry = weld_core::properties(&segments)?;
-    let f = input.force_n.map(Newtons::new);
+    let (total_force, moment) = forces::resultants(
+        input,
+        [geometry.centroid.x.value(), geometry.centroid.y.value()],
+    )?;
+    let f = total_force.map(Newtons::new);
     let force = [f[0].clone()?, f[1].clone()?, f[2].clone()?];
-    let m = input.couple_n_mm.map(NewtonMillimetres::new);
-    let couple = [m[0].clone()?, m[1].clone()?, m[2].clone()?];
-    let centroid = [
-        geometry.centroid.x,
-        geometry.centroid.y,
-        Millimetres::new(0.0)?,
-    ];
-    let application = match input.application {
-        ApplicationPoint::Centroid => centroid,
-        ApplicationPoint::Point { point_mm } => [
-            Millimetres::new(point_mm[0])?,
-            Millimetres::new(point_mm[1])?,
-            Millimetres::new(point_mm[2])?,
-        ],
-    };
-    let typed_moment = weld_core::moment_about(force, couple, application, centroid)?;
-    let moment = typed_moment.map(NewtonMillimetres::value);
+    let m = moment.map(NewtonMillimetres::new);
+    let typed_moment = [m[0].clone()?, m[1].clone()?, m[2].clone()?];
+
     // Exact zero only: do not silently discard a small applied moment.
     let direct_only = moment.iter().all(|x| *x == 0.0);
     let traction = if direct_only {
@@ -361,6 +357,7 @@ pub fn calculate(input: &CalculationInput) -> Result<CalculationResult, AppError
         warnings.push("ill_conditioned_section".into());
     }
     Ok(CalculationResult {
+        resultant_force_n: input.forces.as_ref().map(|_| total_force),
         schema_version: SCHEMA_VERSION,
         engine_version: env!("CARGO_PKG_VERSION").into(),
         method_id: if direct_only {

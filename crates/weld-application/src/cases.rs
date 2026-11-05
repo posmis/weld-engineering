@@ -11,6 +11,8 @@ pub const MAX_CASES: usize = 32;
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct LoadCase {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub forces: Option<Vec<crate::forces::AppliedForce>>,
     pub id: String,
     pub title: String,
     pub force_n: [f64; 3],
@@ -28,6 +30,7 @@ pub struct CaseBook {
 impl LoadCase {
     pub fn input(&self, project: &Project) -> CalculationInput {
         CalculationInput {
+            forces: self.forces.clone(),
             force_n: self.force_n,
             couple_n_mm: self.couple_n_mm,
             application: self.application.clone(),

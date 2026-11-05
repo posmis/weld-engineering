@@ -2,8 +2,8 @@
 [hidden] { display: none !important; }
 html, body, #root { width: 100%; height: 100%; margin: 0; overflow: hidden; }
 body { font: 15px/1.4 "Segoe UI", Arial, sans-serif; }
-.app { --bg: #e8edf2; --panel: #fff; --text: #243242; --line: #c4ced8; --muted: #526575; --accent: #185f85; --input: #fff; height: 100dvh; background: var(--bg); color: var(--text); }
-.dark { --bg: #17212d; --panel: #22303d; --text: #e0e9f1; --line: #43576a; --muted: #aebfce; --accent: #69b9df; --input: #172532; }
+.app { --bg: #cbd5df; --panel: #fff; --text: #14263a; --line: #8194a7; --muted: #344b61; --accent: #005b99; --dock: #25445f; --dock-text: #fff; --input: #fff; height: 100dvh; background: var(--bg); color: var(--text); }
+.dark { --bg: #0d1722; --panel: #1c2c3c; --text: #f1f6fc; --line: #8299ae; --muted: #c0d1e2; --accent: #83d2ff; --dock: #314e69; --dock-text: #fff; --input: #172532; }
 .app-shell { display: flex; flex-direction: column; height: 100%; min-height: 0; }
 button, input, select { font: inherit; border: 1px solid var(--line); border-radius: 3px; background: var(--input); color: var(--text); }
 button { min-height: 34px; padding: 6px 10px; cursor: pointer; }
@@ -27,17 +27,17 @@ fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
 .tool-group:last-child { border: 0; }
 .toolbar button { font-size: 13px; white-space: nowrap; }
 .primary { background: #185f85; color: #fff; border-color: #185f85; font-weight: 600; }
-.cad-workspace { flex: 1; min-height: 0; display: grid; grid-template-columns: var(--side-width) 6px minmax(0, 1fr); }
-.cad-sidebar { min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--panel); border-right: 1px solid var(--line); }
-.dock-title { display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; min-height: 30px; padding: 5px 10px; font-size: 13px; font-weight: 600; background: var(--bg); border-bottom: 1px solid var(--line); }
-.dock-title button { min-height: 24px; min-width: 28px; padding: 0 7px; font-size: 18px; line-height: 20px; border: 0; background: transparent; }
-.model-tree { flex: 0 1 160px; min-height: 100px; max-height: 38%; overflow: auto; padding: 6px; font-size: 14px; }
+.cad-workspace { flex: 1; min-height: 0; display: grid; grid-template-columns: var(--side-width) 6px var(--properties-width) 6px minmax(0, 1fr); }
+.cad-sidebar, .cad-properties { min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--panel); border-right: 1px solid var(--line); }
+.dock-title { display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; min-height: 30px; padding: 5px 10px; font-size: 13px; font-weight: 600; background: var(--dock); color: var(--dock-text); border-bottom: 1px solid var(--line); }
+.dock-title button { min-height: 24px; min-width: 28px; padding: 0 7px; font-size: 18px; line-height: 20px; border: 0; background: transparent; color: inherit; }
+.model-tree { flex: 1; min-height: 0; overflow: auto; padding: 6px; font-size: 14px; }
 .model-tree button, .tree-branch { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 29px; padding: 4px 8px; border: 1px solid transparent; border-radius: 0; text-align: left; background: transparent; font-size: 14px; }
 .model-tree [role=group] button { padding-left: 28px; }
 .tree-branch { cursor: pointer; font-weight: 600; }
 .tree-category { padding: 8px 8px 3px; color: var(--muted); font-size: 12px; font-weight: 600; }
-.model-tree button[aria-selected=true] { background: #dcecf7; color: #123e5a; border-color: #a7c6db; }
-.dark .model-tree button[aria-selected=true] { background: #28465d; color: #e0effa; }
+.model-tree button[aria-selected=true] { background: #005b99; color: #fff; border-color: #003e6a; font-weight: 600; }
+.dark .model-tree button[aria-selected=true] { background: #9adfff; color: #071c2c; border-color: #dcf3ff; }
 .tree-line-icon { width: 16px; height: 2px; background: #2678a1; transform: rotate(-25deg); }
 .property-scroll { flex: 1; min-height: 0; overflow: auto; padding: 12px; }
 .property-heading { font-weight: 600; margin-bottom: 12px; }
@@ -180,3 +180,12 @@ th, td { padding: 7px 5px; border-bottom: 1px solid var(--line); text-align: lef
 .template-preview-pane > p { font-size: 13px; }
 
 .template-preview .transform-original line { stroke: var(--muted); stroke-dasharray: 7 5; stroke-width: 2; }
+
+.model-tree button:hover, .tree-branch:hover { background: #d5e9f8; color: #122d43; }
+.model-tree button[aria-selected=true]:hover { background: #004b80; color: #fff; }
+.model-tree [role=group] { border-left: 1px solid var(--line); margin-left: 12px; }
+.property-scroll .load-group, .property-scroll .coordinate-pair { padding: 10px; border: 1px solid var(--line); background: var(--bg); border-radius: 3px; }
+
+.tree-node-icon { display: inline-block; min-width: 16px; text-align: center; font-weight: 700; }
+.force-point { fill: var(--panel); stroke: #aa2e23; stroke-width: 2; }
+.tree-context { min-width: 240px; border: 2px solid var(--accent); }

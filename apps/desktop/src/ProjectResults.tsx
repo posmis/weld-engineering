@@ -22,6 +22,7 @@ export function ProjectResults({ result, t, selected, onSelect }: { result: Calc
           <div className="metric"><dt>{t.centre} X / Y</dt><dd>{result.geometry.centroid_mm.map(display).join(' / ')} <small>mm</small></dd></div>
           {(['ix_mm4', 'iy_mm4', 'ixy_mm4', 'polar_mm4'] as const).map((key, i) => <div className="metric" key={key}><dt>{['Ix', 'Iy', 'Ixy', 'J'][i]}</dt><dd>{display(result.geometry[key])} <small>mm⁴</small></dd></div>)}
         </dl>
+        <h3>ΣF · N</h3><p className="values">{(result.resultant_force_n ?? result.input_snapshot.force_n).map(display).join(' / ')}</p>
         <h3>{t.momentCentre}</h3><p className="values">{result.moment_at_centroid_n_mm.map(display).join(' / ')} N·mm</p>
         <p className="engine">{result.method_id}<br/>Engine {result.engine_version} · schema {result.schema_version}</p>
       </div>

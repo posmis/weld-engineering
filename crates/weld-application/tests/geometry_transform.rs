@@ -22,6 +22,7 @@ fn request(op: Transform) -> GeometryTransformRequest {
 }
 fn geometry(r: &GeometryTransformRequest) -> weld_application::GeometryResult {
     calculate(&CalculationInput {
+        forces: None,
         schema_version: 1,
         segments: transform(r).unwrap().segments,
         force_n: [0.0; 3],

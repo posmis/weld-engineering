@@ -6,11 +6,11 @@ const number = (v: number) => {
   const magnitude = Math.abs(v);
   return new Intl.NumberFormat('ru-RU', { maximumSignificantDigits: 7, notation: magnitude >= 1e6 || (magnitude > 0 && magnitude < 1e-4) ? 'scientific' : 'standard' }).format(v === 0 ? 0 : v);
 };
-export function LoadReadout({ input, pointVisible, pendingCentre, t }: { input: CalculationInput; pointVisible: boolean; pendingCentre: boolean; t: typeof ru }) {
+export function LoadReadout({ input, resultant, pointVisible, pendingCentre, t }: { input: CalculationInput; resultant?: [number,number,number]; pointVisible: boolean; pendingCentre: boolean; t: typeof ru }) {
   return <div className="viewport-loads" role="group" aria-label={t.loadReadout}>
-    <div><strong>F:</strong> {input.force_n.map(number).join(' / ')} N {input.application.kind === 'centroid' && <span title={t.forceAtCentre}>· C</span>}</div>
+    {input.forces ? <div><strong>ΣF:</strong> {resultant ? `${resultant.map(number).join(' / ')} N` : t.resultantAfterCalculation} · {input.forces.length} {t.forcesShort}</div> : <div><strong>F:</strong> {input.force_n.map(number).join(' / ')} N {input.application.kind === 'centroid' && <span title={t.forceAtCentre}>· C</span>}</div>}
     <div><strong>M:</strong> {input.couple_n_mm.map(number).join(' / ')} N·mm <span>({t.freeCoupleShort})</span></div>
-    {input.application.kind === 'point' && <div>P: {input.application.point_mm.map(number).join(' / ')} mm {!pointVisible && <span className="view-note">{t.loadPointOutside}</span>}</div>}
+    {!input.forces && input.application.kind === 'point' && <div>P: {input.application.point_mm.map(number).join(' / ')} mm {!pointVisible && <span className="view-note">{t.loadPointOutside}</span>}</div>}
     {pendingCentre && <div className="view-note">{t.centreAfterCalculation}</div>}
     {!pendingCentre && !pointVisible && input.application.kind === 'centroid' && <div className="view-note">{t.loadPointOutside}</div>}
   </div>;

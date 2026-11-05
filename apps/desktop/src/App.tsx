@@ -11,6 +11,7 @@ import { newProject, type CalculationInput, type Project, type Revision, type Ve
 import { defaultSettings, type EditorSettings } from './editorMovement';
 import { SettingsDialog } from './SettingsDialog';
 import { CadWorkspace } from './CadWorkspace';
+import { forceList, maxForces, replaceForces, updateForce } from './forceInputs';
 import { ModelTree } from './ModelTree';
 import { NumberField } from './NumberField';
 import { ProjectResults } from './ProjectResults';
@@ -33,6 +34,8 @@ export function App() {
   const [settingsOpen, setSettingsOpen] = useState(false), [settingsLoading, setSettingsLoading] = useState(true), [settingsWarning, setSettingsWarning] = useState(false);
   const settingsOpenRef = useRef(false); settingsOpenRef.current = settingsOpen;
   useEffect(() => { let active = true; void backend.getEditorSettings().then(value => { if (active) setSettings(value); }).catch(() => { if (active) setSettingsWarning(true); }).finally(() => { if (active) setSettingsLoading(false); }); return () => { active = false; }; }, []);
+  const [forceId, setForceId] = useState('legacy-force');
+  const [loadView, setLoadView] = useState<'overview' | 'force' | 'couple'>('overview');
   const [inspector, setInspector] = useState<'weld' | 'loads'>('weld');
   const [displayComponent, setDisplayComponent] = useState<StressComponent | null>(null), [showLoads, setShowLoads] = useState(true);
   const [resultsOpen, setResultsOpen] = useState(false);
@@ -43,6 +46,16 @@ export function App() {
   const [revisions, setRevisions] = useState<Revision[] | null>(null);
   const [historical, setHistorical] = useState(false), [formKey, setFormKey] = useState(0);
   const inputFile = useRef<HTMLInputElement>(null);
+  const forces = forceList(project.input);
+  const activeForce = forces.find(f => f.id === forceId) ?? forces[0];
+  function selectForce(id: string) { setForceId(id); setLoadView('force'); setInspector('loads'); }
+  function addForce() {
+    if (forces.length >= maxForces) return;
+    const id = crypto.randomUUID(); let n = 1; while (forces.some(f => f.title === `F${n}`)) n++;
+    history.current.breakGroup(); edit(replaceForces(project.input, [...forces, { id, title: `F${n}`, force_n: [0,0,0], application: { kind: 'centroid' } }]));
+    selectForce(id);
+  }
+  function editForce(patch: Parameters<typeof updateForce>[2]) { if (activeForce) edit(updateForce(project.input, activeForce.id, patch)); }
   const result = project.last_calculation;
   const baseline = useRef(JSON.stringify(newProject()));
   const dirty = JSON.stringify(project) !== baseline.current;
@@ -144,8 +157,8 @@ export function App() {
     if (batch.failures.length) setError(batch.failures.map(f => `${project.casebook?.cases.find(c => c.id === f.case_id)?.title}: ${describe(f.error)}`).join('; '));
   }
   function setVector(field: 'force_n' | 'couple_n_mm', index: number, value: number) {
-    const vector: Vec3 = [...project.input[field]]; vector[index] = value;
-    edit({ ...project.input, [field]: vector });
+    const vector: Vec3 = [...(field === 'force_n' ? activeForce?.force_n ?? [0,0,0] : project.input[field])]; vector[index] = value;
+    if (field === 'force_n') editForce({ force_n: vector }); else edit({ ...project.input, [field]: vector });
   }
   function replace(p: Project, snapshot: boolean, imported = false) {
     inputEpoch.current += 1; dragSnapshot.current = null; setGestureActive(false); history.current.clear();
@@ -170,7 +183,8 @@ export function App() {
   function ensureFinite() {
     const i = project.input;
     const numbers = [...i.segments.flatMap(s => [...s.start_mm, ...s.end_mm, s.effective_width_mm]), ...i.force_n, ...i.couple_n_mm,
-      ...(i.application.kind === 'point' ? i.application.point_mm : [])];
+      ...(i.application.kind === 'point' ? i.application.point_mm : []),
+      ...(i.forces ?? []).flatMap(f => [...f.force_n, ...(f.application.kind === 'point' ? f.application.point_mm : [])])];
     if (numbers.some(n => !Number.isFinite(n))) throw { code: 'non_finite' };
   }
   async function exportProject() {
@@ -224,7 +238,10 @@ export function App() {
       <CadWorkspace resultsOpen={resultsOpen} t={t} sidebar={<>
         <div className="dock-title">{t.modelTree}</div>
         <ModelTree count={project.input.segments.length} selected={selected} panel={inspector} disabled={blocked || gestureActive}
-          onWeld={selectWeld} onLoads={() => setInspector('loads')} onResults={() => setResultsOpen(true)} t={t}/>
+          forces={forces} activeForce={activeForce?.id} loadView={loadView} canAddWeld={project.input.segments.length < 256} canAddForce={forces.length < maxForces}
+          onAddWeld={addSegment} onAddForce={addForce} onForce={selectForce} onCouple={() => { setInspector('loads'); setLoadView('couple'); }}
+          onWeld={selectWeld} onLoads={() => { setInspector('loads'); setLoadView('overview'); }} onResults={() => setResultsOpen(true)} t={t}/>
+      </>} properties={<>
         <div className="dock-title">{t.properties}</div>
         <div className="property-scroll" key={formKey}>
           <section hidden={inspector !== 'weld'} aria-label={t.weldProperties}><WeldProperties segments={project.input.segments} selected={selected} disabled={blocked || gestureActive} t={t}
@@ -235,20 +252,21 @@ export function App() {
               if (epoch === inputEpoch.current) { history.current.breakGroup(); edit(input); }
             })}/>}
           </section>
-          <section className="loads" hidden={inspector !== 'loads'} aria-label={t.loads}><div className="property-heading">{t.loads}</div><fieldset disabled={blocked || gestureActive}>
+          <section className="loads" hidden={inspector !== 'loads'} aria-label={t.loads}><div className="property-heading">{loadView === 'couple' ? t.freeCoupleNode : activeForce ? `${t.force} ${activeForce.title}` : t.noForces}</div><fieldset disabled={blocked || gestureActive}>
         <div className="case-controls"><label>{t.loadCase}<select value={project.casebook?.active_id ?? ''} onChange={e => changeCase(activateCase(project, e.target.value))}>
           {!project.casebook && <option value="">LC1</option>}{project.casebook?.cases.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}</select></label>
           {project.casebook && <label>{t.caseTitle}<input maxLength={100} value={project.casebook.cases.find(c => c.id === project.casebook?.active_id)?.title ?? ''} onChange={e => changeProject({ ...project, casebook: { ...project.casebook!, cases: project.casebook!.cases.map(c => c.id === project.casebook?.active_id ? { ...c, title: e.target.value } : c) } })}/></label>}
           <div className="case-buttons"><button disabled={(project.casebook?.cases.length ?? 1) >= maxCases} onClick={() => changeCase(addCase(project, `LC${(project.casebook?.cases.length ?? 1) + 1}`))}>{t.cloneCase}</button><button disabled={!project.casebook || project.casebook.cases.length < 2} onClick={() => changeCase(removeCase(project))}>{t.removeCase}</button></div>
         </div>
-        {(['force_n', 'couple_n_mm'] as const).map(field => <div className="load-group" key={field}><h3>{field === 'force_n' ? t.force : t.couple} <span>{field === 'force_n' ? 'N' : 'N·mm'}</span></h3>
-          {project.input[field].map((value, i) => <label className="component" key={i}>{field === 'force_n' ? 'F' : 'M'}{'xyz'[i]}<NumberField label={`${field} ${'xyz'[i]}`} value={value} onChange={n => setVector(field, i, n)}/></label>)}
+        {(['force_n', 'couple_n_mm'] as const).map(field => <div className="load-group" key={field} hidden={field === 'force_n' ? loadView === 'couple' || !activeForce : loadView === 'force'}><h3>{field === 'force_n' ? t.force : t.couple} <span>{field === 'force_n' ? 'N' : 'N·mm'}</span></h3>
+          {(field === 'force_n' ? activeForce?.force_n ?? [0,0,0] : project.input[field]).map((value, i) => <label className="component" key={i}>{field === 'force_n' ? 'F' : 'M'}{'xyz'[i]}<NumberField label={`${field} ${'xyz'[i]}`} value={value} onChange={n => setVector(field, i, n)}/></label>)}
         </div>)}
-        <label className="checkbox"><input type="checkbox" checked={project.input.application.kind === 'centroid'} onChange={e => edit({ ...project.input, application: e.target.checked ? { kind: 'centroid' } : { kind: 'point', point_mm: [0, 0, 0] } })}/>{t.centroid}</label>
-        {project.input.application.kind === 'point' && <div className="load-group"><h3>{t.point} <span>mm</span></h3>{project.input.application.point_mm.map((value, i) => <label className="component" key={i}>{'xyz'[i]}<NumberField label={`P ${'xyz'[i]}`} value={value} onChange={n => {
-          if (project.input.application.kind !== 'point') return; const point_mm: Vec3 = [...project.input.application.point_mm]; point_mm[i] = n;
-          edit({ ...project.input, application: { kind: 'point', point_mm } });
+        {loadView !== 'couple' && activeForce && <><label className="width-property">{t.forceTitle}<input maxLength={100} value={activeForce.title} onChange={e => editForce({ title: e.target.value })}/></label><label className="checkbox"><input type="checkbox" checked={activeForce.application.kind === 'centroid'} onChange={e => editForce({ application: e.target.checked ? { kind: 'centroid' } : { kind: 'point', point_mm: [0, 0, 0] } })}/>{t.centroid}</label>
+        {activeForce.application.kind === 'point' && <div className="load-group"><h3>{t.point} <span>mm</span></h3>{activeForce.application.point_mm.map((value, i) => <label className="component" key={i}>{'xyz'[i]}<NumberField label={`P ${'xyz'[i]}`} value={value} onChange={n => {
+          if (activeForce.application.kind !== 'point') return; const point_mm: Vec3 = [...activeForce.application.point_mm]; point_mm[i] = n;
+          editForce({ application: { kind: 'point', point_mm } });
         }}/></label>)}</div>}
+        <button className="remove-weld" onClick={() => { history.current.breakGroup(); edit(replaceForces(project.input, forces.filter(f => f.id !== activeForce.id))); }}>{t.removeForce}</button></>}
           </fieldset><p className="hint">{t.source}</p></section>
         </div>
       </>} viewport={<section className="cad-viewport" aria-label={t.workspace}>

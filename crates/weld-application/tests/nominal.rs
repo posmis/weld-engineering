@@ -5,6 +5,7 @@ use weld_application::{
 };
 fn input() -> CalculationInput {
     CalculationInput {
+        forces: None,
         schema_version: 1,
         segments: [-20.0, 20.0]
             .map(|y| SegmentInput {

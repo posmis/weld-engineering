@@ -4,6 +4,7 @@ import { moveWeld, type EditorSettings, type Handle } from './editorMovement';
 import { fitLayout, panView, zoomAt, type CanvasSize, type View } from './viewport';
 import { contourColour, contourField, zeroStop, type StressComponent } from './stressContour';
 import { LoadGlyphs } from './LoadGlyphs';
+import { forceList } from './forceInputs';
 import { ContourLegend, LoadReadout } from './ViewportReadouts';
 import type ru from './locales/ru.json';
 
@@ -69,7 +70,8 @@ export function LayoutEditor({ input, centre, result, displayComponent = null, s
   useEffect(() => { if (disabled) { setContext(null); finishPan(true); } }, [disabled]);
   const field = displayComponent === null ? null : contourField(input, result, displayComponent);
   const points = input.segments.flatMap(s => [s.start_mm, s.end_mm]);
-  if (includeLoadPoint && input.application.kind === 'point' && input.application.point_mm.every(Number.isFinite)) points.push([input.application.point_mm[0], input.application.point_mm[1]]);
+  const appliedForces = forceList(input);
+  if (includeLoadPoint) for (const f of appliedForces) if (f.application.kind === 'point' && f.application.point_mm.every(Number.isFinite)) points.push([f.application.point_mm[0], f.application.point_mm[1]]);
   const fitted = fitLayout(points, size, field ? 260 : 80) ?? fitLayout(input.segments.flatMap(s => [s.start_mm, s.end_mm]), size);
   if (!fitted) return <div className="drawing empty">{t.bounds}</div>;
   const fittedScale = fitted.scale;
@@ -80,6 +82,10 @@ export function LayoutEditor({ input, centre, result, displayComponent = null, s
   const loadPoint: Point | undefined = input.application.kind === 'point' ? [input.application.point_mm[0], input.application.point_mm[1]] : centre;
   const loadScreen: Point | null = loadPoint ? [x(loadPoint[0]), y(loadPoint[1])] : null;
   const pointVisible = !!loadScreen && loadScreen.every(Number.isFinite) && loadScreen[0] >= 0 && loadScreen[0] <= size.width && loadScreen[1] >= 0 && loadScreen[1] <= size.height;
+  const allForcesVisible = appliedForces.every(f => {
+    const p = f.application.kind === 'point' ? f.application.point_mm : centre;
+    return !!p && p.every(Number.isFinite) && x(p[0]) >= 0 && x(p[0]) <= size.width && y(p[1]) >= 0 && y(p[1]) <= size.height;
+  });
   function world(clientX: number, clientY: number, mapping: View): Point | null {
     const matrix = svg.current?.getScreenCTM();
     if (!matrix) return null;
@@ -149,7 +155,7 @@ export function LayoutEditor({ input, centre, result, displayComponent = null, s
       <button disabled={disabled || dragging || panning} aria-label={t.zoomIn} onClick={() => zoom(1.25)}>+</button>
       <button disabled={disabled || dragging || panning} aria-label={t.zoomOut} onClick={() => zoom(.8)}>−</button>
       <button disabled={disabled || dragging || panning} aria-pressed={panMode} onClick={() => setPanMode(!panMode)}>{t.panMode}</button>
-      {input.application.kind === 'point' && <button disabled={disabled || dragging || panning || !input.application.point_mm.every(Number.isFinite)} onClick={() => { setIncludeLoadPoint(true); setFixedView(null); }}>{t.fitLoadsView}</button>}
+      {appliedForces.some(f => f.application.kind === 'point') && <button disabled={disabled || dragging || panning || appliedForces.some(f => f.application.kind === 'point' && !f.application.point_mm.every(Number.isFinite))} onClick={() => { setIncludeLoadPoint(true); setFixedView(null); }}>{t.fitLoadsView}</button>}
       <span className="movement-readout">{t.stepShort}: {settings.movement_step_mm} mm</span><span className="zoom-level">{`${Math.round(view.scale / fittedScale * 100)}%`}</span>
     </div>
     <div className="viewport-canvas">
@@ -213,14 +219,23 @@ export function LayoutEditor({ input, centre, result, displayComponent = null, s
           onPointerDown={event => begin(event, i, end)} onKeyDown={event => keyboard(event, i, end)}/>) }
         <text textAnchor="end" x={x(s.start_mm[0] / 2 + s.end_mm[0] / 2)} y={y(s.start_mm[1] / 2 + s.end_mm[1] / 2) - 12}>S{i + 1} · a={s.effective_width_mm} mm</text>
       </g>)}
-      {showLoads && pointVisible && loadScreen && <LoadGlyphs input={input} anchor={loadScreen}/>}
+      {showLoads && !input.forces && pointVisible && loadScreen && <LoadGlyphs input={input} anchor={loadScreen}/>}
+      {showLoads && input.forces && appliedForces.map(f => {
+        const at = f.application.kind === 'point' ? f.application.point_mm : centre;
+        if (!at || !at.every(Number.isFinite)) return null;
+        const anchor: Point = [x(at[0]),y(at[1])];
+        if (anchor[0]<0 || anchor[0]>size.width || anchor[1]<0 || anchor[1]>size.height) return null;
+        return <g key={f.id} data-force-id={f.id}><LoadGlyphs input={{...input,force_n:f.force_n,couple_n_mm:[0,0,0]}} anchor={anchor} label={f.title}/><circle cx={anchor[0]} cy={anchor[1]} r="4" className="force-point"/><text x={anchor[0]+8} y={anchor[1]+16}>{f.title}</text></g>;
+      })}
+      {showLoads && input.forces && centre && <LoadGlyphs input={{...input,force_n:[0,0,0]}} anchor={[x(centre[0]),y(centre[1])]}/>}
+
       {snap && <circle className="snap-marker" cx={x(snap[0])} cy={y(snap[1])} r="10"/>}
       {centre && <g className="centroid"><circle cx={x(centre[0])} cy={y(centre[1])} r="7"/><text x={x(centre[0]) + 12} y={y(centre[1]) + 22}>C</text></g>}
       {input.application.kind === 'point' && input.application.point_mm.every(Number.isFinite) && <g className="application-point"><circle cx={x(input.application.point_mm[0])} cy={y(input.application.point_mm[1])} r="6"/><text x={x(input.application.point_mm[0]) + 12} y={y(input.application.point_mm[1]) - 10}>P</text></g>}
     </svg>
     <div className="viewport-corner">
     <svg className="viewport-orientation" viewBox="0 0 86 78" role="img" aria-label={t.coordinateAxes}><path d="M15 62h45m-45 0v-45" className="axis"/><text x="65" y="67">X</text><text x="10" y="12">Y</text></svg>
-    {showLoads && <LoadReadout input={input} pointVisible={pointVisible} pendingCentre={input.application.kind === 'centroid' && !centre} t={t}/>}
+    {showLoads && <LoadReadout input={input} resultant={result?.resultant_force_n} pointVisible={input.forces ? allForcesVisible : pointVisible} pendingCentre={appliedForces.some(f => f.application.kind === 'centroid') && !centre} t={t}/>}
     </div>
     {field && displayComponent !== null && <ContourLegend field={field} component={displayComponent} selected={selected} t={t}/>}
     </div>

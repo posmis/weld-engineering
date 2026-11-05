@@ -89,6 +89,8 @@ jobs:
             target/windows-contour-smoke.png
             target/windows-template-smoke.png
             target/windows-transform-smoke.png
+            target/windows-tree-menu-smoke.png
+            target/windows-tree-forces-smoke.png
             target/weld-report-smoke.pdf
           if-no-files-found: error
           retention-days: 7

@@ -1,13 +1,14 @@
 import type { CalculationInput, CalculationResult, LoadCase, Project } from './contracts';
+import { forceFields } from './forceInputs';
 import { sameValue } from './projectHistory';
 export const maxCases = 32;
 function fromProject(project: Project, id: string, title: string): LoadCase {
-  return { id, title, force_n: project.input.force_n, couple_n_mm: project.input.couple_n_mm, application: project.input.application, last_calculation: project.last_calculation };
+  return { id, title, ...forceFields(project.input), force_n: project.input.force_n, couple_n_mm: project.input.couple_n_mm, application: project.input.application, last_calculation: project.last_calculation };
 }
 export function editInput(project: Project, input: CalculationInput): Project {
   const geometryChanged = !sameValue(project.input.segments, input.segments);
   return { ...project, input, last_calculation: null, ...(project.casebook ? { casebook: { ...project.casebook, cases: project.casebook.cases.map(c => c.id === project.casebook?.active_id
-    ? { ...c, force_n: input.force_n, couple_n_mm: input.couple_n_mm, application: input.application, last_calculation: null }
+    ? { ...c, ...forceFields(input), force_n: input.force_n, couple_n_mm: input.couple_n_mm, application: input.application, last_calculation: null }
     : geometryChanged ? { ...c, last_calculation: null } : c) } } : {}) };
 }
 export function withCalculation(project: Project, value: CalculationResult): Project {
@@ -16,7 +17,8 @@ export function withCalculation(project: Project, value: CalculationResult): Pro
 export function activateCase(project: Project, id: string): Project {
   const c = project.casebook?.cases.find(c => c.id === id);
   if (!c || !project.casebook) return project;
-  return { ...project, input: { ...project.input, force_n: c.force_n, couple_n_mm: c.couple_n_mm, application: c.application }, last_calculation: c.last_calculation, casebook: { ...project.casebook, active_id: id } };
+  const { forces: _forces, ...base } = project.input;
+  return { ...project, input: { ...base, ...forceFields(c), force_n: c.force_n, couple_n_mm: c.couple_n_mm, application: c.application }, last_calculation: c.last_calculation, casebook: { ...project.casebook, active_id: id } };
 }
 export function addCase(project: Project, title: string): Project {
   const cases = project.casebook?.cases ?? [fromProject(project, crypto.randomUUID(), 'LC1')];

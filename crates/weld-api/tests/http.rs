@@ -165,3 +165,23 @@ async fn transform_endpoint_returns_rotated_geometry_and_rejects_unknown_operati
         .unwrap();
     assert!(!response.status().is_success());
 }
+
+#[tokio::test]
+async fn simultaneous_forces_are_summed_by_the_real_calculation_route() {
+    let mut i = input();
+    i["force_n"] = serde_json::json!([0, 0, 0]);
+    i["forces"] = serde_json::json!([{"id":"a","title":"F1","force_n":[0,0,300],"application":{"kind":"point","point_mm":[-25,0,0]}},{"id":"b","title":"F2","force_n":[0,0,300],"application":{"kind":"point","point_mm":[25,0,0]}}]);
+    let r = weld_api::router("test-token".into())
+        .oneshot(request("/api/v1/calculate", i.clone()))
+        .await
+        .unwrap();
+    assert_eq!(r.status(), StatusCode::OK);
+    let v: serde_json::Value =
+        serde_json::from_slice(&r.into_body().collect().await.unwrap().to_bytes()).unwrap();
+    assert_eq!(v["resultant_force_n"], serde_json::json!([0.0, 0.0, 600.0]));
+    assert_eq!(v["traction_mpa"], serde_json::json!([0.0, 0.0, 3.0]));
+    let snapshot: weld_application::CalculationInput =
+        serde_json::from_value(v["input_snapshot"].clone()).unwrap();
+    let original: weld_application::CalculationInput = serde_json::from_value(i).unwrap();
+    assert_eq!(snapshot, original);
+}

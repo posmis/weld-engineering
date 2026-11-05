@@ -54,8 +54,14 @@ export async function createReport(project: Project, fontBytes: Uint8Array, summ
   const cases = project.casebook?.cases ?? [{ id: 'single', title: 'LC1', ...project.input, last_calculation: project.last_calculation }];
   for (const c of cases) {
     heading(`Нагрузочный случай: ${c.title}`);
+    if (c.forces) {
+      line(`Одновременно действующие силы: ${c.forces.length}`);
+      for (const f of c.forces) { line(`${f.title} [N]: ${vector(f.force_n)}`); line(f.application.kind === 'centroid' ? 'Точка: центр эффективного сечения.' : `P [mm]: ${vector(f.application.point_mm)}`); }
+      line(`Свободный M [N·mm]: ${vector(c.couple_n_mm)}`);
+    } else {
     line(`F [N]: ${vector(c.force_n)}; свободный M [N·mm]: ${vector(c.couple_n_mm)}`);
     line(c.application.kind === 'centroid' ? 'Сила приложена в центре эффективного сечения.' : `Точка приложения P [mm]: ${vector(c.application.point_mm)}`);
+    }
     const r: CalculationResult | null = c.last_calculation;
     if (!r) { line('НЕ РАССЧИТАН. Напряжения отсутствуют.'); continue; }
     line(`Engine ${r.engine_version}; schema ${r.schema_version}; метод ${r.method_id}`);
@@ -63,12 +69,13 @@ export async function createReport(project: Project, fontBytes: Uint8Array, summ
     const g = r.geometry;
     line(`L=${number(g.length_mm)} mm; A=${number(g.area_mm2)} mm²; центр X/Y=${vector(g.centroid_mm)} mm`);
     line(`Ix / Iy / Ixy / J [mm⁴]: ${vector([g.ix_mm4, g.iy_mm4, g.ixy_mm4, g.polar_mm4])}`);
+    if (r.resultant_force_n) line(`Суммарная сила ΣF [N]: ${vector(r.resultant_force_n)}`);
     line(`Результирующий момент в центре [N·mm]: ${vector(r.moment_at_centroid_n_mm)}`);
     if (r.analysis_status !== 'computed') line('НАГРУЖЕНИЕ НЕ ПОДДЕРЖИВАЕТСЯ. Напряжения не выдаются.');
     if (r.traction_mpa) {
       line(`Равномерные τx / τy / σz [MPa]: ${vector(r.traction_mpa)}`);
       line('Метод: t = F/A. Подстановка компонентов:');
-      r.traction_mpa.forEach((value, i) => line(`${['τx', 'τy', 'σz'][i]} = (${number(r.input_snapshot.force_n[i])} N) / (${number(g.area_mm2)} mm²) = ${number(value)} MPa`));
+      r.traction_mpa.forEach((value, i) => line(`${['τx', 'τy', 'σz'][i]} = (${number((r.resultant_force_n ?? r.input_snapshot.force_n)[i])} N) / (${number(g.area_mm2)} mm²) = ${number(value)} MPa`));
     }
     if (r.distribution) {
       line('Метод в координатах относительно центра: τx=Fx/A−Mz·y/J; τy=Fy/A+Mz·x/J; σz=Fz/A+bx·x+by·y.');

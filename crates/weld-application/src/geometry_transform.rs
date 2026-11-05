@@ -34,6 +34,7 @@ pub struct GeometryTransformRequest {
 }
 pub fn transform(request: &GeometryTransformRequest) -> Result<GeometryTemplateResult, AppError> {
     let mut input = CalculationInput {
+        forces: None,
         schema_version: request.schema_version,
         segments: request.segments.clone(),
         force_n: [0.0; 3],

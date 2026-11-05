@@ -15,6 +15,7 @@ fn request(kind: TemplateKind) -> GeometryTemplateRequest {
 }
 fn geometry(request: &GeometryTemplateRequest) -> weld_application::GeometryResult {
     calculate(&CalculationInput {
+        forces: None,
         schema_version: 1,
         segments: generate(request).unwrap().segments,
         force_n: [0.0; 3],

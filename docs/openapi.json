@@ -1177,8 +1177,41 @@
           },
           "application": {
             "$ref": "#/components/schemas/ApplicationPoint"
+          },
+          "forces": {
+            "type": "array",
+            "maxItems": 64,
+            "items": {
+              "$ref": "#/components/schemas/AppliedForce"
+            },
+            "description": "Simultaneously acting forces; each has its own application point. Empty means no forces. Absent uses legacy force_n/application."
           }
-        }
+        },
+        "allOf": [
+          {
+            "if": {
+              "required": [
+                "forces"
+              ]
+            },
+            "then": {
+              "properties": {
+                "force_n": {
+                  "const": [
+                    0,
+                    0,
+                    0
+                  ]
+                },
+                "application": {
+                  "const": {
+                    "kind": "centroid"
+                  }
+                }
+              }
+            }
+          }
+        ]
       },
       "Geometry": {
         "type": "object",
@@ -1379,6 +1412,15 @@
             "items": {
               "type": "string"
             }
+          },
+          "resultant_force_n": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "format": "double"
+            },
+            "minItems": 3,
+            "maxItems": 3
           }
         }
       },
@@ -1434,8 +1476,41 @@
                 "type": "null"
               }
             ]
+          },
+          "forces": {
+            "type": "array",
+            "maxItems": 64,
+            "items": {
+              "$ref": "#/components/schemas/AppliedForce"
+            },
+            "description": "Simultaneously acting forces; each has its own application point. Empty means no forces. Absent uses legacy force_n/application."
           }
-        }
+        },
+        "allOf": [
+          {
+            "if": {
+              "required": [
+                "forces"
+              ]
+            },
+            "then": {
+              "properties": {
+                "force_n": {
+                  "const": [
+                    0,
+                    0,
+                    0
+                  ]
+                },
+                "application": {
+                  "const": {
+                    "kind": "centroid"
+                  }
+                }
+              }
+            }
+          }
+        ]
       },
       "CaseBook": {
         "type": "object",
@@ -1905,6 +1980,40 @@
             },
             "minItems": 1,
             "maxItems": 256
+          }
+        }
+      },
+      "AppliedForce": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "title",
+          "force_n",
+          "application"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "force_n": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "format": "double"
+            },
+            "minItems": 3,
+            "maxItems": 3
+          },
+          "application": {
+            "$ref": "#/components/schemas/ApplicationPoint"
           }
         }
       }

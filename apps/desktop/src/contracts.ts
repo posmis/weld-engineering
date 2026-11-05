@@ -1,6 +1,8 @@
 export type Vec3 = [number, number, number];
 export interface SegmentInput { start_mm: [number, number]; end_mm: [number, number]; effective_width_mm: number }
+export interface AppliedForce { id: string; title: string; force_n: Vec3; application: { kind: 'centroid' } | { kind: 'point'; point_mm: Vec3 } }
 export interface CalculationInput {
+  forces?: AppliedForce[];
   schema_version: 1; segments: SegmentInput[]; force_n: Vec3; couple_n_mm: Vec3;
   application: { kind: 'centroid' } | { kind: 'point'; point_mm: Vec3 };
 }
@@ -10,6 +12,7 @@ export interface NominalDistribution {
   bending_rcond: number | null; equilibrium_error: number;
 }
 export interface CalculationResult {
+  resultant_force_n?: Vec3;
   schema_version: 1; engine_version: string; method_id: string; input_snapshot: CalculationInput;
   geometry: { length_mm: number; area_mm2: number; centroid_mm: [number, number]; ix_mm4: number; iy_mm4: number; ixy_mm4: number; polar_mm4: number };
   moment_at_centroid_n_mm: Vec3; traction_mpa: Vec3 | null; distribution?: NominalDistribution;
@@ -24,7 +27,7 @@ export function newProject(): Project {
     force_n: [0, 0, 600], couple_n_mm: [0, 0, 0], application: { kind: 'centroid' } }, last_calculation: null };
 }
 
-export interface LoadCase { id: string; title: string; force_n: Vec3; couple_n_mm: Vec3; application: CalculationInput['application']; last_calculation: CalculationResult | null }
+export interface LoadCase { forces?: AppliedForce[]; id: string; title: string; force_n: Vec3; couple_n_mm: Vec3; application: CalculationInput['application']; last_calculation: CalculationResult | null }
 export interface CaseBook { schema_version: 1; active_id: string; cases: LoadCase[] }
 export interface GoverningValue { value_mpa: number; case_id: string; segment_index: number; endpoint: string }
 export interface CaseSummary { total: number; computed: number; complete: boolean; normal_min: GoverningValue | null; normal_max: GoverningValue | null; shear_max: GoverningValue | null }

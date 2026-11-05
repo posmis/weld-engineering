@@ -23,3 +23,12 @@ test('legacy single-case documents remain unchanged until a case is added', () =
   const p = newProject(); expect(editInput(p, { ...p.input, force_n: [0, 0, 10] }).casebook).toBeUndefined();
   expect(withCalculation(p, result(p)).casebook).toBeUndefined();
 });
+
+test('force collections belong to their load case and survive independent edits and switching', () => {
+  let p=newProject();
+  p={...p,input:{...p.input,force_n:[0,0,0],application:{kind:'centroid'},forces:[{id:'a',title:'F1',force_n:[0,0,600],application:{kind:'centroid'}}]}};
+  const cloned=addCase(p,'LC2');const first=cloned.casebook!.cases[0].id;
+  const changed=editInput(cloned,{...cloned.input,forces:cloned.input.forces!.map(f=>({...f,force_n:[0,0,-300]}))});
+  expect(activateCase(changed,first).input.forces?.[0].force_n).toEqual([0,0,600]);
+  expect(changed.casebook!.cases[1].forces?.[0].force_n).toEqual([0,0,-300]);
+});

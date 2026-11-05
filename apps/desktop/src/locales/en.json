@@ -191,5 +191,16 @@
   "transformPreviewHelp": "Dashed: original group. Solid: transformed geometry.",
   "transformHelp": "Only weld geometry changes. Forces, couples and point P remain in global coordinates; all case results are cleared. One Undo restores the original state.",
   "applyTransform": "Apply transformation",
-  "transformInvalid": "Enter finite coordinates and angle."
+  "transformInvalid": "Enter finite coordinates and angle.",
+  "modelOutline": "Model outline",
+  "elementProperties": "Selected element properties",
+  "resizeProperties": "Properties column width",
+  "addForce": "Add force",
+  "removeForce": "Delete selected force",
+  "freeCoupleNode": "Free couple M1",
+  "noForces": "No forces. Add a force from the tree context menu.",
+  "treeCommands": "Tree commands",
+  "forceTitle": "Force name",
+  "forcesShort": "forces",
+  "resultantAfterCalculation": "after calculation"
 }
