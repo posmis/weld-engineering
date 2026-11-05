@@ -6,6 +6,7 @@ Add-Type @'
 using System;
 using System.Runtime.InteropServices;
 public static class WeldDesktopInput {
+    [DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr window, IntPtr insertAfter, int x, int y, int width, int height, uint flags);
     [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);
     [DllImport("user32.dll")] public static extern void mouse_event(uint flags, uint dx, uint dy, uint data, UIntPtr extra);
     [DllImport("user32.dll")] public static extern void keybd_event(byte key, byte scan, uint flags, UIntPtr extra);
@@ -150,6 +151,21 @@ try {
     (Find-Name 'Ширина столбца свойств').SetFocus(); Key-Press 0x27
     $null = Wait-Until { (Find-Name 'Свойства выбранного элемента').Current.BoundingRectangle.Width -gt ($propertiesWidth + 10) } 'properties column has its own splitter'
     Key-Press 0x25
+    (Find-Name 'Ширина панели модели').SetFocus(); Key-Press 0x23
+    (Find-Name 'Ширина столбца свойств').SetFocus(); Key-Press 0x23
+    $originalWindow = $script:window.Current.BoundingRectangle
+    $handle = [IntPtr]$script:window.Current.NativeWindowHandle
+    $null = [WeldDesktopInput]::SetWindowPos($handle,[IntPtr]::Zero,[int]$originalWindow.X,[int]$originalWindow.Y,880,[int]$originalWindow.Height,0x0014)
+    $null = Wait-Until {
+        $tree = (Find-Name 'Дерево модели').Current.BoundingRectangle
+        $properties = (Find-Name 'Свойства выбранного элемента').Current.BoundingRectangle
+        $view = (Find-Name 'XY weld layout').Current.BoundingRectangle
+        $view.Width -ge 290 -and $properties.X -ge $tree.Right -and $view.X -ge $properties.Right
+    } 'columns shrink safely after narrowing a previously expanded window'
+    $null = [WeldDesktopInput]::SetWindowPos($handle,[IntPtr]::Zero,[int]$originalWindow.X,[int]$originalWindow.Y,[int]$originalWindow.Width,[int]$originalWindow.Height,0x0014)
+    (Find-Name 'Ширина панели модели').SetFocus(); Key-Press 0x24
+    (Find-Name 'Ширина столбца свойств').SetFocus(); Key-Press 0x24
+    if (Find-Name 'Есть несохранённые изменения') { throw 'Column resize modified the project' }
     Show-Drawing
     $bounds = (Find-Name 'XY weld layout').Current.BoundingRectangle
     $null = [WeldDesktopInput]::SetCursorPos([int]($bounds.X + $bounds.Width * 0.8), [int]($bounds.Y + $bounds.Height * 0.75))

@@ -1,4 +1,4 @@
-import { useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import type ru from './locales/ru.json';
 type Resize = { pointer: number; kind: 'side' | 'properties' | 'results'; origin: number; original: number };
 export function CadWorkspace({ sidebar, properties, viewport, results, resultsOpen, t }: {
@@ -6,6 +6,20 @@ export function CadWorkspace({ sidebar, properties, viewport, results, resultsOp
 }) {
   const [sideWidth, setSideWidth] = useState(220), [propertiesWidth, setPropertiesWidth] = useState(280), [resultsHeight, setResultsHeight] = useState(260);
   const root = useRef<HTMLDivElement>(null), resize = useRef<Resize | null>(null);
+  const widths = useRef({ sideWidth, propertiesWidth }); widths.current = { sideWidth, propertiesWidth };
+  useLayoutEffect(() => {
+    const element = root.current; if (!element || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(() => {
+      const available = Math.max(400, element.clientWidth - 332);
+      let side = widths.current.sideWidth, properties = widths.current.propertiesWidth;
+      let excess = Math.max(0, side + properties - available);
+      const shrinkSide = Math.min(side - 160, excess / 2); side -= shrinkSide; excess -= shrinkSide;
+      const shrinkProperties = Math.min(properties - 240, excess); properties -= shrinkProperties; excess -= shrinkProperties;
+      side -= Math.min(side - 160, excess);
+      setSideWidth(side); setPropertiesWidth(properties);
+    });
+    observer.observe(element); return () => observer.disconnect();
+  }, []);
   function limits(kind: Resize['kind']) {
     return kind !== 'results' ? [kind === 'side' ? 160 : 240, Math.max(kind === 'side' ? 160 : 240, Math.min(420, (root.current?.clientWidth || 1024) - (kind === 'side' ? propertiesWidth : sideWidth) - 332))]
       : [160, Math.max(160, (root.current?.clientHeight || 700) - 186)];

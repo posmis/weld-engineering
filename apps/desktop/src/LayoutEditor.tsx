@@ -72,7 +72,7 @@ export function LayoutEditor({ input, centre, result, displayComponent = null, s
   const points = input.segments.flatMap(s => [s.start_mm, s.end_mm]);
   const appliedForces = forceList(input);
   if (includeLoadPoint) for (const f of appliedForces) if (f.application.kind === 'point' && f.application.point_mm.every(Number.isFinite)) points.push([f.application.point_mm[0], f.application.point_mm[1]]);
-  const fitted = fitLayout(points, size, field ? 260 : 80) ?? fitLayout(input.segments.flatMap(s => [s.start_mm, s.end_mm]), size);
+  const fitted = fitLayout(points, size, field ? Math.min(260, size.width * .4) : 80) ?? fitLayout(input.segments.flatMap(s => [s.start_mm, s.end_mm]), size);
   if (!fitted) return <div className="drawing empty">{t.bounds}</div>;
   const fittedScale = fitted.scale;
   const view = fixedView ?? fitted;

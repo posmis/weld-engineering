@@ -372,6 +372,7 @@ test('measured wide canvas fills the available width and resize cancels a gestur
     callback: ResizeObserverCallback;
     constructor(callback: ResizeObserverCallback) { this.callback = callback; }
     observe(target: Element) {
+      if (!target.classList.contains('viewport-canvas')) return;
       Object.defineProperty(target, 'clientWidth', { configurable: true, get: () => width });
       Object.defineProperty(target, 'clientHeight', { configurable: true, get: () => height });
       resize = () => this.callback([], this as unknown as ResizeObserver); resize();
