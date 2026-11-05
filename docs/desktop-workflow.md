@@ -183,3 +183,5 @@ Native smoke проверяет старт в fullscreen, высоту и шир
 Модуль сечения проверен в установленном EXE: [Windows run 42057308788 — SUCCESS](https://github.com/posmis/weld-engineering/actions/runs/42057308788), source `ff5daec`. Нативный сценарий включает расчёт обоих случаев, SQLite, полный restart, исходные катеты и manual/Undo. [Снимок](screenshots/fillet-section.png).
 
 Новый расчёт нагрузки: в свойствах силы раскрыть «Нагрузка от массы», ввести kg и векторы g/a в m/s², применить F=m(g−a). Это сила массы на крепление. P в mm задаёт центр масс; centroid — явное совпадение с центром сечения. [Применимость, сохранение, manual/Undo](mass-acceleration-loads.md).
+
+Нагрузка от массы проверена в установленном EXE: [Windows run 42087714198 — SUCCESS](https://github.com/posmis/weld-engineering/actions/runs/42087714198), source `84783dc`. Сохранение/restart/manual/Undo, HTTP/OpenAPI и независимое чтение нового PDF пройдены; [снимок](screenshots/mass-load.png).
