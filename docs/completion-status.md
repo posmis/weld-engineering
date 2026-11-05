@@ -22,3 +22,5 @@
 Установщик NSIS для текущего пользователя добавлен отдельным этапом доставки: [windows-installer.md](windows-installer.md). Windows run 41907826120 / ab54f56 — success: установка, работа установленного EXE, uninstall с сохранением SQLite; GitHub release не публикуется.
 
 Последняя интерфейсная итерация: [viewport-results.md](viewport-results.md), Windows run 41988936171 / a757adc — success (51 Rust/API, 56 frontend ×3, установленный native workflow). Это не закрывает нормативные пробелы таблицы выше.
+
+Последняя геометрическая итерация: [группы по размерам](geometry-templates.md), Windows run 41997088682 / 0aee020 — success (55 Rust/API, 61 frontend ×3, установленный preview/apply/calculate/Undo). Это конструктивные линейные схемы без нормативного выбора соединения и без прочностного verdict.
