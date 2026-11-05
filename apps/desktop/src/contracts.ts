@@ -3,7 +3,10 @@ export type SectionModel = {kind: 'idealized_right_angle_fillet'; leg_1_mm:numbe
 export interface SectionRequest {schema_version:1;model:SectionModel}
 export interface SectionResult {schema_version:1;model:SectionModel;effective_width_mm:number;method_id:string;status:'idealized_geometry'}
 export interface SegmentInput { section?: SectionModel; start_mm: [number, number]; end_mm: [number, number]; effective_width_mm: number }
-export interface AppliedForce { id: string; title: string; force_n: Vec3; application: { kind: 'centroid' } | { kind: 'point'; point_mm: Vec3 } }
+export interface MassLoad {mass_kg:number;gravity_m_s2:Vec3;acceleration_m_s2:Vec3}
+export interface MassLoadRequest {schema_version:1;model:MassLoad}
+export interface MassLoadResult {schema_version:1;model:MassLoad;force_n:Vec3;method_id:string}
+export interface AppliedForce { inertia?:MassLoad; id: string; title: string; force_n: Vec3; application: { kind: 'centroid' } | { kind: 'point'; point_mm: Vec3 } }
 export interface CalculationInput {
   forces?: AppliedForce[];
   schema_version: 1; segments: SegmentInput[]; force_n: Vec3; couple_n_mm: Vec3;

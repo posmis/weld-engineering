@@ -23,5 +23,6 @@
   "invalid_pattern": "Invalid intermittent pattern: check length, pitch, count and available span.",
   "invalid_forces": "Invalid force list: check names, unique identifiers and the 64-force limit.",
   "invalid_segment": "The selected weld segment was not found.",
-  "section_width_mismatch": "Effective width does not match the stored section legs. Apply the section again or switch to manual width."
+  "section_width_mismatch": "Effective width does not match the stored section legs. Apply the section again or switch to manual width.",
+  "mass_force_mismatch": "Force does not match mass and accelerations. Recalculate the load or explicitly switch to manual force input."
 }

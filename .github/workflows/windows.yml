@@ -95,7 +95,9 @@ jobs:
             target/windows-copy-weld-smoke.png
             target/windows-property-grid-smoke.png
             target/windows-fillet-section-smoke.png
+            target/windows-mass-load-smoke.png
             target/weld-report-smoke.pdf
+            target/weld-mass-report-smoke.pdf
           if-no-files-found: error
           retention-days: 7
       - name: Preserve synthetic UI diagnostics on failure

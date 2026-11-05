@@ -57,7 +57,7 @@ export async function createReport(project: Project, fontBytes: Uint8Array, summ
     heading(`Нагрузочный случай: ${c.title}`);
     if (c.forces) {
       line(`Одновременно действующие силы: ${c.forces.length}`);
-      for (const f of c.forces) { line(`${f.title} [N]: ${vector(f.force_n)}`); line(f.application.kind === 'centroid' ? 'Точка: центр эффективного сечения.' : `P [mm]: ${vector(f.application.point_mm)}`); }
+      for (const f of c.forces) { line(`${f.title} [N]: ${vector(f.force_n)}`); if(f.inertia){line(`Нагрузка от массы m=${String(f.inertia.mass_kg)} kg; F = m*(g - a).`);line(`g [m/s²]: ${vector(f.inertia.gravity_m_s2)}; a [m/s²]: ${vector(f.inertia.acceleration_m_s2)}`);line("translating-mass-equivalent-load-v1; без вращательной инерции и динамических коэффициентов.");} line(f.application.kind === 'centroid' ? 'Точка: центр эффективного сечения.' : `P [mm]: ${vector(f.application.point_mm)}`); }
       line(`Свободный M [N·mm]: ${vector(c.couple_n_mm)}`);
     } else {
     line(`F [N]: ${vector(c.force_n)}; свободный M [N·mm]: ${vector(c.couple_n_mm)}`);

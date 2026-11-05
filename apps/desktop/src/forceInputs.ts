@@ -10,7 +10,7 @@ export function replaceForces(input: CalculationInput, forces: AppliedForce[]): 
   return { ...input, force_n: [0, 0, 0], application: { kind: 'centroid' }, forces };
 }
 export function updateForce(input: CalculationInput, id: string, patch: Partial<AppliedForce>): CalculationInput {
-  if (!input.forces && patch.title === undefined) return { ...input, ...(patch.force_n ? { force_n: patch.force_n } : {}), ...(patch.application ? { application: patch.application } : {}) };
+  if (!input.forces && patch.title === undefined && patch.inertia === undefined) return { ...input, ...(patch.force_n ? { force_n: patch.force_n } : {}), ...(patch.application ? { application: patch.application } : {}) };
   return replaceForces(input, forceList(input).map(f => f.id === id ? { ...f, ...patch } : f));
 }
 
@@ -24,6 +24,6 @@ export function duplicateForce(input: CalculationInput, sourceId: string, copySu
     count++;
   } while (forces.some(f => f.title === title));
   const id = crypto.randomUUID();
-  const copy: AppliedForce = { id, title, force_n: [...source.force_n], application: source.application.kind === 'centroid' ? { kind:'centroid' } : { kind:'point',point_mm:[...source.application.point_mm] } };
+  const copy: AppliedForce = { ...(source.inertia ? {inertia:{...source.inertia,gravity_m_s2:[...source.inertia.gravity_m_s2],acceleration_m_s2:[...source.inertia.acceleration_m_s2]}} : {}), id, title, force_n: [...source.force_n], application: source.application.kind === 'centroid' ? { kind:'centroid' } : { kind:'point',point_mm:[...source.application.point_mm] } };
   return { input: replaceForces(input,[...forces,copy]), id };
 }

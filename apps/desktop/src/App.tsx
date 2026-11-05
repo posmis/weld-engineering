@@ -1,3 +1,4 @@
+import { MassLoadEditor } from './MassLoadEditor';
 import { useEffect, useRef, useState } from 'react';
 import { ProjectHistory, sameValue, type EditorSnapshot } from './projectHistory';
 import { GeometryTransformDialog } from './GeometryTransformDialog';
@@ -277,12 +278,13 @@ export function App() {
         {loadView !== 'couple' && activeForce && <><PropertyTable label={`${t.force} ${activeForce.title}`} t={t}>
           <PropertyRow label={t.forceTitle}><input aria-label={t.forceTitle} maxLength={100} value={activeForce.title} onChange={e=>editForce({title:e.target.value})}/></PropertyRow>
           <PropertyGroup>{t.force}</PropertyGroup>
-          {activeForce.force_n.map((value,i)=><PropertyRow key={i} label={`F${'xyz'[i]}`} unit="N"><NumberField label={`force_n ${'xyz'[i]}`} value={value} onChange={n=>setVector('force_n',i,n)}/></PropertyRow>)}
+          {activeForce.force_n.map((value,i)=><PropertyRow key={i} label={`F${'xyz'[i]}`} unit="N"><>{activeForce.inertia?<input aria-label={`force_n ${'xyz'[i]}`} readOnly value={String(value)}/>:<NumberField label={`force_n ${'xyz'[i]}`} value={value} onChange={n=>setVector('force_n',i,n)}/>}</></PropertyRow>)}
           <PropertyRow label={t.forceInCentre}><input aria-label={t.centroid} type="checkbox" checked={activeForce.application.kind==='centroid'} onChange={e=>editForce({application:e.target.checked?{kind:'centroid'}:{kind:'point',point_mm:[0,0,0]}})}/></PropertyRow>
           {activeForce.application.kind==='point' && <><PropertyGroup>{t.point} P</PropertyGroup>{activeForce.application.point_mm.map((value,i)=><PropertyRow key={`p-${i}`} label={`P${'xyz'[i]}`} unit="mm"><NumberField label={`P ${'xyz'[i]}`} value={value} onChange={n=>{
             if(activeForce.application.kind!=='point')return;const point_mm:Vec3=[...activeForce.application.point_mm];point_mm[i]=n;editForce({application:{kind:'point',point_mm}});
           }}/></PropertyRow>)}</>}
-        </PropertyTable><button className="remove-weld" onClick={()=>removeForce(activeForce.id)}>{t.removeForce}</button></>}
+        </PropertyTable><button className="remove-weld" onClick={()=>removeForce(activeForce.id)}>{t.removeForce}</button>
+        <MassLoadEditor key={activeForce.id} force={activeForce} disabled={blocked||gestureActive} t={t} onApply={(inertia,force_n)=>editForce({inertia,force_n})} onManual={()=>editForce({inertia:undefined})}/></>}
         <div hidden={loadView==='force'}><PropertyTable label={t.couple} t={t}><PropertyGroup>{t.couple}</PropertyGroup>
           {project.input.couple_n_mm.map((value,i)=><PropertyRow key={i} label={`M${'xyz'[i]}`} unit="N·mm"><NumberField label={`couple_n_mm ${'xyz'[i]}`} value={value} onChange={n=>setVector('couple_n_mm',i,n)}/></PropertyRow>)}
         </PropertyTable></div>

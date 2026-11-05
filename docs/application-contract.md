@@ -48,3 +48,7 @@ SQLite `user_version=2`: миграция с v1 добавляет только 
 ### Явная геометрическая модель сечения
 
 Необязательное `SegmentInput.section` хранит `kind=idealized_right_angle_fillet`, `leg_1_mm`, `leg_2_mm`. Команда `derive_section(request)` и POST `/api/v1/sections/derive` выводят геометрическое горло по катетам. Расчёт проверяет согласованность `effective_width_mm` с моделью; независимое редактирование ширины требует явно убрать `section`. Старые проекты без поля сохраняют прежнюю семантику. Это не каталог ГОСТ и не проверка прочности; [формулы, ограничения и проверки](idealized-fillet-section.md).
+
+### Нагрузка от массы
+
+`AppliedForce.inertia` сохраняет optional `MassLoad` с mass_kg, gravity_m_s2, acceleration_m_s2. Команда derive_mass_load(request) / POST loads/mass выводит F=m(g−a) в N; модель и вектор проверяются на согласованность. Старые данные без поля сохраняют прежнюю семантику. [Полный контракт и ограничения](mass-acceleration-loads.md).

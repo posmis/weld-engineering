@@ -222,5 +222,14 @@
   "applySection": "Calculate and apply section",
   "manualSection": "Set width manually",
   "sectionChanged": "The weld changed during section calculation. Apply again.",
-  "sectionError": "Section could not be derived. Check positive dimensions and numerical range."
+  "sectionError": "Section could not be derived. Check positive dimensions and numerical range.",
+  "massLoad": "Mass load",
+  "massAssumption": "F = m·(g − a): mass load acting on its attachment. Mass in kg; gravity g and translational acceleration a in m/s², in global axes. P is the centre of mass (or explicitly coincides with the section centroid). No rotational inertia, vibration or dynamic factors. Initial values are an editable example.",
+  "massKg": "Mass, kg",
+  "gravity": "Gravity g, m/s²",
+  "acceleration": "Mass acceleration a, m/s²",
+  "applyMass": "Calculate and apply force",
+  "manualForce": "Enter force manually",
+  "massChanged": "The force changed during calculation. Apply again.",
+  "massError": "Could not calculate mass load. Check mass and accelerations."
 }

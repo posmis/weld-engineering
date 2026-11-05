@@ -6,6 +6,8 @@ pub const MAX_FORCES: usize = 64;
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct AppliedForce {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub inertia: Option<crate::inertia::MassLoad>,
     pub id: String,
     pub title: String,
     pub force_n: [f64; 3],
@@ -36,6 +38,7 @@ pub fn validate(input: &CalculationInput) -> Result<(), AppError> {
         {
             return Err(AppError::new("non_finite", Some("forces")));
         }
+        crate::inertia::effective_force(f)?;
     }
     Ok(())
 }
@@ -77,6 +80,7 @@ pub fn resultants(
         Millimetres::new(0.0)?,
     ];
     let legacy = [AppliedForce {
+        inertia: None,
         id: "legacy".into(),
         title: "F1".into(),
         force_n: input.force_n,
@@ -89,7 +93,8 @@ pub fn resultants(
         sum.add(value)?;
     }
     for f in forces {
-        let values = f.force_n.map(Newtons::new);
+        let derived = crate::inertia::effective_force(f)?;
+        let values = derived.map(Newtons::new);
         let typed = [values[0].clone()?, values[1].clone()?, values[2].clone()?];
         let at = match f.application {
             ApplicationPoint::Centroid => centroid,
@@ -100,7 +105,7 @@ pub fn resultants(
             ],
         };
         let m = weld_core::moment_about(typed, [NewtonMillimetres::new(0.0)?; 3], at, centroid)?;
-        for (sum, value) in force.iter_mut().zip(f.force_n) {
+        for (sum, value) in force.iter_mut().zip(derived) {
             sum.add(value)?;
         }
         for (sum, value) in moment.iter_mut().zip(m) {

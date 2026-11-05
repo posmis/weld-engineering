@@ -1167,6 +1167,143 @@
           }
         }
       }
+    },
+    "/api/v1/loads/mass": {
+      "post": {
+        "summary": "Derive equivalent attachment load from mass, gravity and translational acceleration",
+        "responses": {
+          "200": {
+            "description": "Success; computed is not a strength verdict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MassLoadResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or incorrect Bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Browser Origin rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Route not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "408": {
+            "description": "Calculation deadline exceeded; worker remains reserved until it exits",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body exceeds 1 MiB",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Use application/json",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input or unsupported application method; see code/field",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Both calculation workers occupied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal calculation task failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MassLoadRequest"
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -2160,6 +2297,9 @@
           },
           "application": {
             "$ref": "#/components/schemas/ApplicationPoint"
+          },
+          "inertia": {
+            "$ref": "#/components/schemas/MassLoad"
           }
         }
       },
@@ -2228,6 +2368,83 @@
           },
           "status": {
             "const": "idealized_geometry"
+          }
+        }
+      },
+      "MassLoad": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "mass_kg",
+          "gravity_m_s2",
+          "acceleration_m_s2"
+        ],
+        "properties": {
+          "mass_kg": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "gravity_m_s2": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "minItems": 3,
+            "maxItems": 3
+          },
+          "acceleration_m_s2": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "minItems": 3,
+            "maxItems": 3
+          }
+        },
+        "description": "Equivalent attachment load F=m(g-a), SI units. Global translational acceleration; no rotational inertia or inferred dynamic factors."
+      },
+      "MassLoadRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schema_version",
+          "model"
+        ],
+        "properties": {
+          "schema_version": {
+            "const": 1
+          },
+          "model": {
+            "$ref": "#/components/schemas/MassLoad"
+          }
+        }
+      },
+      "MassLoadResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schema_version",
+          "model",
+          "force_n",
+          "method_id"
+        ],
+        "properties": {
+          "schema_version": {
+            "const": 1
+          },
+          "model": {
+            "$ref": "#/components/schemas/MassLoad"
+          },
+          "force_n": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "minItems": 3,
+            "maxItems": 3
+          },
+          "method_id": {
+            "const": "translating-mass-equivalent-load-v1"
           }
         }
       }

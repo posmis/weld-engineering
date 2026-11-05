@@ -1,5 +1,6 @@
 //! Experimental mathematical primitives. No normative strength assessment.
 
+pub mod inertia;
 pub mod nominal;
 pub mod section;
 
@@ -31,6 +32,8 @@ macro_rules! unit {
         }
     };
 }
+unit!(Kilograms);
+unit!(MetresPerSecondSquared);
 unit!(Millimetres);
 unit!(Newtons);
 unit!(NewtonMillimetres);

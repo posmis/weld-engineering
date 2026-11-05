@@ -72,6 +72,19 @@ try {
     $copyResult=Invoke-RestMethod -Method Post -Uri "$base/calculate" -Headers $headers -ContentType 'application/json' -Body ($joint | ConvertTo-Json -Depth 100)
     if ($copyResult.geometry.area_mm2 -ne 760) { throw 'Segment copy area differs from independent reference' }
 
+    $massJson='{"schema_version":1,"model":{"mass_kg":10,"gravity_m_s2":[0,0,-10],"acceleration_m_s2":[2,0,0]}}'
+    Assert-Contract 'MassLoadRequest' $massJson
+    $mass=Invoke-RestMethod -Method Post -Uri "$base/loads/mass" -Headers $headers -ContentType 'application/json' -Body $massJson
+    Assert-Contract 'MassLoadResult' ($mass | ConvertTo-Json -Depth 100)
+    if ($mass.force_n[0] -ne -20 -or $mass.force_n[2] -ne -100) { throw 'Equivalent load reaction signs or SI units are wrong' }
+    $massJoint=$inputJson | ConvertFrom-Json -AsHashtable
+    $massJoint.force_n=@(0,0,0);$massJoint.application=@{kind='centroid'}
+    $massJoint['forces']=@(@{id='mass';title='Mass 1';force_n=$mass.force_n;inertia=$mass.model;application=@{kind='point';point_mm=@(10,20,30)}})
+    $massInputJson=$massJoint | ConvertTo-Json -Depth 100
+    Assert-Contract 'CalculationInput' $massInputJson
+    $massResult=Invoke-RestMethod -Method Post -Uri "$base/calculate" -Headers $headers -ContentType 'application/json' -Body $massInputJson
+    Assert-Contract 'CalculationResult' ($massResult | ConvertTo-Json -Depth 100)
+    if ($massResult.moment_at_centroid_n_mm[0] -ne -2000 -or $massResult.moment_at_centroid_n_mm[1] -ne 400 -or $massResult.moment_at_centroid_n_mm[2] -ne 400) { throw 'Mass load application point was not preserved in moment transport' }
     $sectionJson='{"schema_version":1,"model":{"kind":"idealized_right_angle_fillet","leg_1_mm":3,"leg_2_mm":4}}'
     Assert-Contract 'SectionRequest' $sectionJson
     $section=Invoke-RestMethod -Method Post -Uri "$base/sections/derive" -Headers $headers -ContentType 'application/json' -Body $sectionJson

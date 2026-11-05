@@ -91,7 +91,7 @@ fn published_openapi_contains_the_actual_routes_and_no_unimplemented_strength_en
     let spec: serde_json::Value =
         serde_json::from_str(include_str!("../../../docs/openapi.json")).unwrap();
     assert_eq!(spec["openapi"], "3.1.0");
-    assert_eq!(spec["paths"].as_object().unwrap().len(), 9);
+    assert_eq!(spec["paths"].as_object().unwrap().len(), 10);
     assert!(spec["paths"].get("/api/v1/optimize").is_none());
     assert_eq!(
         spec["components"]["schemas"]["CalculationResult"]["properties"]["strength_status"]
@@ -211,4 +211,28 @@ async fn section_derivation_endpoint_produces_traceable_geometry_usable_by_calcu
     assert_eq!(v["geometry"]["area_mm2"], 240.0);
     assert_eq!(v["traction_mpa"][2], 2.5);
     assert_eq!(v["strength_status"], "unsupported_calculation");
+}
+
+#[tokio::test]
+async fn mass_endpoint_returns_signed_attachment_load_usable_by_calculate() {
+    let response=weld_api::router("test-token".into()).oneshot(request("/api/v1/loads/mass",serde_json::json!({"schema_version":1,"model":{"mass_kg":10,"gravity_m_s2":[0,0,-10],"acceleration_m_s2":[2,0,0]}}))).await.unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let v: serde_json::Value =
+        serde_json::from_slice(&response.into_body().collect().await.unwrap().to_bytes()).unwrap();
+    assert_eq!(v["force_n"], serde_json::json!([-20.0, 0.0, -100.0]));
+    let mut i = input();
+    i["force_n"] = serde_json::json!([0, 0, 0]);
+    i["application"] = serde_json::json!({"kind":"centroid"});
+    i["forces"] = serde_json::json!([{"id":"mass","title":"Mass 1","force_n":v["force_n"],"inertia":v["model"],"application":{"kind":"point","point_mm":[10,20,30]}}]);
+    let r = weld_api::router("test-token".into())
+        .oneshot(request("/api/v1/calculate", i))
+        .await
+        .unwrap();
+    assert_eq!(r.status(), StatusCode::OK);
+    let v: serde_json::Value =
+        serde_json::from_slice(&r.into_body().collect().await.unwrap().to_bytes()).unwrap();
+    assert_eq!(
+        v["moment_at_centroid_n_mm"],
+        serde_json::json!([-2000.0, 400.0, 400.0])
+    );
 }

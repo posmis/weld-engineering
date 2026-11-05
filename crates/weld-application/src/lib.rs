@@ -3,6 +3,7 @@ pub mod cases;
 pub mod forces;
 pub mod geometry_templates;
 pub mod geometry_transform;
+pub mod inertia;
 pub mod intermittent;
 pub mod projects;
 pub mod sections;

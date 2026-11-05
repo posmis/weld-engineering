@@ -37,3 +37,8 @@ test('section provenance is printed with its geometric assumptions and no normat
  const project=newProject();project.input.segments[0]={...project.input.segments[0],effective_width_mm:2.4,section:{kind:'idealized_right_angle_fillet',leg_1_mm:3,leg_2_mm:4}};
  const draw=vi.spyOn(PDFPage.prototype,'drawText');try{await createReport(project,new Uint8Array(await readFile('src/assets/NotoSans-Regular.ttf')),null);const text=draw.mock.calls.map(c=>c[0]).join('\n');expect(text).toContain('k1 / k2 [mm]: 3 / 4');expect(text).toContain('right-angle-fillet-altitude-v1');expect(text).toContain('соответствие ГОСТ не проверено');}finally{draw.mockRestore();}
 });
+
+test('mass provenance is printed with explicit SI units and the attachment reaction sign',async()=>{
+ const project=newProject();project.input.force_n=[0,0,0];project.input.forces=[{id:'mass',title:'Mass 1',force_n:[-20,0,-100],application:{kind:'point',point_mm:[10,20,30]},inertia:{mass_kg:10,gravity_m_s2:[0,0,-10],acceleration_m_s2:[2,0,0]}}];
+ const draw=vi.spyOn(PDFPage.prototype,'drawText');try{await createReport(project,new Uint8Array(await readFile('src/assets/NotoSans-Regular.ttf')),null);const text=draw.mock.calls.map(c=>c[0]).join('\n');expect(text).toContain('F = m*(g - a)');expect(text).toContain('m=10 kg');expect(text).toContain('g [m/s²]: 0 / 0 / -10');expect(text).toContain('translating-mass-equivalent-load-v1');}finally{draw.mockRestore();}
+});

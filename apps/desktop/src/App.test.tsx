@@ -6,7 +6,7 @@ import { backend } from './backend';
 import { desktopWindow } from './desktopWindow';
 import { newProject, type CalculationResult } from './contracts';
 
-vi.mock('./backend', () => ({ backend: { getEditorSettings: vi.fn(), saveEditorSettings: vi.fn(), calculate: vi.fn(), calculateCases: vi.fn(), intermittent: vi.fn(), groupTemplate: vi.fn(), transformGroup: vi.fn(), deriveSection: vi.fn(), summarizeCases: vi.fn(), save: vi.fn(), list: vi.fn(), open: vi.fn(), import: vi.fn(), export: vi.fn() } }));
+vi.mock('./backend', () => ({ backend: { getEditorSettings: vi.fn(), saveEditorSettings: vi.fn(), calculate: vi.fn(), calculateCases: vi.fn(), intermittent: vi.fn(), groupTemplate: vi.fn(), transformGroup: vi.fn(), deriveSection: vi.fn(), deriveMassLoad: vi.fn(), summarizeCases: vi.fn(), save: vi.fn(), list: vi.fn(), open: vi.fn(), import: vi.fn(), export: vi.fn() } }));
 vi.mock('./desktopWindow', () => ({ desktopWindow: { listenClose: vi.fn(), close: vi.fn() } }));
 beforeEach(() => { localStorage.clear(); vi.mocked(backend.summarizeCases).mockResolvedValue({ total: 2, computed: 0, complete: false, normal_min: null, normal_max: null, shear_max: null }); vi.mocked(backend.getEditorSettings).mockResolvedValue({ ...defaultSettings }); vi.mocked(backend.saveEditorSettings).mockResolvedValue(undefined); vi.mocked(desktopWindow.listenClose).mockResolvedValue(() => {}); vi.mocked(desktopWindow.close).mockResolvedValue(undefined); });
 afterEach(() => { cleanup(); vi.resetAllMocks(); });
@@ -725,4 +725,13 @@ test('leg-derived section is applied by Rust, preserved in project and can be ex
  await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Сохранить ревизию'}));});expect(vi.mocked(backend.save).mock.calls[0][0].input.segments[0].section).toEqual(model);
  fireEvent.click(screen.getByRole('button',{name:'Задать ширину вручную'}));expect((screen.getByLabelText('S1 a') as HTMLInputElement).readOnly).toBe(false);
  fireEvent.click(screen.getByRole('button',{name:'Отменить'}));expect((screen.getByLabelText('S1 a') as HTMLInputElement).readOnly).toBe(true);expect(screen.queryByText('Есть несохранённые изменения')).toBeNull();
+});
+
+test('mass force converts legacy input to explicit forces and survives save and manual-mode Undo',async()=>{
+ const model={mass_kg:10,gravity_m_s2:[0,0,-10] as [number,number,number],acceleration_m_s2:[2,0,0] as [number,number,number]};vi.mocked(backend.deriveMassLoad).mockResolvedValue({schema_version:1,model,force_n:[-20,0,-100],method_id:'translating-mass-equivalent-load-v1'});vi.mocked(backend.save).mockResolvedValue('mass-revision');await renderApp();
+ fireEvent.click(screen.getByRole('treeitem',{name:'Сила F1'}));fireEvent.click(screen.getByText('Нагрузка от массы'));
+ fireEvent.change(screen.getByLabelText('Масса, kg'),{target:{value:'10'}});fireEvent.change(screen.getByLabelText('gravity_m_s2 z'),{target:{value:'-10'}});fireEvent.change(screen.getByLabelText('acceleration_m_s2 x'),{target:{value:'2'}});
+ await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Рассчитать и применить силу'}));});expect(backend.deriveMassLoad).toHaveBeenCalledWith({schema_version:1,model});expect((screen.getByLabelText('force_n x') as HTMLInputElement).value).toBe('-20');expect((screen.getByLabelText('force_n x') as HTMLInputElement).readOnly).toBe(true);
+ await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Сохранить ревизию'}));});const input=vi.mocked(backend.save).mock.calls[0][0].input;expect(input.force_n).toEqual([0,0,0]);expect(input.forces![0].inertia).toEqual(model);
+ fireEvent.click(screen.getByRole('button',{name:'Задать силу вручную'}));expect((screen.getByLabelText('force_n x') as HTMLInputElement).readOnly).toBe(false);fireEvent.click(screen.getByRole('button',{name:'Отменить'}));expect((screen.getByLabelText('force_n x') as HTMLInputElement).readOnly).toBe(true);expect(screen.queryByText('Есть несохранённые изменения')).toBeNull();
 });

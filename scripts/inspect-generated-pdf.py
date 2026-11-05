@@ -23,3 +23,20 @@ assert cases[0]["last_calculation"]["distribution"]["normal_range_mpa"] == [-18.
 assert cases[1]["last_calculation"]["distribution"]["normal_range_mpa"] == [-21.5, 18.5]
 assert all(case["last_calculation"]["strength_status"] == "unsupported_calculation" for case in cases)
 print(f"PASS: independent PDF parser reads {len(reader.pages)} pages, Cyrillic, mathematical signs and both original case snapshots.")
+
+mass_reader = PdfReader(path.with_name("weld-mass-report-smoke.pdf"))
+mass_text = "\n".join(page.extract_text() or "" for page in mass_reader.pages)
+assert "Нагрузка от массы m=10 kg" in mass_text
+assert "F = m*(g - a)" in mass_text
+assert "translating-mass-equivalent-load-v1" in mass_text
+assert "right-angle-fillet-altitude-v1" in mass_text
+assert "?" not in mass_text, "Mass/section report has missing glyphs"
+mass_project = json.loads(mass_reader.attachments["weld-project.json"][0])
+source = mass_project["input"]["forces"][0]
+assert source["inertia"] == {"mass_kg":10.0,"gravity_m_s2":[0.0,0.0,-10.0],"acceleration_m_s2":[2.0,0.0,0.0]}
+assert source["force_n"] == [-20.0,0.0,-100.0]
+assert mass_project["input"]["segments"][0]["section"]["leg_1_mm"] == 3.0
+assert mass_project["input"]["segments"][0]["section"]["leg_2_mm"] == 4.0
+assert mass_project["last_calculation"]["input_snapshot"] == mass_project["input"]
+assert mass_project["last_calculation"]["strength_status"] == "unsupported_calculation"
+print("PASS: independent PDF parser reads mass/acceleration and fillet section provenance, current result snapshot and unsupported strength status.")

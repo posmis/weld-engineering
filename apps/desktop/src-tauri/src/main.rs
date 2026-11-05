@@ -49,6 +49,12 @@ fn derive_section(
 ) -> Result<weld_application::sections::SectionResult, AppError> {
     weld_application::sections::derive(&request)
 }
+#[tauri::command]
+fn derive_mass_load(
+    request: weld_application::inertia::MassLoadRequest,
+) -> Result<weld_application::inertia::MassLoadResult, AppError> {
+    weld_application::inertia::derive(&request)
+}
 type Store = Mutex<ProjectStore>;
 #[tauri::command]
 fn calculate_joint(input: CalculationInput) -> Result<CalculationResult, AppError> {
@@ -160,6 +166,7 @@ fn main() {
             generate_group_template,
             transform_group,
             derive_section,
+            derive_mass_load,
             save_pdf_report,
             calculate_joint,
             calculate_load_cases,

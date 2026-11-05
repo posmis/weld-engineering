@@ -6,6 +6,7 @@ use weld_application::{
 };
 fn force(id: &str, f: [f64; 3], p: [f64; 3]) -> AppliedForce {
     AppliedForce {
+        inertia: None,
         id: id.into(),
         title: id.into(),
         force_n: f,
