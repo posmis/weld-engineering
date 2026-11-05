@@ -51,7 +51,7 @@ try {
     $rotatedResult = Invoke-RestMethod -Method Post -Uri "$base/calculate" -Headers $headers -ContentType 'application/json' -Body ($joint | ConvertTo-Json -Depth 100)
     if ($rotatedResult.geometry.area_mm2 -ne 560 -or ($rotatedResult.geometry.centroid_mm -join ',') -ne '5,10') { throw 'Rotated geometry changed area or has an incorrect centroid' }
 
-    $multiple = $inputJson | ConvertFrom-Json
+    $multiple = $inputJson | ConvertFrom-Json -AsHashtable
     $multiple.force_n = @(0,0,0)
     $multiple.forces = @(
         @{id='a';title='F1';force_n=@(0,0,300);application=@{kind='point';point_mm=@(-25,0,0)}},
