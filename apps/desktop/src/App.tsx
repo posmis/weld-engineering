@@ -251,7 +251,7 @@ export function App() {
       </section>}
       <CadWorkspace resultsOpen={resultsOpen} t={t} sidebar={<>
         <div className="dock-title">{t.modelTree}</div>
-        <ModelTree count={project.input.segments.length} selected={selected} panel={inspector} disabled={blocked || gestureActive}
+        <ModelTree input={project.input} count={project.input.segments.length} selected={selected} panel={inspector} disabled={blocked || gestureActive}
           forces={forces} activeForce={activeForce?.id} loadView={loadView} canAddWeld={project.input.segments.length < 256} canAddForce={forces.length < maxForces}
           onCopyWeld={index => setCopyIndex(index)} onDeleteWeld={removeWeld} onCopyForce={copyForce} onDeleteForce={removeForce}
           onAddWeld={addSegment} onAddForce={addForce} onForce={selectForce} onCouple={() => { setInspector('loads'); setLoadView('couple'); }}

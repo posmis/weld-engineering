@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import type { AppliedForce } from './contracts';
+import type { AppliedForce, CalculationInput } from './contracts';
 import type ru from './locales/ru.json';
-export function ModelTree({ count, selected, panel, forces, activeForce, loadView, disabled, canAddWeld, canAddForce, onCopyWeld, onDeleteWeld, onCopyForce, onDeleteForce, onAddWeld, onAddForce, onForce, onCouple, onWeld, onLoads, onResults, t }: {
-  count: number; selected: number; panel: 'weld' | 'loads'; forces: AppliedForce[]; activeForce?: string; loadView: 'overview' | 'force' | 'couple'; disabled: boolean;
+export function ModelTree({ input, count, selected, panel, forces, activeForce, loadView, disabled, canAddWeld, canAddForce, onCopyWeld, onDeleteWeld, onCopyForce, onDeleteForce, onAddWeld, onAddForce, onForce, onCouple, onWeld, onLoads, onResults, t }: {
+  input: CalculationInput; count: number; selected: number; panel: 'weld' | 'loads'; forces: AppliedForce[]; activeForce?: string; loadView: 'overview' | 'force' | 'couple'; disabled: boolean;
   onCopyWeld: (index: number) => void; onDeleteWeld: (index: number) => void; onCopyForce: (id: string) => void; onDeleteForce: (id: string) => void;
   canAddWeld: boolean; canAddForce: boolean; onAddWeld: () => void; onAddForce: () => void;
   onForce: (id: string) => void; onCouple: () => void; onWeld: (index: number) => void; onLoads: () => void; onResults: () => void; t: typeof ru;
@@ -20,6 +20,7 @@ export function ModelTree({ count, selected, panel, forces, activeForce, loadVie
       [...(root.current?.querySelectorAll<HTMLElement>('[data-tree-key]') ?? [])].find(item => item.dataset.treeKey === key)?.focus();
     }
   }, [selected, panel, expanded, count, activeForce, loadView]);
+  useEffect(() => { setContext(null); }, [input]);
   useEffect(() => { if (disabled) setContext(null); }, [disabled]);
   useEffect(() => {
     if (!context) return;

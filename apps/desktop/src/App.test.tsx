@@ -663,3 +663,12 @@ test('tree weld copy sends the full group to Rust, selects the appended segment 
   expect(screen.getByRole('treeitem',{name:'Сварные швы'}).tabIndex).toBe(0);
   fireEvent.click(screen.getByRole('button',{name:'Отменить'}));expect(screen.getByRole('treeitem',{name:'Шов S1'})).toBeTruthy();
 });
+
+
+test('Undo closes an item context menu before segment indices can refer to different geometry', async()=>{
+  await renderApp();fireEvent.click(screen.getByRole('button',{name:'Добавить участок'}));
+  fireEvent.contextMenu(screen.getByRole('treeitem',{name:'Шов S2'}),{clientX:20,clientY:100});
+  const action=screen.getByRole('menuitem',{name:'Удалить участок'});
+  fireEvent.keyDown(action,{key:'z',ctrlKey:true});
+  expect(screen.queryByRole('menu')).toBeNull();expect(screen.queryByRole('treeitem',{name:'Шов S2'})).toBeNull();expect(screen.getByRole('treeitem',{name:'Шов S1'})).toBeTruthy();
+});
