@@ -19,4 +19,4 @@
 
 Не реализованные модули не подменены заглушками с успешным результатом. strength_status остаётся unsupported_calculation. ГОСТы/книги и полные извлечённые тексты остаются исключительно в локальной среде.
 
-Установщик NSIS для текущего пользователя добавлен отдельным этапом доставки: [windows-installer.md](windows-installer.md). Его первая Windows-проверка пока ожидается; GitHub release не публикуется.
+Установщик NSIS для текущего пользователя добавлен отдельным этапом доставки: [windows-installer.md](windows-installer.md). Windows run 41907826120 / ab54f56 — success: установка, работа установленного EXE, uninstall с сохранением SQLite; GitHub release не публикуется.

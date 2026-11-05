@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ProjectHistory, sameValue, type EditorSnapshot } from './projectHistory';
 import { IntermittentEditor } from './IntermittentEditor';
+import type { StressComponent } from './stressContour';
 import { CaseResults } from './CaseResults';
 import { activateCase, addCase, editInput, maxCases, removeCase, withCalculation } from './loadCases';
 import { backend } from './backend';
@@ -27,6 +28,7 @@ export function App() {
   const settingsOpenRef = useRef(false); settingsOpenRef.current = settingsOpen;
   useEffect(() => { let active = true; void backend.getEditorSettings().then(value => { if (active) setSettings(value); }).catch(() => { if (active) setSettingsWarning(true); }).finally(() => { if (active) setSettingsLoading(false); }); return () => { active = false; }; }, []);
   const [inspector, setInspector] = useState<'weld' | 'loads'>('weld');
+  const [displayComponent, setDisplayComponent] = useState<StressComponent | null>(null), [showLoads, setShowLoads] = useState(true);
   const [resultsOpen, setResultsOpen] = useState(false);
   const [dark, setDark] = useState(false);
   const [project, setProject] = useState<Project>(newProject);
@@ -241,8 +243,10 @@ export function App() {
           </fieldset><p className="hint">{t.source}</p></section>
         </div>
       </>} viewport={<section className="cad-viewport" aria-label={t.workspace}>
-        <div className="viewport-title"><strong>{t.geometry}</strong><span>{project.casebook?.cases.find(c => c.id === project.casebook?.active_id)?.title} · XY · mm</span></div>
-        <LayoutEditor key={formKey} input={project.input} centre={result?.geometry.centroid_mm} selected={selected} onSelect={selectWeld}
+        <div className="viewport-title"><strong>{t.geometry}</strong><div className="viewport-layers"><label>{t.viewMode}<select aria-label={t.viewMode} disabled={blocked || gestureActive} value={result?.analysis_status === 'computed' ? displayComponent ?? 'geometry' : 'geometry'} onChange={e => setDisplayComponent(e.target.value === 'geometry' ? null : Number(e.target.value) as StressComponent)}>
+          <option value="geometry">{t.geometryView}</option>{['τx', 'τy', 'σz'].map((name, i) => <option key={name} value={i} disabled={result?.analysis_status !== 'computed'}>{name} · MPa</option>)}
+        </select></label><button aria-pressed={showLoads} disabled={blocked || gestureActive} onClick={() => setShowLoads(!showLoads)}>{t.loadLayer}</button></div><span>{project.casebook?.cases.find(c => c.id === project.casebook?.active_id)?.title} · XY · mm</span></div>
+        <LayoutEditor key={formKey} input={project.input} centre={result?.geometry.centroid_mm} result={result} displayComponent={displayComponent} showLoads={showLoads} selected={selected} onSelect={selectWeld}
           onChange={segments => edit({ ...project.input, segments })} disabled={blocked || settingsOpen || settingsLoading} t={t} settings={settings} compact
           onDragStart={() => { history.current.breakGroup(); setGestureActive(true); dragSnapshot.current = { snapshot: current.current, checkpoint: history.current.checkpoint(), token: {} }; }}
           onDragCancel={() => {
@@ -254,7 +258,7 @@ export function App() {
           }} onDragFinish={() => { dragSnapshot.current = null; setGestureActive(false); history.current.breakGroup(); }}/>
       </section>} results={<section className="results" aria-label={t.results}>
         <div className="dock-title"><strong>{t.results}</strong><button aria-label={t.closeResults} onClick={() => setResultsOpen(false)}>×</button></div>
-        <div className="result-scroll">{project.casebook && <CaseResults project={project} t={t} onActivate={id => changeCase(activateCase(project, id))}/>}<ProjectResults result={result} selected={selected} onSelect={selectWeld} t={t}/></div>
+        <div className="result-scroll">{project.casebook && <CaseResults project={project} t={t} disabled={blocked || gestureActive} onActivate={id => changeCase(activateCase(project, id))}/>}<ProjectResults result={result} selected={selected} onSelect={selectWeld} t={t}/></div>
       </section>}/>
       <footer className="status-bar">
         {error && !pending && <span className="status-error" role="alert">{t.error}: {error}</span>}

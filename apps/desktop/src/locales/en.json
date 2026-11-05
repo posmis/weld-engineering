@@ -139,5 +139,17 @@
   "pitch": "Piece pitch, mm",
   "pieceCount": "Number of pieces",
   "applyPattern": "Replace selected weld",
-  "patternHelp": "Pieces follow the selected weld from its start. Pitch must exceed length and the last piece must fit. Engineer-supplied dimensions; normative restrictions are not checked."
+  "patternHelp": "Pieces follow the selected weld from its start. Pitch must exceed length and the last piece must fit. Engineer-supplied dimensions; normative restrictions are not checked.",
+  "viewMode": "View",
+  "geometryView": "Geometry",
+  "loadLayer": "F / M",
+  "fitLoadsView": "Welds + point P",
+  "loadReadout": "Applied loads on drawing",
+  "appliedLoads": "Loads · Fx / Fy / Fz",
+  "freeCoupleShort": "free couple",
+  "forceAtCentre": "Force applied at C",
+  "centreAfterCalculation": "C position is available after calculation",
+  "loadPointOutside": "Application point is outside this view",
+  "contourLegend": "Nominal stress colour scale",
+  "contourScope": "Nominal model. Strength is not assessed."
 }

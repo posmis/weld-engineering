@@ -293,6 +293,24 @@ try {
     $null = Wait-Until { Find-Name '-21,5 / 18,5' } 'reverse load case uses its own distribution'
     Click-Name 'Сохранить ревизию'
     $null = Wait-Until { Find-Name 'Ревизия сохранена' } 'casebook saved'
+    $mode = Find-Name 'Вид' ([System.Windows.Automation.ControlType]::ComboBox)
+    if (-not $mode) { throw 'Contour view selector is unavailable' }
+    $mode.SetFocus(); Key-Press 0x24
+    1..3 | ForEach-Object { Key-Press 0x28 }; Key-Press 0x0D
+    $null = Wait-Until { Find-Name 'Шкала номинальных напряжений' } 'nominal stress contour displayed on the actual weld layout'
+    $null = Wait-Until { Find-Name 'σz · MPa' ([System.Windows.Automation.ControlType]::Text) } 'signed normal component selected'
+    if (Find-Name 'Есть несохранённые изменения') { throw 'Changing contour view modified the saved project' }
+    $mode.SetFocus(); Key-Press 0x24; Key-Press 0x28; Key-Press 0x28; Key-Press 0x0D
+    $null = Wait-Until { Find-Name 'τy · MPa' ([System.Windows.Automation.ControlType]::Text) } 'shear component shown with its own scale'
+    Click-Name 'Скрыть результаты'
+    Save-Preview 'windows-contour-smoke.png'
+    Click-Name 'F / M'
+    if (Find-Name 'Заданные нагрузки на схеме') { throw 'Load layer did not hide' }
+    Click-Name 'F / M'
+    $null = Wait-Until { Find-Name 'Заданные нагрузки на схеме' } 'force and couple readout restored'
+    $mode.SetFocus(); Key-Press 0x24; Key-Press 0x0D
+    if (Find-Name 'Шкала номинальных напряжений') { throw 'Geometry mode retained a coloured result overlay' }
+    Activate-Tree 'Результаты'
     Click-Name 'Отчёт PDF'
     $dialog = Wait-Until {
         [System.Windows.Automation.AutomationElement]::RootElement.FindFirst(

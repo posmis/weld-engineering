@@ -146,3 +146,22 @@ th, td { padding: 7px 5px; border-bottom: 1px solid var(--line); text-align: lef
 .intermittent-editor { border-top: 1px solid var(--line); margin-top: 12px; padding-top: 10px; }
 .intermittent-editor summary { cursor: pointer; font-weight: 600; }
 .intermittent-editor label { display: grid; gap: 4px; margin-top: 8px; }
+.viewport-layers { display: flex; align-items: center; gap: 6px; margin-left: auto; margin-right: 12px; }
+.viewport-layers label { display: flex; gap: 5px; align-items: center; }
+.viewport-layers select, .viewport-layers button { min-height: 28px; padding: 2px 7px; font-size: 13px; }
+.viewport-layers button[aria-pressed=true] { background: var(--accent); color: var(--panel); }
+.viewport-canvas { position: relative; flex: 1 1 0%; min-height: 0; min-width: 0; }
+.viewport-canvas > .drawing { height: 100%; width: 100%; }
+.viewport-loads, .contour-legend { position: absolute; pointer-events: none; padding: 7px 9px; background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 3px; font-size: 12px; max-width: calc(100% - 24px); }
+.viewport-loads { top: 10px; left: 10px; opacity: .94; }
+.contour-legend { right: 10px; bottom: 10px; width: 230px; }
+.contour-ramp { height: 10px; margin: 5px 0 2px; background: linear-gradient(to right, rgb(38,91,187), rgb(244,246,248), rgb(193,44,56)); border: 1px solid var(--line); }
+.contour-ramp.uniform { background: rgb(244,246,248); }
+.contour-scale { display: flex; justify-content: space-between; font-variant-numeric: tabular-nums; }
+.view-note { color: var(--muted); font-size: 11px; margin-top: 3px; }
+.load-glyphs { stroke: #bd3b2d; fill: none; stroke-width: 2; }
+.load-glyphs text { fill: #aa2e23; stroke: none; font-size: 13px; font-weight: 600; }
+.load-glyphs .load-arrowhead { fill: #bd3b2d; }
+.load-glyphs .load-leader { stroke-width: 1; stroke-dasharray: 3 3; }
+.dark .load-glyphs { stroke: #ff947e; }
+.dark .load-glyphs text, .dark .load-glyphs .load-arrowhead { fill: #ff947e; }

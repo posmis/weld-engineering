@@ -86,6 +86,7 @@ jobs:
             target/release/weld-api.exe
             target/windows-ui-smoke.png
             target/windows-results-smoke.png
+            target/windows-contour-smoke.png
             target/weld-report-smoke.pdf
           if-no-files-found: error
           retention-days: 7

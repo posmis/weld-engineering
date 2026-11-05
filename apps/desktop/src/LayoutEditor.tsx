@@ -1,17 +1,22 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
-import type { CalculationInput, SegmentInput } from './contracts';
+import { useCallback, useEffect, useLayoutEffect, useId, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import type { CalculationInput, CalculationResult, SegmentInput } from './contracts';
 import { moveWeld, type EditorSettings, type Handle } from './editorMovement';
 import { fitLayout, panView, zoomAt, type CanvasSize, type View } from './viewport';
+import { contourColour, contourField, zeroStop, type StressComponent } from './stressContour';
+import { LoadGlyphs } from './LoadGlyphs';
+import { ContourLegend, LoadReadout } from './ViewportReadouts';
 import type ru from './locales/ru.json';
 
 type Point = [number, number];
 type Drag = { pointerId: number; segment: number; end: Handle; original: SegmentInput[]; view: View; origin: Point; previousView: View | null };
 
-export function LayoutEditor({ input, centre, selected, onSelect, onChange, disabled, t, settings, compact = false, onDragStart, onDragCancel, onDragFinish }: {
-  input: CalculationInput; centre?: Point; selected: number; onSelect: (n: number) => void;
+export function LayoutEditor({ input, centre, result, displayComponent = null, showLoads = true, selected, onSelect, onChange, disabled, t, settings, compact = false, onDragStart, onDragCancel, onDragFinish }: {
+  input: CalculationInput; centre?: Point; result?: CalculationResult | null; displayComponent?: StressComponent | null; showLoads?: boolean; selected: number; onSelect: (n: number) => void;
   onChange: (segments: SegmentInput[]) => void; disabled: boolean; t: typeof ru; settings: EditorSettings; compact?: boolean;
   onDragStart?: () => void; onDragCancel?: () => void; onDragFinish?: () => void;
 }) {
+  const drawingId = useId().replace(/:/g, '');
+  const [includeLoadPoint, setIncludeLoadPoint] = useState(false);
   const svg = useRef<SVGSVGElement>(null), menu = useRef<HTMLDivElement>(null);
   const [canvas, setCanvas] = useState<SVGSVGElement | null>(null);
   const attachCanvas = useCallback((node: SVGSVGElement | null) => { svg.current = node; setCanvas(node); }, []);
@@ -58,13 +63,19 @@ export function LayoutEditor({ input, centre, selected, onSelect, onChange, disa
     return () => { document.removeEventListener('pointerdown', close); document.removeEventListener('keydown', escape); };
   }, []);
   useEffect(() => { if (disabled) { setContext(null); finishPan(true); } }, [disabled]);
-  const fitted = fitLayout(input.segments.flatMap(s => [s.start_mm, s.end_mm]), size);
+  const points = input.segments.flatMap(s => [s.start_mm, s.end_mm]);
+  if (includeLoadPoint && input.application.kind === 'point' && input.application.point_mm.every(Number.isFinite)) points.push([input.application.point_mm[0], input.application.point_mm[1]]);
+  const fitted = fitLayout(points, size) ?? fitLayout(input.segments.flatMap(s => [s.start_mm, s.end_mm]), size);
   if (!fitted) return <div className="drawing empty">{t.bounds}</div>;
   const fittedScale = fitted.scale;
   const view = fixedView ?? fitted;
   if (![view.cx, view.cy, view.scale].every(Number.isFinite) || view.scale <= 0) return <div className="drawing empty">{t.bounds}</div>;
   const x = (value: number) => size.width / 2 + (value - view.cx) * view.scale;
   const y = (value: number) => size.height / 2 - (value - view.cy) * view.scale;
+  const field = displayComponent === null ? null : contourField(input, result, displayComponent);
+  const loadPoint: Point | undefined = input.application.kind === 'point' ? [input.application.point_mm[0], input.application.point_mm[1]] : centre;
+  const loadScreen: Point | null = loadPoint ? [x(loadPoint[0]), y(loadPoint[1])] : null;
+  const pointVisible = !!loadScreen && loadScreen.every(Number.isFinite) && loadScreen[0] >= 0 && loadScreen[0] <= size.width && loadScreen[1] >= 0 && loadScreen[1] <= size.height;
   function world(clientX: number, clientY: number, mapping: View): Point | null {
     const matrix = svg.current?.getScreenCTM();
     if (!matrix) return null;
@@ -130,12 +141,14 @@ export function LayoutEditor({ input, centre, selected, onSelect, onChange, disa
   const visiblePitch = Number.isFinite(pitch) && pitch > 0 ? pitch * Math.max(1, Math.ceil(12 / pitch)) : 20;
   return <>
     <div className="view-controls" role="group" aria-label={t.viewControls}>
-      <button disabled={disabled || dragging || panning} onClick={() => setFixedView(null)}>{t.fitView}</button>
+      <button disabled={disabled || dragging || panning} onClick={() => { setIncludeLoadPoint(false); setFixedView(null); }}>{t.fitView}</button>
       <button disabled={disabled || dragging || panning} aria-label={t.zoomIn} onClick={() => zoom(1.25)}>+</button>
       <button disabled={disabled || dragging || panning} aria-label={t.zoomOut} onClick={() => zoom(.8)}>−</button>
       <button disabled={disabled || dragging || panning} aria-pressed={panMode} onClick={() => setPanMode(!panMode)}>{t.panMode}</button>
+      {input.application.kind === 'point' && <button disabled={disabled || dragging || panning || !input.application.point_mm.every(Number.isFinite)} onClick={() => { setIncludeLoadPoint(true); setFixedView(null); }}>{t.fitLoadsView}</button>}
       <span className="movement-readout">{t.stepShort}: {settings.movement_step_mm} mm</span><span className="zoom-level">{`${Math.round(view.scale / fittedScale * 100)}%`}</span>
     </div>
+    <div className="viewport-canvas">
     <svg ref={attachCanvas} className={`drawing editable${panMode || panning ? " pan-mode" : ""}`} viewBox={`0 0 ${size.width} ${size.height}`} preserveAspectRatio="xMidYMid meet" aria-label="XY weld layout" role="group" tabIndex={0}
       onAuxClick={event => { if (event.button === 1) event.preventDefault(); }}
       onPointerDownCapture={event => {
@@ -179,21 +192,32 @@ export function LayoutEditor({ input, centre, selected, onSelect, onChange, disa
         setContext({ x: Math.max(8, Math.min(event.clientX, window.innerWidth - 250)), y: Math.max(8, Math.min(event.clientY, window.innerHeight - 150)), point, segment: index });
       }}>
       <defs><pattern id="grid" x={x(0)} y={y(0)} width={visiblePitch} height={visiblePitch} patternUnits="userSpaceOnUse"><path d={`M ${visiblePitch} 0 L 0 0 0 ${visiblePitch}`} fill="none" stroke="currentColor" strokeWidth=".3"/></pattern></defs>
+      {field && <defs>{field.pairs.map(([start, end], i) => {
+        const segment = input.segments[i], zero = zeroStop(start, end, field.extent);
+        return <linearGradient key={i} id={`${drawingId}-stress-${i}`} gradientUnits="userSpaceOnUse" x1={x(segment.start_mm[0])} y1={y(segment.start_mm[1])} x2={x(segment.end_mm[0])} y2={y(segment.end_mm[1])}>
+          <stop offset="0" stopColor={contourColour(start, field.extent)}/>{zero !== null && <stop offset={zero} stopColor={contourColour(0, field.extent)}/>}
+          <stop offset="1" stopColor={contourColour(end, field.extent)}/>
+        </linearGradient>;
+      })}</defs>}
       <rect width={size.width} height={size.height} fill={settings.snap_grid ? "url(#grid)" : "none"} className="grid"/>
       {settings.snap_axes && <g className="world-axes" pointerEvents="none"><path d={`M ${x(0)} 0 V ${size.height} M 0 ${y(0)} H ${size.width}`} className="axis" strokeDasharray="4 4"/></g>}
       <path d={`M25 ${size.height - 35}h45m-45 0v-45`} className="axis"/><text x="74" y={size.height - 30}>X</text><text x="20" y={size.height - 88}>Y</text>
       {input.segments.map((s, i) => <g key={i} data-segment-index={i} className={i === selected ? 'segment selected' : 'segment'} onClick={() => { if (!disabled) onSelect(i); }}>
         <line x1={x(s.start_mm[0])} y1={y(s.start_mm[1])} x2={x(s.end_mm[0])} y2={y(s.end_mm[1])} className="hit" role="button" aria-label={`${t.moveWhole} S${i + 1}`} tabIndex={disabled ? -1 : 0} aria-disabled={disabled}
           onPointerDown={event => begin(event, i, 'whole')} onKeyDown={event => keyboard(event, i, 'whole')}/>
-        <line x1={x(s.start_mm[0])} y1={y(s.start_mm[1])} x2={x(s.end_mm[0])} y2={y(s.end_mm[1])} pointerEvents="none"/>
+        <line x1={x(s.start_mm[0])} y1={y(s.start_mm[1])} x2={x(s.end_mm[0])} y2={y(s.end_mm[1])} pointerEvents="none" style={field ? { stroke: `url(#${drawingId}-stress-${i})`, strokeWidth: i === selected ? 9 : 7 } : undefined}/>
         {(['start_mm', 'end_mm'] as const).map(end => <circle key={end} cx={x(s[end][0])} cy={y(s[end][1])} r="8" role="button" aria-label={`S${i + 1} ${end === 'start_mm' ? t.startPoint : t.endPoint}`} tabIndex={disabled ? -1 : 0} aria-disabled={disabled}
           onPointerDown={event => begin(event, i, end)} onKeyDown={event => keyboard(event, i, end)}/>) }
         <text x={x(s.start_mm[0] / 2 + s.end_mm[0] / 2)} y={y(s.start_mm[1] / 2 + s.end_mm[1] / 2) - 12}>S{i + 1} · a={s.effective_width_mm} mm</text>
       </g>)}
+      {showLoads && pointVisible && loadScreen && <LoadGlyphs input={input} anchor={loadScreen}/>}
       {snap && <circle className="snap-marker" cx={x(snap[0])} cy={y(snap[1])} r="10"/>}
       {centre && <g className="centroid"><circle cx={x(centre[0])} cy={y(centre[1])} r="7"/><text x={x(centre[0]) + 12} y={y(centre[1]) + 22}>C</text></g>}
       {input.application.kind === 'point' && input.application.point_mm.every(Number.isFinite) && <g className="application-point"><circle cx={x(input.application.point_mm[0])} cy={y(input.application.point_mm[1])} r="6"/><text x={x(input.application.point_mm[0]) + 12} y={y(input.application.point_mm[1]) - 10}>P</text></g>}
     </svg>
+    {showLoads && <LoadReadout input={input} pointVisible={pointVisible} pendingCentre={input.application.kind === 'centroid' && !centre} t={t}/>}
+    {field && displayComponent !== null && <ContourLegend field={field} component={displayComponent} selected={selected} t={t}/>}
+    </div>
     <details className="editor-help" hidden={compact}><summary>{t.editorHelp}</summary><p className="hint">{t.dragHelp}<br/>{t.navigationHelp}<br/>{t.choose}</p></details>
     {context && !disabled && <div ref={menu} role="menu" aria-label={t.geometry} className="editor-context" style={{ left: context.x, top: context.y }}>
       <button role="menuitem" disabled={input.segments.length >= 256} onClick={() => { onChange([...input.segments, { start_mm: context.point, end_mm: [context.point[0] + 100, context.point[1]], effective_width_mm: 2 }]); onSelect(input.segments.length); setContext(null); }}>{t.addHere}</button>

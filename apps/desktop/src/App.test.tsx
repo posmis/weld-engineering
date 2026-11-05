@@ -486,3 +486,32 @@ test('an incomplete load value is retained with a clear error when attempting to
   expect((screen.getByLabelText('Нагрузочный случай') as HTMLSelectElement).options).toHaveLength(2);
   expect((screen.getByLabelText('force_n z') as HTMLInputElement).value).toBe('');
 });
+
+test('viewport contours use the current Rust result and view changes do not dirty a saved project', async () => {
+  vi.mocked(backend.calculate).mockResolvedValue(result()); vi.mocked(backend.save).mockResolvedValue('revision');
+  const { container } = await renderApp();
+  const mode = screen.getByRole('combobox', { name: 'Вид' });
+  expect((screen.getByRole('option', { name: 'σz · MPa' }) as HTMLOptionElement).disabled).toBe(true);
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Рассчитать' })); });
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Сохранить ревизию' })); });
+  fireEvent.change(mode, { target: { value: '2' } });
+  expect(screen.getByRole('group', { name: 'Шкала номинальных напряжений' }).textContent).toContain('S1: 3 / 3 MPa');
+  expect(container.querySelector('.segment line[style]')?.getAttribute('style')).toContain('url(#');
+  fireEvent.click(screen.getByRole('button', { name: 'F / M' }));
+  expect(screen.queryByRole('group', { name: 'Заданные нагрузки на схеме' })).toBeNull();
+  expect(screen.queryByText('Есть несохранённые изменения')).toBeNull();
+  expect(backend.calculate).toHaveBeenCalledTimes(1);
+  fireEvent.change(screen.getByLabelText('S1 a'), { target: { value: '4' } });
+  expect(screen.queryByRole('group', { name: 'Шкала номинальных напряжений' })).toBeNull();
+  expect((mode as HTMLSelectElement).value).toBe('geometry');
+});
+test('central load glyphs wait for the Rust centroid and disappear when the input becomes stale', async () => {
+  vi.mocked(backend.calculate).mockResolvedValue(result());
+  const { container } = await renderApp();
+  expect(screen.getByText('Положение C — после расчёта')).toBeTruthy();
+  expect(container.querySelector('[data-load-glyph="Fz+"]')).toBeNull();
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Рассчитать' })); });
+  expect(container.querySelector('[data-load-glyph="Fz+"]')).toBeTruthy();
+  fireEvent.change(screen.getByLabelText('force_n z'), { target: { value: '-600' } });
+  expect(container.querySelector('[data-load-glyph]')).toBeNull();
+});
