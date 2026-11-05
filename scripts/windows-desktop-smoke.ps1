@@ -303,6 +303,12 @@ try {
     $mode.SetFocus(); Key-Press 0x24; Key-Press 0x28; Key-Press 0x28; Key-Press 0x0D; Key-Press 0x1B
     $null = Wait-Until { Find-Name 'τy · MPa' ([System.Windows.Automation.ControlType]::Text) } 'shear component shown with its own scale'
     Click-Name 'Скрыть результаты'
+    $null = Wait-Until {
+        $a = (Find-Name 'S1 Начало').Current.BoundingRectangle
+        $b = (Find-Name 'S1 Конец').Current.BoundingRectangle
+        $view = (Find-Name 'XY weld layout').Current.BoundingRectangle
+        [Math]::Abs($b.X - $a.X) -gt $view.Width * .4
+    } 'contour refits the expanded HTML viewport after hiding results'
     Save-Preview 'windows-contour-smoke.png'
     Click-Name 'F / M'
     if (Find-Name 'Заданные нагрузки на схеме') { throw 'Load layer did not hide' }
