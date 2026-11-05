@@ -23,8 +23,9 @@ export function LayoutEditor({ input, centre, result, displayComponent = null, s
   const [size, setSize] = useState<CanvasSize>({ width: 600, height: 400 });
   useLayoutEffect(() => {
     if (!canvas) return;
+    const host = canvas.parentElement ?? canvas;
     const resize = () => {
-      const width = canvas.clientWidth, height = canvas.clientHeight;
+      const width = host.clientWidth, height = host.clientHeight;
       if (width <= 0 || height <= 0) return;
       setSize(previous => previous.width === width && previous.height === height ? previous : { width, height });
     };
@@ -33,7 +34,7 @@ export function LayoutEditor({ input, centre, result, displayComponent = null, s
     const observer = new ResizeObserver(resize);
     // Observe the HTML viewport, not SVG's graphics bounding box. Dock changes
     // must update the CSS canvas size even when the SVG geometry stays the same.
-    observer.observe(canvas.parentElement ?? canvas);
+    observer.observe(host);
     return () => observer.disconnect();
   }, [canvas]);
   const previousSize = useRef(size);
