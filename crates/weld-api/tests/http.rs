@@ -91,7 +91,7 @@ fn published_openapi_contains_the_actual_routes_and_no_unimplemented_strength_en
     let spec: serde_json::Value =
         serde_json::from_str(include_str!("../../../docs/openapi.json")).unwrap();
     assert_eq!(spec["openapi"], "3.1.0");
-    assert_eq!(spec["paths"].as_object().unwrap().len(), 12);
+    assert_eq!(spec["paths"].as_object().unwrap().len(), 14);
     assert!(spec["paths"].get("/api/v1/optimize").is_none());
     assert_eq!(
         spec["components"]["schemas"]["CalculationResult"]["properties"]["strength_status"]
@@ -330,4 +330,39 @@ async fn material_endpoint_returns_unknown_outside_scope_and_never_normative_val
         serde_json::from_slice(&response.into_body().collect().await.unwrap().to_bytes()).unwrap();
     assert!(value["base"]["properties"][0]["value"].is_null());
     assert_eq!(value["base"]["properties"][0]["status"], "unknown");
+}
+
+#[tokio::test]
+async fn explicit_user_limit_endpoints_compare_nominal_results_but_keep_strength_unsupported() {
+    let limits = serde_json::json!({"method_id":"independent-nominal-components-v1","tension":{"value_mpa":2,"source":"User T-001"},"compression":{"value_mpa":10,"source":"User C-001"},"shear":{"value_mpa":5,"source":"User S-001"}});
+    let r = weld_api::router("test-token".into())
+        .oneshot(request(
+            "/api/v1/limits/validate",
+            serde_json::json!({"schema_version":1,"limits":limits}),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(r.status(), StatusCode::OK);
+    let i = input();
+    let r = weld_api::router("test-token".into())
+        .oneshot(request("/api/v1/calculate", i.clone()))
+        .await
+        .unwrap();
+    assert_eq!(r.status(), StatusCode::OK);
+    let result: serde_json::Value =
+        serde_json::from_slice(&r.into_body().collect().await.unwrap().to_bytes()).unwrap();
+    let p = serde_json::json!({"schema_version":1,"title":"User comparison","input":i,"last_calculation":result,"user_limits":limits});
+    let r = weld_api::router("test-token".into())
+        .oneshot(request(
+            "/api/v1/limits/evaluate",
+            serde_json::json!({"schema_version":1,"project":p}),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(r.status(), StatusCode::OK);
+    let v: serde_json::Value =
+        serde_json::from_slice(&r.into_body().collect().await.unwrap().to_bytes()).unwrap();
+    assert_eq!(v["status"], "exceeds_user_limits");
+    assert_eq!(v["cases"][0]["tension"]["ratio"], 1.5);
+    assert_eq!(v["strength_status"], "unsupported_calculation");
 }

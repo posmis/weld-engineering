@@ -199,6 +199,34 @@ async fn materials(
         Err(e) => e.into_response(),
     }
 }
+async fn validate_limits(
+    State(state): State<ApiState>,
+    request: Result<Json<weld_application::user_limits::ValidateLimitsRequest>, JsonRejection>,
+) -> Response {
+    match json_input(request) {
+        Ok(request) => {
+            work(state, move || {
+                weld_application::user_limits::validate_request(&request)
+            })
+            .await
+        }
+        Err(e) => e.into_response(),
+    }
+}
+async fn evaluate_limits(
+    State(state): State<ApiState>,
+    request: Result<Json<weld_application::user_limits::EvaluateLimitsRequest>, JsonRejection>,
+) -> Response {
+    match json_input(request) {
+        Ok(request) => {
+            work(state, move || {
+                weld_application::user_limits::evaluate(&request)
+            })
+            .await
+        }
+        Err(e) => e.into_response(),
+    }
+}
 async fn capabilities() -> Json<serde_json::Value> {
     Json(
         serde_json::json!({"schema_version": 1, "engine_version": env!("CARGO_PKG_VERSION"),
@@ -223,6 +251,8 @@ pub fn router(token: String) -> Router {
         .route("/api/v1/cases/calculate", post(cases))
         .route("/api/v1/cases/combine", post(combination))
         .route("/api/v1/materials/evaluate", post(materials))
+        .route("/api/v1/limits/validate", post(validate_limits))
+        .route("/api/v1/limits/evaluate", post(evaluate_limits))
         .route("/api/v1/projects/validate", post(validate))
         .route("/api/v1/capabilities", get(capabilities))
         .route(

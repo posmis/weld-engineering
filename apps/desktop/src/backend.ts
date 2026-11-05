@@ -1,9 +1,11 @@
 import type { EditorSettings } from './editorMovement';
 import { invoke } from '@tauri-apps/api/core';
-import type { BatchResult, CaseSummary, MaterialRequest, MaterialEvaluation, CombinationRequest, MassLoadRequest, MassLoadResult, SectionRequest, SectionResult, GeometryTransformRequest, GeometryTemplateRequest, GeometryTemplateResult, IntermittentInput, CalculationInput, CalculationResult, Project, Revision } from './contracts';
+import type { BatchResult, CaseSummary, UserLimits, LimitEvaluation, MaterialRequest, MaterialEvaluation, CombinationRequest, MassLoadRequest, MassLoadResult, SectionRequest, SectionResult, GeometryTransformRequest, GeometryTemplateRequest, GeometryTemplateResult, IntermittentInput, CalculationInput, CalculationResult, Project, Revision } from './contracts';
 export const backend = {
   getEditorSettings: () => invoke<EditorSettings>('get_editor_settings'),
   saveEditorSettings: (settings: EditorSettings) => invoke<void>('save_editor_settings', { settings }),
+  validateUserLimits: (request:{schema_version:1;limits:UserLimits})=>invoke<UserLimits>('validate_user_limits',{request}),
+  evaluateUserLimits: (request:{schema_version:1;project:Project})=>invoke<LimitEvaluation>('evaluate_user_limits',{request}),
   evaluateMaterials: (request:MaterialRequest)=>invoke<MaterialEvaluation>('evaluate_materials',{request}),
   combineCases: (request: CombinationRequest) => invoke<Project>('create_load_combination', { request }),
   deriveMassLoad: (request: MassLoadRequest) => invoke<MassLoadResult>('derive_mass_load', { request }),

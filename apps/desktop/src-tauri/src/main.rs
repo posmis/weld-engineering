@@ -67,6 +67,18 @@ fn evaluate_materials(
 ) -> Result<weld_application::materials::MaterialEvaluation, AppError> {
     weld_application::materials::evaluate(&request)
 }
+#[tauri::command]
+fn validate_user_limits(
+    request: weld_application::user_limits::ValidateLimitsRequest,
+) -> Result<weld_application::user_limits::UserLimits, AppError> {
+    weld_application::user_limits::validate_request(&request)
+}
+#[tauri::command]
+fn evaluate_user_limits(
+    request: weld_application::user_limits::EvaluateLimitsRequest,
+) -> Result<weld_application::user_limits::LimitEvaluation, AppError> {
+    weld_application::user_limits::evaluate(&request)
+}
 type Store = Mutex<ProjectStore>;
 #[tauri::command]
 fn calculate_joint(input: CalculationInput) -> Result<CalculationResult, AppError> {
@@ -181,6 +193,8 @@ fn main() {
             derive_mass_load,
             create_load_combination,
             evaluate_materials,
+            validate_user_limits,
+            evaluate_user_limits,
             save_pdf_report,
             calculate_joint,
             calculate_load_cases,

@@ -1578,6 +1578,280 @@
           }
         }
       }
+    },
+    "/api/v1/limits/validate": {
+      "post": {
+        "summary": "Validate explicit positive user thresholds and their sources",
+        "responses": {
+          "200": {
+            "description": "Success; computed is not a strength verdict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserLimits"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or incorrect Bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Browser Origin rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Route not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "408": {
+            "description": "Calculation deadline exceeded; worker remains reserved until it exits",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body exceeds 1 MiB",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Use application/json",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input or unsupported application method; see code/field",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Both calculation workers occupied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal calculation task failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ValidateLimitsRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/limits/evaluate": {
+      "post": {
+        "summary": "Compare cached nominal case results to independent user thresholds; incomplete cases remain unavailable",
+        "responses": {
+          "200": {
+            "description": "Success; computed is not a strength verdict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LimitEvaluation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or incorrect Bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Browser Origin rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Route not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "408": {
+            "description": "Calculation deadline exceeded; worker remains reserved until it exits",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body exceeds 1 MiB",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Use application/json",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input or unsupported application method; see code/field",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Both calculation workers occupied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal calculation task failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EvaluateLimitsRequest"
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -2129,6 +2403,16 @@
             "anyOf": [
               {
                 "$ref": "#/components/schemas/MaterialSelection"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "user_limits": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UserLimits"
               },
               {
                 "type": "null"
@@ -3150,6 +3434,331 @@
           },
           "weld": {
             "$ref": "#/components/schemas/ResolvedMaterial"
+          }
+        }
+      },
+      "StressLimit": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "value_mpa",
+          "source"
+        ],
+        "properties": {
+          "value_mpa": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "source": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          }
+        }
+      },
+      "UserLimits": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "method_id",
+          "tension",
+          "compression",
+          "shear"
+        ],
+        "properties": {
+          "method_id": {
+            "const": "independent-nominal-components-v1"
+          },
+          "tension": {
+            "$ref": "#/components/schemas/StressLimit"
+          },
+          "compression": {
+            "$ref": "#/components/schemas/StressLimit"
+          },
+          "shear": {
+            "$ref": "#/components/schemas/StressLimit"
+          }
+        },
+        "description": "Explicit final user thresholds for independent nominal components, not normative acceptance. No material-derived values, interactions or local throat assessment."
+      },
+      "ValidateLimitsRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schema_version",
+          "limits"
+        ],
+        "properties": {
+          "schema_version": {
+            "const": 1
+          },
+          "limits": {
+            "$ref": "#/components/schemas/UserLimits"
+          }
+        }
+      },
+      "EvaluateLimitsRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schema_version",
+          "project"
+        ],
+        "properties": {
+          "schema_version": {
+            "const": 1
+          },
+          "project": {
+            "$ref": "#/components/schemas/Project"
+          }
+        }
+      },
+      "LimitPoint": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "segment_index",
+          "endpoint"
+        ],
+        "properties": {
+          "segment_index": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "endpoint": {
+            "enum": [
+              "start",
+              "end"
+            ]
+          }
+        }
+      },
+      "ComponentCheck": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "demand_mpa",
+          "limit_mpa",
+          "ratio",
+          "point"
+        ],
+        "properties": {
+          "demand_mpa": {
+            "type": "number",
+            "minimum": 0
+          },
+          "limit_mpa": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "ratio": {
+            "type": "number",
+            "minimum": 0
+          },
+          "point": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LimitPoint"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "CaseLimitCheck": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "case_id",
+          "title",
+          "status",
+          "reason",
+          "analysis_method_id",
+          "tension",
+          "compression",
+          "shear"
+        ],
+        "properties": {
+          "case_id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "within_user_limits",
+              "exceeds_user_limits",
+              "unavailable"
+            ]
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "enum": [
+                  "not_computed",
+                  "unsupported_loading"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "analysis_method_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tension": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ComponentCheck"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "compression": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ComponentCheck"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "shear": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ComponentCheck"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "LimitGoverning": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "case_id",
+          "component",
+          "point"
+        ],
+        "properties": {
+          "case_id": {
+            "type": "string"
+          },
+          "component": {
+            "enum": [
+              "tension",
+              "compression",
+              "shear"
+            ]
+          },
+          "point": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LimitPoint"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "LimitEvaluation": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schema_version",
+          "limits",
+          "total",
+          "available",
+          "exceeded",
+          "status",
+          "maximum_ratio",
+          "governing",
+          "cases",
+          "strength_status",
+          "validation_status"
+        ],
+        "properties": {
+          "schema_version": {
+            "const": 1
+          },
+          "limits": {
+            "$ref": "#/components/schemas/UserLimits"
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 32
+          },
+          "available": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 32
+          },
+          "exceeded": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 32
+          },
+          "status": {
+            "enum": [
+              "within_user_limits",
+              "exceeds_user_limits",
+              "incomplete"
+            ]
+          },
+          "maximum_ratio": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "governing": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LimitGoverning"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "cases": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 32,
+            "items": {
+              "$ref": "#/components/schemas/CaseLimitCheck"
+            }
+          },
+          "strength_status": {
+            "const": "unsupported_calculation"
+          },
+          "validation_status": {
+            "const": "not_independently_validated"
           }
         }
       }

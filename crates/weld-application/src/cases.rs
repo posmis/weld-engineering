@@ -62,6 +62,7 @@ impl CaseBook {
             crate::combinations::validate_case(case, project)?;
             // The same snapshot validator as single-case projects; never recompute history.
             Project {
+                user_limits: None,
                 materials: None,
                 schema_version: project.schema_version,
                 title: project.title.clone(),

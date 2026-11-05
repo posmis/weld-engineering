@@ -101,3 +101,35 @@ assert material_project["input"] == edit_project["input"]
 assert material_project["last_calculation"] == edit_project["last_calculation"]
 assert material_project["last_calculation"]["strength_status"] == "unsupported_calculation"
 print("PASS: custom materials, explicit source/ranges and unknown out-of-domain property in PDF; all nominal snapshots preserved and no normative acceptance.")
+
+limit_reader = PdfReader(path.with_name("weld-user-limits-report-smoke.pdf"))
+limit_text = "\n".join(page.extract_text() or "" for page in limit_reader.pages)
+assert "Контроль пользовательских пределов" in limit_text
+assert "В пределах пользовательских значений" in limit_text
+assert "Не нормативная прочность" in limit_text
+assert "?" not in limit_text
+limit_project = json.loads(limit_reader.attachments["weld-project.json"][0])
+comparison = json.loads(limit_reader.attachments["user-limit-comparison.json"][0])
+assert limit_project["casebook"] == material_project["casebook"]
+assert limit_project["last_calculation"] == material_project["last_calculation"]
+assert limit_project["input"] == material_project["input"]
+assert limit_project["materials"] == material_project["materials"]
+assert comparison["limits"] == limit_project["user_limits"]
+assert comparison["status"] == "within_user_limits" and comparison["available"] == comparison["total"] == 3
+assert comparison["strength_status"] == "unsupported_calculation"
+assert comparison["validation_status"] == "not_independently_validated"
+import math
+ratios=[]
+for case in limit_project["casebook"]["cases"]:
+    row=next(r for r in comparison["cases"] if r["case_id"]==case["id"])
+    result=case["last_calculation"]
+    field=[result["traction_mpa"]] if result["traction_mpa"] is not None else [v for segment in result["distribution"]["segments"] for v in [segment["start_mpa"],segment["end_mpa"]]]
+    expected={"tension":max(0.0,max(v[2] for v in field)),"compression":max(0.0,-min(v[2] for v in field)),"shear":max(math.hypot(v[0],v[1]) for v in field)}
+    for kind,demand in expected.items():
+        threshold=limit_project["user_limits"][kind]["value_mpa"]
+        assert threshold == 1000000.0
+        assert math.isclose(row[kind]["demand_mpa"],demand,rel_tol=1e-12,abs_tol=1e-12)
+        assert math.isclose(row[kind]["ratio"],demand/threshold,rel_tol=1e-12,abs_tol=1e-15)
+        ratios.append(demand/threshold)
+assert math.isclose(comparison["maximum_ratio"],max(ratios),rel_tol=1e-12)
+print("PASS: independent PDF parser verifies user threshold ratios against original signed normal/vector shear fields; physics snapshots unchanged and normative strength unsupported.")

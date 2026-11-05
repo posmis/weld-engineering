@@ -60,3 +60,5 @@ SQLite `user_version=2`: миграция с v1 добавляет только 
 Optional CombinationRequest.replace_case_id обновляет коэффициенты существующего сочетания по его замороженным источникам. Все source.id указываются ровно один раз; сохраняются id/позиция/число случаев, сбрасывается только результат цели. [Контракт редактирования](edit-combination-factors.md).
 
 Optional Project.materials хранит MaterialSelection с общим context и nullable base/weld custom-карточками. evaluate_materials(request) / POST materials/evaluate возвращает для четырёх свойств каждой роли user_provided либо unknown/null; пересекающиеся домены отклоняются. Карточки пока не участвуют в механике, изменение сохраняет её снимки. [Полный контракт](custom-materials.md).
+
+Optional Project.user_limits хранит independent-nominal-components-v1 и три окончательных положительных MPa-порога с источниками. validate_user_limits / POST limits/validate проверяет метаданные; evaluate_user_limits / POST limits/evaluate сравнивает сохранённые случаи, сохраняя unavailable/incomplete и unsupported strength. [Формулы и контракт](user-nominal-limits.md).

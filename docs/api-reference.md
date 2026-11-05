@@ -54,3 +54,5 @@ POST `/api/v1/cases/combine`: `CombinationRequest` → `Project`, новый а�
 POST cases/combine принимает optional replace_case_id: обновление коэффициентов существующего сочетания из frozen sources, с прежними авторизацией/лимитами. [Подробности](edit-combination-factors.md).
 
 POST `/api/v1/materials/evaluate`: MaterialRequest → MaterialEvaluation; общий контекст, custom-карточки основного/наплавленного металла, применимые значения либо unknown/null. Авторизация/лимиты прежние. [Метод и ограничения](custom-materials.md).
+
+POST `/api/v1/limits/validate`: ValidateLimitsRequest → UserLimits. POST `/api/v1/limits/evaluate`: EvaluateLimitsRequest → LimitEvaluation. Авторизация/лимиты прежние; это независимые пользовательские пороги, не нормативная прочность. [Область и статусы](user-nominal-limits.md).

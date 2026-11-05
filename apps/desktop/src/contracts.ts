@@ -32,7 +32,14 @@ export interface MaterialSelection {context:{thickness_mm:number;temperature_c:n
 export interface MaterialRequest {schema_version:1;selection:MaterialSelection}
 export interface ResolvedMaterial {designation:string|null;properties:{kind:MaterialPropertyKind;unit:string;value:number|null;source:string|null;status:'unknown'|'user_provided'}[]}
 export interface MaterialEvaluation {schema_version:1;selection:MaterialSelection;base:ResolvedMaterial;weld:ResolvedMaterial}
-export interface Project { materials?:MaterialSelection; schema_version: 1; title: string; input: CalculationInput; last_calculation: CalculationResult | null; casebook?: CaseBook }
+export type LimitComponent='tension'|'compression'|'shear';
+export interface StressLimit {value_mpa:number;source:string}
+export interface UserLimits {method_id:'independent-nominal-components-v1';tension:StressLimit;compression:StressLimit;shear:StressLimit}
+export interface LimitPoint {segment_index:number;endpoint:'start'|'end'}
+export interface ComponentCheck {demand_mpa:number;limit_mpa:number;ratio:number;point:LimitPoint|null}
+export interface CaseLimitCheck {case_id:string;title:string;status:'within_user_limits'|'exceeds_user_limits'|'unavailable';reason:string|null;analysis_method_id:string|null;tension:ComponentCheck|null;compression:ComponentCheck|null;shear:ComponentCheck|null}
+export interface LimitEvaluation {schema_version:1;limits:UserLimits;total:number;available:number;exceeded:number;status:'within_user_limits'|'exceeds_user_limits'|'incomplete';maximum_ratio:number|null;governing:{case_id:string;component:LimitComponent;point:LimitPoint|null}|null;cases:CaseLimitCheck[];strength_status:'unsupported_calculation';validation_status:'not_independently_validated'}
+export interface Project { user_limits?:UserLimits; materials?:MaterialSelection; schema_version: 1; title: string; input: CalculationInput; last_calculation: CalculationResult | null; casebook?: CaseBook }
 export interface Revision { id: string; title: string; saved_at_unix_ms: string }
 export function newProject(): Project {
   return { schema_version: 1, title: 'Новый проект', input: { schema_version: 1,

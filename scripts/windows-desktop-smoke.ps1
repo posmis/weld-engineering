@@ -881,6 +881,76 @@ try {
     if (-not [string]::Equals($actualPath, $reportPath, [StringComparison]::OrdinalIgnoreCase)) { throw "Native save chose '$actualPath' instead of '$reportPath'" }
     $reportBytes = [System.IO.File]::ReadAllBytes($reportPath)
     if ($reportBytes.Length -lt 1000 -or [System.Text.Encoding]::ASCII.GetString($reportBytes, 0, 5) -ne '%PDF-') { throw 'Invalid PDF report output' }
+    Click-Name 'Пользовательские пределы'
+    Set-Field 'Растяжение, MPa' '10'; Set-Field 'Сжатие, MPa' '20'; Set-Field 'Срез, MPa' '5'
+    Set-Field 'Растяжение · Источник предела' 'User T-001'; Set-Field 'Сжатие · Источник предела' 'User C-001'; Set-Field 'Срез · Источник предела' 'User S-001'
+    Click-Name 'Применить пределы'
+    $null=Wait-Until { Find-Name 'Контроль пользовательских пределов · 3/3 — Пользовательские пределы превышены' } 'Rust compares all cached nominal cases against explicit user thresholds'
+    Click-Name 'Сохранить ревизию'
+    $null=Wait-Until { Find-Name 'Ревизия сохранена' } 'threshold metadata stored without recalculating mechanics'
+    Activate-Tree 'Нагрузки'
+    Set-Field 'force_n z' '1201'
+    $null=Wait-Until { Find-Name 'Контроль пользовательских пределов · 2/3 — Контроль неполон' } 'invalidated active case cannot disappear into a complete comparison'
+    Click-Name 'Отменить'
+    $null=Wait-Until { (Read-Field 'force_n z') -eq '1200' -and -not (Find-Name 'Есть несохранённые изменения') -and (Find-Name 'Контроль пользовательских пределов · 3/3 — Пользовательские пределы превышены') } 'Undo restores the original calculation and complete threshold comparison'
+    Click-Name 'Пользовательские пределы'
+    Set-Field 'Растяжение, MPa' '1000000'; Set-Field 'Сжатие, MPa' '1000000'; Set-Field 'Срез, MPa' '1000000'
+    Click-Name 'Применить пределы'
+    $null=Wait-Until { Find-Name 'Контроль пользовательских пределов · 3/3 — В пределах пользовательских значений' } 'new thresholds update comparison without implying normative strength'
+    Click-Name 'Сохранить ревизию'
+    $null=Wait-Until { Find-Name 'Ревизия сохранена' } 'revised user thresholds persisted'
+    Click-Name 'Контроль пользовательских пределов · 3/3 — В пределах пользовательских значений'
+    Save-Preview 'windows-user-limits-smoke.png'
+    $handle = [IntPtr]$script:window.Current.NativeWindowHandle
+    $null = [WeldDesktopInput]::PostMessage($handle, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero)
+    if (-not $process.WaitForExit(10000)) { throw 'User limits application did not close cleanly' }
+    $process = Start-Process -FilePath $executable -PassThru
+    $script:window = Wait-Until {
+        $condition = [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $process.Id)
+        [System.Windows.Automation.AutomationElement]::RootElement.FindFirst([System.Windows.Automation.TreeScope]::Children, $condition)
+    } 'user limits process restart'
+    $null = Wait-Until { $control=Find-Name 'Настройки приложения' ([System.Windows.Automation.ControlType]::Button);$control -and $control.Current.IsEnabled } 'settings loaded after user limits restart'
+    Open-LatestRevision
+    $null=Wait-Until { Find-Name 'Контроль пользовательских пределов · 3/3 — В пределах пользовательских значений' } 'comparison recalculated from persisted limits and cached snapshots after restart'
+    Click-Name 'Пользовательские пределы'
+    if ((Read-Field 'Растяжение, MPa') -ne '1000000' -or (Read-Field 'Сжатие · Источник предела') -ne 'User C-001') { throw 'Threshold value or source lost after restart' }
+    Click-Name 'Отмена'
+    Click-Name 'Отчёт PDF'
+    $dialog = Wait-Until {
+        [System.Windows.Automation.AutomationElement]::RootElement.FindFirst(
+            [System.Windows.Automation.TreeScope]::Children,
+            [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::NameProperty, 'Weld Engineering — PDF'))
+    } 'native PDF save dialog'
+    $filenameCondition = [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::AutomationIdProperty, '1001')
+    $filename = $dialog.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $filenameCondition)
+    if (-not $filename) { throw 'Native PDF filename input not found' }
+    $reportPath = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../target/weld-user-limits-report-smoke.pdf'))
+    $filename.SetFocus()
+    # The shell dialog requires actual editing keystrokes, not only UIA SetValue.
+    Set-Clipboard -Value $reportPath
+    [WeldDesktopInput]::keybd_event(0x11, 0, 0, [UIntPtr]::Zero)
+    Key-Press 0x41
+    Key-Press 0x56
+    [WeldDesktopInput]::keybd_event(0x11, 0, 2, [UIntPtr]::Zero)
+    $null = Wait-Until { $filename.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.Value -eq $reportPath } 'native filename entered by keyboard'
+    Key-Press 0x09
+    $saveCondition = [System.Windows.Automation.AndCondition]::new(
+        [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::AutomationIdProperty, '1'),
+        [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Button))
+    $save = $dialog.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $saveCondition)
+    $save.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    $pdfPrefix = 'PDF-отчёт сохранён: '
+    $pdfStatus = Wait-Until {
+        $texts = $script:window.FindAll([System.Windows.Automation.TreeScope]::Descendants,
+            [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Text))
+        foreach ($text in $texts) { if ($text.Current.Name.StartsWith($pdfPrefix)) { return $text.Current.Name } }
+        return $null
+    } 'PDF generated and written by native adapter'
+    $actualPath = $pdfStatus.Substring($pdfPrefix.Length)
+    Write-Output "Synthetic report saved at: $actualPath"
+    if (-not [string]::Equals($actualPath, $reportPath, [StringComparison]::OrdinalIgnoreCase)) { throw "Native save chose '$actualPath' instead of '$reportPath'" }
+    $reportBytes = [System.IO.File]::ReadAllBytes($reportPath)
+    if ($reportBytes.Length -lt 1000 -or [System.Text.Encoding]::ASCII.GetString($reportBytes, 0, 5) -ne '%PDF-') { throw 'Invalid PDF report output' }
     $handle = [IntPtr]$script:window.Current.NativeWindowHandle
     $null = [WeldDesktopInput]::PostMessage($handle, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero)
     if (-not $process.WaitForExit(10000)) { throw 'Restarted desktop did not close cleanly' }

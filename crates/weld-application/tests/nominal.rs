@@ -32,6 +32,7 @@ fn bending_distribution_is_connected_to_real_rust_results_and_sqlite_snapshots()
         [-18.5, 21.5]
     );
     let mut project = Project {
+        user_limits: None,
         materials: None,
         casebook: None,
         schema_version: 1,
@@ -66,6 +67,7 @@ fn incompatible_bending_has_geometry_and_a_reason_but_no_stresses() {
 fn malformed_distribution_snapshots_are_rejected_without_recalculating_them() {
     let input = input();
     let project = Project {
+        user_limits: None,
         materials: None,
         casebook: None,
         schema_version: 1,
@@ -94,6 +96,7 @@ fn old_uniform_snapshots_keep_their_original_json_without_a_new_field() {
     let mut input = input();
     input.couple_n_mm = [0.0; 3];
     let project = Project {
+        user_limits: None,
         materials: None,
         casebook: None,
         schema_version: 1,

@@ -1,3 +1,5 @@
+import { UserLimitsDialog } from './UserLimitsDialog';
+import { UserLimitResults } from './UserLimitResults';
 import { MaterialDialog } from './MaterialDialog';
 import { CombinationDialog } from './CombinationDialog';
 import { MassLoadEditor } from './MassLoadEditor';
@@ -35,6 +37,8 @@ export function App() {
   const [copyIndex, setCopyIndex] = useState<number | null>(null);
   const transformActive = transformOpen || copyIndex !== null;
   const transformOpenRef = useRef(false); transformOpenRef.current = transformActive;
+  const [userLimitsOpen,setUserLimitsOpen]=useState(false);
+  const userLimitsOpenRef=useRef(false);userLimitsOpenRef.current=userLimitsOpen;
   const [materialsOpen,setMaterialsOpen]=useState(false);
   const materialsOpenRef=useRef(false);materialsOpenRef.current=materialsOpen;
   const [combinationOpen,setCombinationOpen]=useState(false);
@@ -104,6 +108,7 @@ export function App() {
     let disposed = false; let unlisten: (() => void) | undefined;
     void desktopWindow.listenClose(event => {
       if (transformOpenRef.current) { event.preventDefault(); setTransformOpen(false); setCopyIndex(null); return; }
+      if(userLimitsOpenRef.current){event.preventDefault();setUserLimitsOpen(false);return;}
       if(materialsOpenRef.current){event.preventDefault();setMaterialsOpen(false);return;}
       if (combinationOpenRef.current) {event.preventDefault();setCombinationOpen(false);return;}
       if (templateOpenRef.current) { event.preventDefault(); setTemplateOpen(false); return; }
@@ -150,7 +155,7 @@ export function App() {
     setMessage(''); setError('');
   }
   function travel(direction: 'undo' | 'redo') {
-    if (busy || pending || settingsOpen || transformActive || templateOpen || combinationOpen || materialsOpen || gestureActive) return;
+    if (busy || pending || settingsOpen || transformActive || templateOpen || combinationOpen || materialsOpen || userLimitsOpen || gestureActive) return;
     const snapshot = history.current[direction](current.current);
     if (!snapshot) return;
     inputEpoch.current += 1; showSnapshot(snapshot); setMessage(''); setError('');
@@ -226,7 +231,8 @@ export function App() {
     const response = await fetch(fontUrl); if (!response.ok) throw { code: 'invalid_report' };
     const summary = validated.casebook ? await backend.summarizeCases(validated) : null;
     const materials=validated.materials?await backend.evaluateMaterials({schema_version:1,selection:validated.materials}):null;
-    const bytes = await createReport(validated, new Uint8Array(await response.arrayBuffer()), summary,new Date(),materials);
+    const limits=validated.user_limits?await backend.evaluateUserLimits({schema_version:1,project:validated}):null;
+    const bytes = await createReport(validated, new Uint8Array(await response.arrayBuffer()), summary,new Date(),materials,limits);
     const path = await backend.savePdf(bytes);
     if (path) setMessage(`${t.reportSaved}: ${path}`);
   }
@@ -236,8 +242,8 @@ export function App() {
     const target = event.target as HTMLElement;
     if (target.closest('input,textarea,[contenteditable="true"]')) return;
     event.preventDefault(); travel(event.key.toLowerCase() === 'y' || event.shiftKey ? 'redo' : 'undo');
-  }} onKeyDown={event => { if (event.key === 'Escape' && !event.defaultPrevented && !pending && !settingsOpen && !transformActive && !templateOpen && !combinationOpen && !materialsOpen) setRevisions(null); }}>
-    <div className="app-shell" inert={pending !== null || settingsOpen || transformActive || templateOpen || combinationOpen || materialsOpen}>
+  }} onKeyDown={event => { if (event.key === 'Escape' && !event.defaultPrevented && !pending && !settingsOpen && !transformActive && !templateOpen && !combinationOpen && !materialsOpen && !userLimitsOpen) setRevisions(null); }}>
+    <div className="app-shell" inert={pending !== null || settingsOpen || transformActive || templateOpen || combinationOpen || materialsOpen || userLimitsOpen}>
       <header className="cad-header"><div className="brand"><span className="brand-mark">W</span><strong>WELD ENGINEERING</strong></div>
         <label className="project-title">{t.title}<input maxLength={200} value={project.title} disabled={blocked || gestureActive} onChange={e => changeProject({ ...project, title: e.target.value })}/></label>
         <div className="header-controls"><button disabled={blocked || settingsLoading || gestureActive} onClick={() => setSettingsOpen(true)}>{t.settings}</button><button onClick={() => setLang(lang === 'ru' ? 'en' : 'ru')}>{lang === 'ru' ? 'EN' : 'RU'}</button><button onClick={() => setDark(!dark)}>{dark ? t.light : t.dark}</button></div>
@@ -251,7 +257,7 @@ export function App() {
         <div className="tool-group"><button disabled={project.input.segments.length >= 256 || gestureActive} onClick={addSegment}>{t.add}</button><button disabled={gestureActive} onClick={() => setTemplateOpen(true)}>{t.groupTemplate}</button><button disabled={gestureActive} onClick={() => setTransformOpen(true)}>{t.transformGroup}</button></div>
         <div className="tool-group"><button onClick={() => run(exportPdf)}>{t.pdfReport}</button>
           <button className="primary" onClick={() => run(calculateCurrent)}>{busy ? t.busy : t.calculate}</button>
-          <button disabled={!project.casebook} onClick={() => run(calculateAll)}>{t.calculateAll}</button>
+          <button disabled={!project.casebook} onClick={() => run(calculateAll)}>{t.calculateAll}</button><button aria-label={t.userLimits} title={t.userLimits} onClick={()=>setUserLimitsOpen(true)}>{t.userLimitsShort}</button>
           <button aria-pressed={resultsOpen} disabled={gestureActive} onClick={() => setResultsOpen(!resultsOpen)}>{t.toggleResults}</button></div>
       </fieldset>
       <input ref={inputFile} type="file" accept=".json,application/json" hidden onChange={e => {
@@ -306,7 +312,7 @@ export function App() {
           <option value="geometry">{t.geometryView}</option>{['τx', 'τy', 'σz'].map((name, i) => <option key={name} value={i} disabled={result?.analysis_status !== 'computed'}>{name} · MPa</option>)}
         </select></label><button aria-pressed={showLoads} disabled={blocked || gestureActive} onClick={() => setShowLoads(!showLoads)}>{t.loadLayer}</button></div><span>{project.casebook?.cases.find(c => c.id === project.casebook?.active_id)?.title} · XY · mm</span></div>
         <LayoutEditor key={formKey} input={project.input} centre={result?.geometry.centroid_mm} result={result} displayComponent={displayComponent} showLoads={showLoads} selected={selected} onSelect={selectWeld}
-          onChange={segments => edit({ ...project.input, segments })} disabled={blocked || settingsOpen || transformActive || templateOpen || combinationOpen || materialsOpen || settingsLoading} t={t} settings={settings} compact
+          onChange={segments => edit({ ...project.input, segments })} disabled={blocked || settingsOpen || transformActive || templateOpen || combinationOpen || materialsOpen || userLimitsOpen || settingsLoading} t={t} settings={settings} compact
           onDragStart={() => { history.current.breakGroup(); setGestureActive(true); dragSnapshot.current = { snapshot: current.current, checkpoint: history.current.checkpoint(), token: {} }; }}
           onDragCancel={() => {
             const original = dragSnapshot.current; if (!original) return;
@@ -317,7 +323,7 @@ export function App() {
           }} onDragFinish={() => { dragSnapshot.current = null; setGestureActive(false); history.current.breakGroup(); }}/>
       </section>} results={<section className="results" aria-label={t.results}>
         <div className="dock-title"><strong>{t.results}</strong><button aria-label={t.closeResults} onClick={() => setResultsOpen(false)}>×</button></div>
-        <div className="result-scroll">{project.casebook && <CaseResults project={project} t={t} disabled={blocked || gestureActive} onActivate={id => changeCase(activateCase(project, id))}/>}<ProjectResults result={result} selected={selected} onSelect={selectWeld} t={t}/></div>
+        <div className="result-scroll"><UserLimitResults project={project} t={t}/>{project.casebook && <CaseResults project={project} t={t} disabled={blocked || gestureActive} onActivate={id => changeCase(activateCase(project, id))}/>}<ProjectResults result={result} selected={selected} onSelect={selectWeld} t={t}/></div>
       </section>}/>
       <footer className="status-bar">
         {error && !pending && <span className="status-error" role="alert">{t.error}: {error}</span>}
@@ -335,6 +341,7 @@ export function App() {
     }}/>}
     {combinationOpen&&<CombinationDialog key={combinationEditId??'new'} project={project} editCaseId={combinationEditId} t={t} describeError={describe} onCancel={()=>setCombinationOpen(false)} onApply={next=>{changeCase(next);setCombinationOpen(false);setResultsOpen(false);setInspector('loads');setLoadView('overview');}}/>}
     {materialsOpen&&<MaterialDialog selection={project.materials} t={t} describeError={describe} onCancel={()=>setMaterialsOpen(false)} onApply={materials=>{history.current.breakGroup();changeProject({...current.current.project,materials});setMaterialsOpen(false);setMessage('');setError('');}}/>}
+    {userLimitsOpen&&<UserLimitsDialog limits={project.user_limits} t={t} describeError={describe} onCancel={()=>setUserLimitsOpen(false)} onApply={user_limits=>{history.current.breakGroup();const next={...current.current.project};if(user_limits)next.user_limits=user_limits;else delete next.user_limits;changeProject(next);setUserLimitsOpen(false);setResultsOpen(true);setMessage('');setError('');}}/>}
     {settingsOpen && <SettingsDialog settings={settings} t={t} onCancel={() => setSettingsOpen(false)} onSave={async value => {
       setBusy(true); try { await backend.saveEditorSettings(value); setSettings(value); setSettingsWarning(false); setSettingsOpen(false); } finally { setBusy(false); }
     }}/>}

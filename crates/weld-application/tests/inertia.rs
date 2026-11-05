@@ -48,6 +48,7 @@ fn derived_force_and_moment_match_independent_attachment_equilibrium_and_roundtr
     assert_eq!(r.resultant_force_n, Some([-20.0, 0.0, -100.0]));
     assert_eq!(r.moment_at_centroid_n_mm, [-2000.0, 400.0, 400.0]);
     let p = Project {
+        user_limits: None,
         materials: None,
         schema_version: 1,
         title: "Mass load".into(),

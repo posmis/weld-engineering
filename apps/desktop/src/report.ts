@@ -2,10 +2,10 @@ import { PDFDocument, rgb, type PDFPage } from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
 import fontLicense from './assets/OFL.txt?raw';
 import {sameValue} from './projectHistory';
-import type { CalculationResult, CaseSummary, Project, MaterialEvaluation, MaterialPropertyKind } from './contracts';
+import type { CalculationResult, CaseSummary, Project, MaterialEvaluation, MaterialPropertyKind, LimitEvaluation } from './contracts';
 
 /** Presentation only. All mechanical values and envelopes come from Rust snapshots. */
-export async function createReport(project: Project, fontBytes: Uint8Array, summary: CaseSummary | null, date = new Date(), materials:MaterialEvaluation|null=null): Promise<Uint8Array> {
+export async function createReport(project: Project, fontBytes: Uint8Array, summary: CaseSummary | null, date = new Date(), materials:MaterialEvaluation|null=null, limits:LimitEvaluation|null=null): Promise<Uint8Array> {
   const pdf = await PDFDocument.create(); pdf.registerFontkit(fontkit);
   const font = await pdf.embedFont(fontBytes, { subset: true });
   pdf.setTitle(project.title); pdf.setAuthor('Weld Engineering'); pdf.setSubject('Номинальные напряжения. Нормативная прочность не проверена.'); pdf.setCreationDate(date);
@@ -47,6 +47,14 @@ export async function createReport(project: Project, fontBytes: Uint8Array, summ
     }
     if(materials){for(const p of materials[role].properties)line(`Для контекста ${names[p.kind]}: ${p.value===null?'неизвестно':`${number(p.value)} ${p.unit}; пользовательские данные, не проверены`}.`);}else{line('Применимость свойств для контекста не вычислена.');}
     }
+  }
+  if(project.user_limits){
+    if(limits&&(limits.schema_version!==1||limits.strength_status!=='unsupported_calculation'||!sameValue(limits.limits,project.user_limits)))throw new Error('User limit comparison does not match project');
+    heading('Контроль пользовательских пределов');line('Независимые номинальные пороги. Не нормативная прочность; взаимодействие компонент, локальное горло и концентрации не проверены.');line(project.user_limits.method_id);
+    const keys=['tension','compression','shear'] as const,names=['Растяжение','Сжатие','Срез'];for(let i=0;i<keys.length;i++){const p=project.user_limits[keys[i]];line(`${names[i]}: ${number(p.value_mpa)} MPa; источник: ${p.source}`);}
+    if(limits){const status=(s:string)=>s==='within_user_limits'?'В пределах пользовательских значений':s==='exceeds_user_limits'?'Пользовательские пределы превышены':'Контроль неполон';line(`${status(limits.status)}; доступно ${limits.available}/${limits.total}, известных превышений ${limits.exceeded}.`);line(`Максимальное отношение спрос/порог: ${limits.maximum_ratio===null?'неизвестно':number(limits.maximum_ratio)}`);
+      for(const c of limits.cases){line(`${c.title}: ${c.status==='unavailable'?`Недоступно (${c.reason})`:status(c.status)}`);for(let i=0;i<keys.length;i++){const q=c[keys[i]];if(q)line(`${names[i]}: ${number(q.demand_mpa)} / ${number(q.limit_mpa)} MPa = ${number(q.ratio)}; ${q.point?`S${q.point.segment_index+1}/${q.point.endpoint}`:'нулевой спрос'}`);}}
+    }else{line('Сравнение пользовательских пределов не вычислено.');}
   }
   heading('Схема и общая геометрия');
   const points = project.input.segments.flatMap(s => [s.start_mm, s.end_mm]);
@@ -109,7 +117,7 @@ export async function createReport(project: Project, fontBytes: Uint8Array, summ
     for (const [key, name] of [['normal_min', 'σz min'], ['normal_max', 'σz max'], ['shear_max', '|τ| max']] as const) {
       const g = summary[key]; if (g) line(`${name}=${number(g.value_mpa)} MPa; случай ${cases.find(c => c.id === g.case_id)?.title ?? g.case_id}; S${g.segment_index + 1}; конец ${g.endpoint === 'start' ? '1' : '2'}`);
     }
-    line('Случаи не являются сочетаниями нагрузок или усталостным спектром. Проверка прочности не выполнялась.');
+    line('Список случаев не задаёт автоматические нормативные сочетания или усталостный спектр. Проверка прочности не выполнялась.');
   }
   heading('Исходный документ и ограничения');
   line('К PDF прикреплён weld-project.json: исходные данные и сохранённые снимки. Откройте вложение в PDF-просмотрщике с поддержкой вложений и импортируйте JSON в Weld Engineering.');
@@ -118,6 +126,7 @@ export async function createReport(project: Project, fontBytes: Uint8Array, summ
   line('Подпись и проверка инженера: __________________________________');
   const pages = pdf.getPages();
   pages.forEach((p, i) => p.drawText(`Weld Engineering | ${i + 1} / ${pages.length} | Прочность не проверена`, { x: 42, y: 24, font, size: 8, color: rgb(0.4, 0.4, 0.4) }));
+  if(project.user_limits&&limits){await pdf.attach(new TextEncoder().encode(JSON.stringify(limits,null,2)),'user-limit-comparison.json',{mimeType:'application/json',description:'Independent user thresholds, not normative strength acceptance'});}
   await pdf.attach(new TextEncoder().encode(JSON.stringify(project, null, 2)), 'weld-project.json', { mimeType: 'application/json', description: 'Project inputs and original result snapshots', creationDate: date });
   await pdf.attach(new TextEncoder().encode(fontLicense), 'NotoSans-OFL.txt', { mimeType: 'text/plain', description: 'SIL Open Font License for the embedded Noto Sans font' });
   return pdf.save();

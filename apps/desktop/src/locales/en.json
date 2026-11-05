@@ -266,5 +266,22 @@
   "materialApply": "Apply materials",
   "materialResolved": "Applicable properties",
   "materialUnknown": "Unknown",
-  "materialUserProvided": "User-provided, unverified"
+  "materialUserProvided": "User-provided, unverified",
+  "userLimits": "User limits",
+  "userLimitsScope": "Independent thresholds for nominal σz and |τxy|. Tension: max(σz,0); compression: max(−σz,0); shear: √(τx²+τy²). No component interaction, local throat or concentration check. Final limits and sources are user-provided; no material properties or factors are inserted automatically. Within limits does not mean normative strength acceptance.",
+  "limitNames": [
+    "Tension",
+    "Compression",
+    "Shear"
+  ],
+  "limitSource": "Limit source",
+  "applyUserLimits": "Apply limits",
+  "removeUserLimits": "Remove user limits",
+  "userLimitComparison": "User limit comparison",
+  "withinUserLimits": "Within user values",
+  "exceedsUserLimits": "User limits exceeded",
+  "incompleteUserLimits": "Comparison incomplete",
+  "knownLimitExcesses": "Known exceeded cases",
+  "limitMaximum": "Maximum demand/threshold ratio",
+  "userLimitsShort": "Limits"
 }

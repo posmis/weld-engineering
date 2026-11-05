@@ -110,6 +110,24 @@ try {
     Assert-Contract 'Project' $materialProjectJson
     $checked=Invoke-RestMethod -Method Post -Uri "$base/projects/validate" -Headers $headers -ContentType 'application/json' -Body $materialProjectJson
     Assert-Contract 'Project' ($checked | ConvertTo-Json -Depth 100)
+    $userLimits=@{method_id='independent-nominal-components-v1';tension=@{value_mpa=6;source='User T-001'};compression=@{value_mpa=20;source='User C-001'};shear=@{value_mpa=10;source='User S-001'}}
+    $limitsJson=@{schema_version=1;limits=$userLimits}|ConvertTo-Json -Depth 100
+    Assert-Contract 'ValidateLimitsRequest' $limitsJson
+    $validLimits=Invoke-RestMethod -Method Post -Uri "$base/limits/validate" -Headers $headers -ContentType 'application/json' -Body $limitsJson
+    Assert-Contract 'UserLimits' ($validLimits|ConvertTo-Json -Depth 100)
+    $limitProject=$combination|ConvertTo-Json -Depth 100|ConvertFrom-Json -AsHashtable
+    $limitProject['user_limits']=$validLimits
+    $batch=Invoke-RestMethod -Method Post -Uri "$base/cases/calculate" -Headers $headers -ContentType 'application/json' -Body ($limitProject|ConvertTo-Json -Depth 100)
+    $limitRequest=@{schema_version=1;project=$batch.project}|ConvertTo-Json -Depth 100
+    Assert-Contract 'EvaluateLimitsRequest' $limitRequest
+    $comparison=Invoke-RestMethod -Method Post -Uri "$base/limits/evaluate" -Headers $headers -ContentType 'application/json' -Body $limitRequest
+    Assert-Contract 'LimitEvaluation' ($comparison|ConvertTo-Json -Depth 100)
+    if ($comparison.status -ne 'exceeds_user_limits' -or $comparison.maximum_ratio -ne 1.5 -or $comparison.available -ne 3 -or $comparison.strength_status -ne 'unsupported_calculation') { throw '9 MPa / 6 MPa user comparison incorrectly implied normative acceptance or missed an excess' }
+    $partial=$batch.project|ConvertTo-Json -Depth 100|ConvertFrom-Json -AsHashtable
+    $partial.casebook.cases[1].last_calculation=$null
+    $partialComparison=Invoke-RestMethod -Method Post -Uri "$base/limits/evaluate" -Headers $headers -ContentType 'application/json' -Body (@{schema_version=1;project=$partial}|ConvertTo-Json -Depth 100)
+    Assert-Contract 'LimitEvaluation' ($partialComparison|ConvertTo-Json -Depth 100)
+    if ($partialComparison.status -ne 'incomplete' -or $partialComparison.available -ne 2 -or $partialComparison.total -ne 3) { throw 'Missing case disappeared from user threshold completeness' }
     $massJson='{"schema_version":1,"model":{"mass_kg":10,"gravity_m_s2":[0,0,-10],"acceleration_m_s2":[2,0,0]}}'
     Assert-Contract 'MassLoadRequest' $massJson
     $mass=Invoke-RestMethod -Method Post -Uri "$base/loads/mass" -Headers $headers -ContentType 'application/json' -Body $massJson

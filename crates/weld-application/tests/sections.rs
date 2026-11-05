@@ -47,6 +47,7 @@ fn explicit_legs_drive_nominal_area_and_survive_project_roundtrip() {
         weld_application::StrengthStatus::UnsupportedCalculation
     );
     let p = Project {
+        user_limits: None,
         materials: None,
         schema_version: 1,
         title: "Explicit leg geometry".into(),

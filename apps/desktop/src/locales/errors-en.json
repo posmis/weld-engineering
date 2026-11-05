@@ -30,5 +30,7 @@
   "combination_load_mismatch": "Combination loads do not match stored sources and factors.",
   "combination_source_changed": "Project changed while creating the combination. Try again.",
   "invalid_material": "Check designation, properties, sources and thickness/temperature ranges. Values must be finite and positive.",
-  "material_property_overlap": "Ranges overlap for the same property. Adjust bounds so that the value is unambiguous."
+  "material_property_overlap": "Ranges overlap for the same property. Adjust bounds so that the value is unambiguous.",
+  "invalid_user_limits": "Enter three finite positive limits in MPa and a source for each value.",
+  "missing_user_limits": "User limits have not been configured."
 }
