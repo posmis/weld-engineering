@@ -1,4 +1,12 @@
-use weld_application::{materials::*, quantities::*, sections::SectionModel, SegmentInput};
+use weld_application::{
+    materials::{
+        CustomProperty, MaterialCard, MaterialContext, MaterialKind, MaterialSelection,
+        PropertyKind,
+    },
+    quantities::*,
+    sections::SectionModel,
+    SegmentInput,
+};
 fn request() -> QuantityRequest {
     QuantityRequest {
         schema_version: 1,
