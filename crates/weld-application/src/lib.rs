@@ -11,6 +11,7 @@ pub mod projects;
 pub mod quantities;
 pub mod sections;
 pub mod settings;
+pub mod size_limits;
 pub mod user_limits;
 pub mod width_study;
 

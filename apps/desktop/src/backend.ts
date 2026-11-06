@@ -1,12 +1,12 @@
 import type { EditorSettings } from './editorMovement';
 import { invoke } from '@tauri-apps/api/core';
-import type { BatchResult, CaseSummary, QuantityRequest, QuantityResult, WidthStudyRequest, WidthStudyResult, UserLimits, LimitEvaluation, MaterialRequest, MaterialEvaluation, CombinationRequest, MassLoadRequest, MassLoadResult, SectionRequest, SectionResult, GeometryTransformRequest, GeometryTemplateRequest, GeometryTemplateResult, IntermittentInput, CalculationInput, CalculationResult, Project, Revision } from './contracts';
+import type { BatchResult, CaseSummary, SizeConstraint, QuantityRequest, QuantityResult, WidthStudyRequest, WidthStudyResult, UserLimits, LimitEvaluation, MaterialRequest, MaterialEvaluation, CombinationRequest, MassLoadRequest, MassLoadResult, SectionRequest, SectionResult, GeometryTransformRequest, GeometryTemplateRequest, GeometryTemplateResult, IntermittentInput, CalculationInput, CalculationResult, Project, Revision } from './contracts';
 export const backend = {
   getEditorSettings: () => invoke<EditorSettings>('get_editor_settings'),
   saveEditorSettings: (settings: EditorSettings) => invoke<void>('save_editor_settings', { settings }),
   quantities: (request:QuantityRequest)=>invoke<QuantityResult>('evaluate_quantities',{request}),
   widthStudy: (request:WidthStudyRequest)=>invoke<WidthStudyResult>('evaluate_width_study',{request}),
-  applyWidthScale: (request:{schema_version:1;project:Project;factor:number})=>invoke<Project>('apply_width_scale',{request}),
+  applyWidthScale: (request:{constraints?:SizeConstraint[];schema_version:1;project:Project;factor:number})=>invoke<Project>('apply_width_scale',{request}),
   validateUserLimits: (request:{schema_version:1;limits:UserLimits})=>invoke<UserLimits>('validate_user_limits',{request}),
   evaluateUserLimits: (request:{schema_version:1;project:Project})=>invoke<LimitEvaluation>('evaluate_user_limits',{request}),
   evaluateMaterials: (request:MaterialRequest)=>invoke<MaterialEvaluation>('evaluate_materials',{request}),

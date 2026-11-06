@@ -103,6 +103,7 @@ jobs:
             target/windows-width-study-smoke.png
             target/windows-quantities-smoke.png
             target/windows-discrete-sizing-smoke.png
+            target/windows-size-constraints-smoke.png
             target/weld-report-smoke.pdf
             target/weld-mass-report-smoke.pdf
             target/weld-combination-report-smoke.pdf
@@ -116,6 +117,8 @@ jobs:
             target/weld-discrete-incomplete-report-smoke.pdf
             target/weld-discrete-sizing-report-smoke.pdf
             target/weld-discrete-applied-report-smoke.pdf
+            target/weld-size-constraints-report-smoke.pdf
+            target/weld-size-constrained-applied-report-smoke.pdf
           if-no-files-found: error
           retention-days: 7
       - name: Preserve synthetic UI diagnostics on failure

@@ -189,6 +189,19 @@ try {
     $sizing=Invoke-RestMethod -Method Post -Uri "$base/studies/width" -Headers $headers -ContentType 'application/json' -Body $sizingJson
     Assert-Contract 'WidthStudyResult' ($sizing|ConvertTo-Json -Depth 100)
     if ($sizing.selection.status -ne 'complete' -or $sizing.selection.selected_row_index -ne 1 -or $sizing.selection.eligible_count -ne 2 -or [Math]::Abs($sizing.selection.objective_value-0.0048) -gt 1e-12 -or $sizing.selection.exclusions[0].reason -ne 'limits_exceeded') { throw 'Discrete mass selection ignored explicit user thresholds or chose incorrect geometry' }
+    $bounds=@(@{dimension='effective_width';minimum_mm=3;maximum_mm=4;source='User bound B-001'})
+    $boundedRequest=@{schema_version=1;project=$sizingProject;factors=@(1,1.5,2);objective='minimum_mass';constraints=$bounds}|ConvertTo-Json -Depth 100
+    Assert-Contract 'WidthStudyRequest' $boundedRequest
+    $bounded=Invoke-RestMethod -Method Post -Uri "$base/studies/width" -Headers $headers -ContentType 'application/json' -Body $boundedRequest
+    Assert-Contract 'WidthStudyResult' ($bounded|ConvertTo-Json -Depth 100)
+    if ($bounded.selection.selected_row_index -ne 1 -or $bounded.selection.eligible_count -ne 1 -or $bounded.selection.unavailable_count -ne 0 -or $bounded.selection.exclusions[0].reason -ne 'size_limits_exceeded' -or $bounded.selection.exclusions[1].reason -ne 'size_limits_exceeded') { throw 'Explicit lower/upper size ranges did not constrain discrete selection' }
+    $boundedApply=@{schema_version=1;project=$sizingProject;factor=1;constraints=$bounds}|ConvertTo-Json -Depth 100
+    Assert-Contract 'ApplyWidthScaleRequest' $boundedApply
+    $rejected=Invoke-WebRequest -Method Post -Uri "$base/studies/width/apply" -Headers $headers -ContentType 'application/json' -Body $boundedApply -SkipHttpErrorCheck
+    if ($rejected.StatusCode -ne 422 -or ($rejected.Content|ConvertFrom-Json).code -ne 'width_study_size_limits_not_met') { throw 'Apply accepted a known explicit size violation' }
+    $boundedApplied=Invoke-RestMethod -Method Post -Uri "$base/studies/width/apply" -Headers $headers -ContentType 'application/json' -Body (@{schema_version=1;project=$sizingProject;factor=1.5;constraints=$bounds}|ConvertTo-Json -Depth 100)
+    Assert-Contract 'Project' ($boundedApplied|ConvertTo-Json -Depth 100)
+    if ($boundedApplied.input.segments[0].effective_width_mm -ne 3.6) { throw 'Size-compliant candidate failed manual apply' }
     $clientOutput = & dotnet run --no-build --configuration Release --project (Join-Path $PSScriptRoot '../examples/inventor-client/WeldClient.csproj') -- $port
     if ($LASTEXITCODE -ne 0 -or ($clientOutput -join ' ') -notmatch 'unsupported_calculation') { throw 'C# client did not complete a real API calculation' }
 

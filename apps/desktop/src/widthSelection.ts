@@ -10,5 +10,5 @@ export function validateWidthSelection(study:WidthStudyResult,objective?:WidthOb
  if(rank.selected_row_index===null){if(rank.objective_value!==null||(rank.status==='complete'&&rank.eligible_count>0))invalid();return;}
  const index=rank.selected_row_index,row=study.rows[index],q=row?.quantities,comparison=row?.comparison;
  const metric=objective==='minimum_volume'?q?.volume_mm3:q?.mass_kg;
- if(!Number.isInteger(index)||!row||row.status!=='complete'||row.quantity_error||!q?.complete||metric==null||rank.objective_value!==metric||!Number.isFinite(metric)||metric<=0||rank.status!=='complete'||rank.unavailable_count!==0||rank.eligible_count<1||!row.summary?.complete||comparison?.status!=='within_user_limits'||comparison.available!==comparison.total||!sameValue(comparison.limits,study.source_project.user_limits))invalid();
+ if(!Number.isInteger(index)||!row||((study.constraints?.length??0)>0&&row.size_checks?.status!=='within_limits')||row.status!=='complete'||row.quantity_error||!q?.complete||metric==null||rank.objective_value!==metric||!Number.isFinite(metric)||metric<=0||rank.status!=='complete'||rank.unavailable_count!==0||rank.eligible_count<1||!row.summary?.complete||comparison?.status!=='within_user_limits'||comparison.available!==comparison.total||!sameValue(comparison.limits,study.source_project.user_limits))invalid();
 }

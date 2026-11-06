@@ -327,6 +327,26 @@
     "Threshold comparison incomplete",
     "User thresholds exceeded",
     "Objective quantity unknown",
-    "Volume/mass evaluation error"
+    "Volume/mass evaluation error",
+    "User size limits exceeded",
+    "Size constraints unknown"
+  ],
+  "sizeConstraints": "Size constraints",
+  "sizeConstraintScope": "User ranges in mm for every segment; endpoints included, source required. No GOST or process values are supplied. Leg bounds require an explicit section model; unknown dimensions block apply and selection.",
+  "sizeDimension": "Constraint dimension",
+  "sizeDimensionNames": [
+    "Effective width a",
+    "Leg k₁",
+    "Leg k₂"
+  ],
+  "sizeMinimum": "Lower bound",
+  "sizeMaximum": "Upper bound",
+  "sizeSource": "Constraint source",
+  "sizeAdd": "Add size constraint",
+  "sizeRemove": "Remove size constraint",
+  "sizeStatusNames": [
+    "Sizes within limits",
+    "Sizes outside limits",
+    "Sizes unknown"
   ]
 }

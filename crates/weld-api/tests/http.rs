@@ -422,3 +422,13 @@ async fn discrete_width_objective_requires_explicit_user_limits() {
         serde_json::from_slice(&r.into_body().collect().await.unwrap().to_bytes()).unwrap();
     assert_eq!(v["code"], "width_study_limits_required");
 }
+
+#[tokio::test]
+async fn width_apply_rejects_explicit_size_range_violation() {
+    let p = serde_json::json!({"schema_version":1,"title":"HTTP bounds","input":input(),"last_calculation":null});
+    let r=weld_api::router("test-token".into()).oneshot(request("/api/v1/studies/width/apply",serde_json::json!({"schema_version":1,"project":p,"factor":1,"constraints":[{"dimension":"effective_width","minimum_mm":3,"maximum_mm":4,"source":"User B-001"}]}))).await.unwrap();
+    assert_eq!(r.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    let v: serde_json::Value =
+        serde_json::from_slice(&r.into_body().collect().await.unwrap().to_bytes()).unwrap();
+    assert_eq!(v["code"], "width_study_size_limits_not_met");
+}

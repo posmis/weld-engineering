@@ -12,6 +12,8 @@ pub const MAX_WORK: usize = 32768;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct WidthStudyRequest {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub constraints: Vec<crate::size_limits::SizeConstraint>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub objective: Option<WidthObjective>,
     pub schema_version: u32,
@@ -21,6 +23,8 @@ pub struct WidthStudyRequest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ApplyWidthScaleRequest {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub constraints: Vec<crate::size_limits::SizeConstraint>,
     pub schema_version: u32,
     pub project: Project,
     pub factor: f64,
@@ -35,6 +39,7 @@ pub enum WidthStudyStatus {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct WidthStudyRow {
+    pub size_checks: Option<crate::size_limits::SizeCheck>,
     pub quantities: Option<crate::quantities::QuantityResult>,
     pub quantity_error: Option<AppError>,
     pub factor: f64,
@@ -48,6 +53,8 @@ pub struct WidthStudyRow {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct WidthStudyResult {
+    #[serde(default)]
+    pub constraints: Vec<crate::size_limits::SizeConstraint>,
     pub selection: Option<WidthSelection>,
     pub schema_version: u32,
     pub method_id: String,
@@ -74,6 +81,8 @@ pub enum ExclusionReason {
     LimitsExceeded,
     QuantityUnavailable,
     QuantityError,
+    SizeLimitsExceeded,
+    SizeLimitsUnknown,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -114,6 +123,15 @@ fn select(rows: &[WidthStudyRow], objective: WidthObjective) -> WidthSelection {
                 _ => Some(ExclusionReason::LimitsUnavailable),
             }
         };
+        let reason = reason.or_else(|| match row.size_checks.as_ref().map(|v| v.status) {
+            Some(crate::size_limits::SizeStatus::ExceedsLimits) => {
+                Some(ExclusionReason::SizeLimitsExceeded)
+            }
+            Some(crate::size_limits::SizeStatus::Unknown) => {
+                Some(ExclusionReason::SizeLimitsUnknown)
+            }
+            _ => None,
+        });
         let metric = row.quantities.as_ref().and_then(|q| {
             if q.complete {
                 match objective {
@@ -134,7 +152,9 @@ fn select(rows: &[WidthStudyRow], objective: WidthObjective) -> WidthSelection {
             }
         });
         if let Some(reason) = reason {
-            if reason != ExclusionReason::LimitsExceeded {
+            if reason != ExclusionReason::LimitsExceeded
+                && reason != ExclusionReason::SizeLimitsExceeded
+            {
                 result.unavailable_count += 1;
             }
             result.exclusions.push(WidthExclusion {
@@ -237,13 +257,19 @@ fn recalculate(project: Project) -> Result<(Project, CaseSummary, Vec<CaseFailur
     result.to_json()?;
     Ok((result, summary, vec![]))
 }
-fn candidate(project: &Project, factor: f64) -> Result<(Project, WidthStudyRow), AppError> {
+fn candidate(
+    project: &Project,
+    factor: f64,
+    constraints: &[crate::size_limits::SizeConstraint],
+) -> Result<(Project, WidthStudyRow), AppError> {
     let scaled = rescale(project, factor)?;
+    let size_checks = crate::size_limits::evaluate(&scaled.input.segments, constraints)?;
     let area = weld_core::properties(&crate::validate_input(&scaled.input)?)?
         .area
         .value();
     let (updated, summary, failures) = recalculate(scaled)?;
     let mut row = WidthStudyRow {
+        size_checks,
         quantities: None,
         quantity_error: None,
         factor,
@@ -285,6 +311,7 @@ pub fn evaluate(request: &WidthStudyRequest) -> Result<WidthStudyResult, AppErro
         return Err(AppError::new("unsupported_schema", Some("schema_version")));
     }
     validate(&request.project, &request.factors)?;
+    crate::size_limits::validate(&request.constraints)?;
     if request.objective.is_some() && request.project.user_limits.is_none() {
         return Err(AppError::new(
             "width_study_limits_required",
@@ -294,23 +321,27 @@ pub fn evaluate(request: &WidthStudyRequest) -> Result<WidthStudyResult, AppErro
     let rows: Vec<WidthStudyRow> = request
         .factors
         .iter()
-        .map(|&factor| match candidate(&request.project, factor) {
-            Ok((_, row)) => row,
-            Err(error) => WidthStudyRow {
-                quantities: None,
-                quantity_error: None,
-                factor,
-                status: WidthStudyStatus::Failed,
-                area_mm2: None,
-                summary: None,
-                comparison: None,
-                failures: vec![],
-                error: Some(error),
+        .map(
+            |&factor| match candidate(&request.project, factor, &request.constraints) {
+                Ok((_, row)) => row,
+                Err(error) => WidthStudyRow {
+                    size_checks: None,
+                    quantities: None,
+                    quantity_error: None,
+                    factor,
+                    status: WidthStudyStatus::Failed,
+                    area_mm2: None,
+                    summary: None,
+                    comparison: None,
+                    failures: vec![],
+                    error: Some(error),
+                },
             },
-        })
+        )
         .collect();
     let selection = request.objective.map(|objective| select(&rows, objective));
     Ok(WidthStudyResult {
+        constraints: request.constraints.clone(),
         selection,
         schema_version: SCHEMA_VERSION,
         method_id: "global-effective-width-study-v1".into(),
@@ -323,9 +354,20 @@ pub fn apply(request: &ApplyWidthScaleRequest) -> Result<Project, AppError> {
         return Err(AppError::new("unsupported_schema", Some("schema_version")));
     }
     validate(&request.project, &[request.factor])?;
-    let (project, row) = candidate(&request.project, request.factor)?;
+    crate::size_limits::validate(&request.constraints)?;
+    let (project, row) = candidate(&request.project, request.factor, &request.constraints)?;
     if row.status != WidthStudyStatus::Complete {
         return Err(AppError::new("width_study_incomplete", Some("factor")));
+    }
+    if row
+        .size_checks
+        .as_ref()
+        .is_some_and(|c| c.status != crate::size_limits::SizeStatus::WithinLimits)
+    {
+        return Err(AppError::new(
+            "width_study_size_limits_not_met",
+            Some("constraints"),
+        ));
     }
     Ok(project)
 }

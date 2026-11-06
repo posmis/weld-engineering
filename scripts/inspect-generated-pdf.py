@@ -287,3 +287,42 @@ for pdf in [incomplete_reader,sizing_reader,applied_reader]:
 assert 'Минимум не определён' in '\n'.join(p.extract_text() or '' for p in incomplete_reader.pages)
 assert 'Минимум среди заданных вариантов' in '\n'.join(p.extract_text() or '' for p in sizing_reader.pages)
 print('PASS: independent PDF parser verifies discrete mass minimum/excluded threshold excess, unknown candidate blocks ranking, explicit factor 1.5 geometry and squared volume/mass scaling, unchanged load sources and inverse nominal stress scaling for all 3 cases; no normative acceptance.')
+
+bounded_reader=PdfReader(path.with_name('weld-size-constraints-report-smoke.pdf'))
+bounded_study=json.loads(bounded_reader.attachments['width-study.json'][0])
+bounded_source=json.loads(bounded_reader.attachments['weld-project.json'][0])
+assert bounded_source==bounded_study['source_project']==applied_project
+bounds=[{'dimension':'effective_width','minimum_mm':8.0,'maximum_mm':10.0,'source':'User bounds B-001'}]
+assert bounded_study['constraints']==bounds
+rank=bounded_study['selection']
+assert rank['status']=='complete' and rank['objective']=='minimum_mass'
+assert rank['selected_row_index']==1 and rank['eligible_count']==1 and rank['unavailable_count']==0
+assert rank['exclusions']==[{'row_index':0,'reason':'size_limits_exceeded'},{'row_index':2,'reason':'size_limits_exceeded'}]
+assert math.isclose(rank['objective_value'],0.135,rel_tol=1e-12)
+for row,factor,status in zip(bounded_study['rows'],[0.75,1.25,1.5],['exceeds_limits','within_limits','exceeds_limits'],strict=True):
+    assert row['factor']==factor and row['comparison']['status']=='within_user_limits'
+    assert row['size_checks']['status']==status
+    check=row['size_checks']['checks'][0]
+    assert check['constraint']==bounds[0] and check['status']==status
+    assert [v['segment_index'] for v in check['values']]==[0,1]
+    assert all(v['status']==status and math.isclose(v['value_mm'],7.2*factor,rel_tol=1e-12) for v in check['values'])
+    assert math.isclose(row['quantities']['volume_mm3'],10800*factor**2,rel_tol=1e-12)
+    assert math.isclose(row['quantities']['mass_kg'],0.0864*factor**2,rel_tol=1e-12)
+constrained_reader=PdfReader(path.with_name('weld-size-constrained-applied-report-smoke.pdf'))
+constrained_project=json.loads(constrained_reader.attachments['weld-project.json'][0])
+constrained_quantity=json.loads(constrained_reader.attachments['weld-quantities.json'][0])
+assert all(s['effective_width_mm']==9.0 and s['section']=={'kind':'idealized_right_angle_fillet','leg_1_mm':11.25,'leg_2_mm':15.0} for s in constrained_project['input']['segments'])
+assert constrained_quantity['volume_mm3']==16875 and math.isclose(constrained_quantity['mass_kg'],0.135,rel_tol=1e-12)
+assert constrained_project['materials']==bounded_source['materials'] and constrained_project['user_limits']==bounded_source['user_limits']
+for old,new in zip(bounded_source['casebook']['cases'],constrained_project['casebook']['cases'],strict=True):
+    assert {k:v for k,v in old.items() if k!='last_calculation'}=={k:v for k,v in new.items() if k!='last_calculation'}
+    before,after=old['last_calculation'],new['last_calculation']
+    assert after['analysis_status']=='computed' and after['strength_status']=='unsupported_calculation'
+    assert math.isclose(after['geometry']['area_mm2'],before['geometry']['area_mm2']*1.25,rel_tol=1e-12)
+    for a,b in zip(before['distribution']['segments'],after['distribution']['segments'],strict=True):
+        for endpoint in ['start_mpa','end_mpa']:
+            assert all(math.isclose(y,x/1.25,rel_tol=1e-12,abs_tol=1e-12) for x,y in zip(a[endpoint],b[endpoint],strict=True))
+for pdf in [bounded_reader,constrained_reader]:
+    assert '?' not in '\n'.join(p.extract_text() or '' for p in pdf.pages)
+assert 'User bounds B-001' in '\n'.join(p.extract_text() or '' for p in bounded_reader.pages)
+print('PASS: independent PDF parser verifies explicit [8,10] mm source bounds, every segment dimension, rejected lower/upper candidates despite valid stress thresholds, constrained minimum/apply factor 1.25, 16875 mm3/0.135 kg and unchanged loads with inverse nominal fields for all 3 cases.')
