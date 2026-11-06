@@ -58,7 +58,7 @@ export function App() {
   const [inspector, setInspector] = useState<'weld' | 'loads'>('weld');
   const [displayComponent, setDisplayComponent] = useState<StressComponent | null>(null), [showLoads, setShowLoads] = useState(true);
   const [resultsOpen, setResultsOpen] = useState(false);
-  const [dark, setDark] = useState(false);
+  const [dark, setDark] = useState(true);
   const [project, setProject] = useState<Project>(newProject);
   const [selected, setSelected] = useState(0), [busy, setBusy] = useState(false);
   const [message, setMessage] = useState(''), [error, setError] = useState('');
