@@ -67,3 +67,7 @@ export type GeometryTransform = { kind: 'translate'; delta_mm: [number, number] 
   | { kind: 'rotate'; origin_mm: [number, number]; angle_deg: number }
   | { kind: 'mirror'; origin_mm: [number, number]; axis: 'x' | 'y' };
 export interface GeometryTransformRequest { copy_index?: number; schema_version: 1; segments: SegmentInput[]; transform: GeometryTransform }
+
+export interface WidthStudyRequest {schema_version:1;project:Project;factors:number[]}
+export interface WidthStudyRow {factor:number;status:'complete'|'incomplete'|'failed';area_mm2:number|null;summary:CaseSummary|null;comparison:LimitEvaluation|null;failures:{case_id:string;error:{code:string;field:string|null}}[];error:{code:string;field:string|null}|null}
+export interface WidthStudyResult {schema_version:1;method_id:string;source_project:Project;rows:WidthStudyRow[]}

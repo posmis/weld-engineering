@@ -1,3 +1,5 @@
+> Добавлены строгие WidthStudyRequest/ApplyWidthScaleRequest/WidthStudyResult и Tauri evaluate_width_study/apply_width_scale: [семантика и ограничения](width-parameter-study.md). Project/schema/SQLite не изменены. Windows-проверки ожидаются.
+
 # Application service contract v1
 
 Crate `weld-application` не зависит от Tauri/React. `calculate` принимает CalculationInput и возвращает CalculationResult либо сериализуемую AppError с code/field. Неизвестные поля входа отклоняются. Единицы закреплены в именах полей: mm, N, N·mm, MPa.

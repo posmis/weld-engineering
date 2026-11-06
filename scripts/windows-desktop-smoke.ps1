@@ -951,6 +951,119 @@ try {
     if (-not [string]::Equals($actualPath, $reportPath, [StringComparison]::OrdinalIgnoreCase)) { throw "Native save chose '$actualPath' instead of '$reportPath'" }
     $reportBytes = [System.IO.File]::ReadAllBytes($reportPath)
     if ($reportBytes.Length -lt 1000 -or [System.Text.Encoding]::ASCII.GetString($reportBytes, 0, 5) -ne '%PDF-') { throw 'Invalid PDF report output' }
+    Click-Name 'Варианты размеров швов'
+    Click-Name 'Добавить вариант'
+    Set-Field 'Масштаб ширины 2' '2'
+    Click-Name 'Добавить вариант'
+    Set-Field 'Масштаб ширины 3' '1e308'
+    Click-Name 'Рассчитать варианты'
+    $null=Wait-Until { Find-Name 'Результаты вариантов размеров' ([System.Windows.Automation.ControlType]::Table) } 'all width candidates returned, including numerical failure'
+    $failed=Find-Name 'Выбрать вариант 3' ([System.Windows.Automation.ControlType]::RadioButton)
+    if (-not $failed -or $failed.Current.IsEnabled) { throw 'Failed width candidate can be selected' }
+    if ((Find-Name 'Применить выбранный размер' ([System.Windows.Automation.ControlType]::Button)).Current.IsEnabled) { throw 'Width study automatically selected a candidate' }
+    $choice=Find-Name 'Выбрать вариант 2' ([System.Windows.Automation.ControlType]::RadioButton)
+    $choice.SetFocus();Key-Press 0x20
+    $null=Wait-Until { (Find-Name 'Применить выбранный размер' ([System.Windows.Automation.ControlType]::Button)).Current.IsEnabled } 'explicit width candidate selected'
+    Save-Preview 'windows-width-study-smoke.png'
+    Click-Name 'Отчёт вариантов PDF'
+    $dialog = Wait-Until {
+        [System.Windows.Automation.AutomationElement]::RootElement.FindFirst(
+            [System.Windows.Automation.TreeScope]::Children,
+            [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::NameProperty, 'Weld Engineering — PDF'))
+    } 'native PDF save dialog'
+    $filenameCondition = [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::AutomationIdProperty, '1001')
+    $filename = $dialog.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $filenameCondition)
+    if (-not $filename) { throw 'Native PDF filename input not found' }
+    $reportPath = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../target/weld-width-study-report-smoke.pdf'))
+    $filename.SetFocus()
+    # The shell dialog requires actual editing keystrokes, not only UIA SetValue.
+    Set-Clipboard -Value $reportPath
+    [WeldDesktopInput]::keybd_event(0x11, 0, 0, [UIntPtr]::Zero)
+    Key-Press 0x41
+    Key-Press 0x56
+    [WeldDesktopInput]::keybd_event(0x11, 0, 2, [UIntPtr]::Zero)
+    $null = Wait-Until { $filename.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.Value -eq $reportPath } 'native filename entered by keyboard'
+    Key-Press 0x09
+    $saveCondition = [System.Windows.Automation.AndCondition]::new(
+        [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::AutomationIdProperty, '1'),
+        [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Button))
+    $save = $dialog.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $saveCondition)
+    $save.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    $pdfPrefix = 'PDF-отчёт сохранён: '
+    $pdfStatus = Wait-Until {
+        $texts = $script:window.FindAll([System.Windows.Automation.TreeScope]::Descendants,
+            [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Text))
+        foreach ($text in $texts) { if ($text.Current.Name -eq ($pdfPrefix+$reportPath)) { return $text.Current.Name } }
+        return $null
+    } 'PDF generated and written by native adapter'
+    $actualPath = $pdfStatus.Substring($pdfPrefix.Length)
+    Write-Output "Synthetic report saved at: $actualPath"
+    if (-not [string]::Equals($actualPath, $reportPath, [StringComparison]::OrdinalIgnoreCase)) { throw "Native save chose '$actualPath' instead of '$reportPath'" }
+    $reportBytes = [System.IO.File]::ReadAllBytes($reportPath)
+    if ($reportBytes.Length -lt 1000 -or [System.Text.Encoding]::ASCII.GetString($reportBytes, 0, 5) -ne '%PDF-') { throw 'Invalid PDF report output' }
+    Click-Name 'Применить выбранный размер'
+    $null=Wait-Until { -not (Find-Name 'Рассчитать варианты' ([System.Windows.Automation.ControlType]::Button)) } 'width candidate committed and dialog closed'
+    Activate-Tree 'Шов S1'
+    $null=Wait-Until { (Read-Field 'S1 a') -eq '4.8' -and (Find-Name 'Сводка случаев · 3/3 — Все случаи рассчитаны') } 'scaled throat with every original case and combination recalculated'
+    Click-Name 'Отменить'
+    $null=Wait-Until { (Read-Field 'S1 a') -eq '2.4' -and -not (Find-Name 'Есть несохранённые изменения') } 'one Undo restores the entire source project and all cached results'
+    Click-Name 'Повторить'
+    $null=Wait-Until { (Read-Field 'S1 a') -eq '4.8' -and (Find-Name 'Есть несохранённые изменения') } 'Redo restores selected width study candidate'
+    Click-Name 'Сохранить ревизию'
+    $null=Wait-Until { Find-Name 'Ревизия сохранена' } 'scaled fillet section and all case results persisted'
+    $handle = [IntPtr]$script:window.Current.NativeWindowHandle
+    $null = [WeldDesktopInput]::PostMessage($handle, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero)
+    if (-not $process.WaitForExit(10000)) { throw 'Width study application did not close cleanly' }
+    $process = Start-Process -FilePath $executable -PassThru
+    $script:window = Wait-Until {
+        $condition = [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $process.Id)
+        [System.Windows.Automation.AutomationElement]::RootElement.FindFirst([System.Windows.Automation.TreeScope]::Children, $condition)
+    } 'width study process restart'
+    $null = Wait-Until { $control=Find-Name 'Настройки приложения' ([System.Windows.Automation.ControlType]::Button);$control -and $control.Current.IsEnabled } 'settings loaded after width study restart'
+    Open-LatestRevision
+    Activate-Tree 'Шов S1'
+    if ((Read-Field 'S1 a') -ne '4.8') { throw 'Selected width did not survive process restart' }
+    Click-Name 'Модель сечения'
+    if ((Read-Field 'Катет k₁, mm') -ne '6' -or (Read-Field 'Катет k₂, mm') -ne '8') { throw 'Scaled fillet legs did not survive process restart' }
+    Click-Name 'Модель сечения'
+    $null=Wait-Until { Find-Name 'Сводка случаев · 3/3 — Все случаи рассчитаны' } 'reloaded width study candidate retains all results'
+    Click-Name 'Отчёт PDF'
+    $dialog = Wait-Until {
+        [System.Windows.Automation.AutomationElement]::RootElement.FindFirst(
+            [System.Windows.Automation.TreeScope]::Children,
+            [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::NameProperty, 'Weld Engineering — PDF'))
+    } 'native PDF save dialog'
+    $filenameCondition = [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::AutomationIdProperty, '1001')
+    $filename = $dialog.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $filenameCondition)
+    if (-not $filename) { throw 'Native PDF filename input not found' }
+    $reportPath = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../target/weld-width-applied-report-smoke.pdf'))
+    $filename.SetFocus()
+    # The shell dialog requires actual editing keystrokes, not only UIA SetValue.
+    Set-Clipboard -Value $reportPath
+    [WeldDesktopInput]::keybd_event(0x11, 0, 0, [UIntPtr]::Zero)
+    Key-Press 0x41
+    Key-Press 0x56
+    [WeldDesktopInput]::keybd_event(0x11, 0, 2, [UIntPtr]::Zero)
+    $null = Wait-Until { $filename.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.Value -eq $reportPath } 'native filename entered by keyboard'
+    Key-Press 0x09
+    $saveCondition = [System.Windows.Automation.AndCondition]::new(
+        [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::AutomationIdProperty, '1'),
+        [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Button))
+    $save = $dialog.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $saveCondition)
+    $save.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    $pdfPrefix = 'PDF-отчёт сохранён: '
+    $pdfStatus = Wait-Until {
+        $texts = $script:window.FindAll([System.Windows.Automation.TreeScope]::Descendants,
+            [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Text))
+        foreach ($text in $texts) { if ($text.Current.Name -eq ($pdfPrefix+$reportPath)) { return $text.Current.Name } }
+        return $null
+    } 'PDF generated and written by native adapter'
+    $actualPath = $pdfStatus.Substring($pdfPrefix.Length)
+    Write-Output "Synthetic report saved at: $actualPath"
+    if (-not [string]::Equals($actualPath, $reportPath, [StringComparison]::OrdinalIgnoreCase)) { throw "Native save chose '$actualPath' instead of '$reportPath'" }
+    $reportBytes = [System.IO.File]::ReadAllBytes($reportPath)
+    if ($reportBytes.Length -lt 1000 -or [System.Text.Encoding]::ASCII.GetString($reportBytes, 0, 5) -ne '%PDF-') { throw 'Invalid PDF report output' }
+    Write-Output 'PASS: width study recalculates all cases, retains failed rows, requires explicit selection, scales source fillet legs, supports one Undo/Redo and survives SQLite/process restart with independent study/applied PDF evidence.'
     $handle = [IntPtr]$script:window.Current.NativeWindowHandle
     $null = [WeldDesktopInput]::PostMessage($handle, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero)
     if (-not $process.WaitForExit(10000)) { throw 'Restarted desktop did not close cleanly' }

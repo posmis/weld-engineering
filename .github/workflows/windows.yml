@@ -100,12 +100,15 @@ jobs:
             target/windows-combination-edit-smoke.png
             target/windows-materials-smoke.png
             target/windows-user-limits-smoke.png
+            target/windows-width-study-smoke.png
             target/weld-report-smoke.pdf
             target/weld-mass-report-smoke.pdf
             target/weld-combination-report-smoke.pdf
             target/weld-combination-edit-report-smoke.pdf
             target/weld-material-report-smoke.pdf
             target/weld-user-limits-report-smoke.pdf
+            target/weld-width-study-report-smoke.pdf
+            target/weld-width-applied-report-smoke.pdf
           if-no-files-found: error
           retention-days: 7
       - name: Preserve synthetic UI diagnostics on failure

@@ -91,7 +91,7 @@ fn published_openapi_contains_the_actual_routes_and_no_unimplemented_strength_en
     let spec: serde_json::Value =
         serde_json::from_str(include_str!("../../../docs/openapi.json")).unwrap();
     assert_eq!(spec["openapi"], "3.1.0");
-    assert_eq!(spec["paths"].as_object().unwrap().len(), 14);
+    assert_eq!(spec["paths"].as_object().unwrap().len(), 16);
     assert!(spec["paths"].get("/api/v1/optimize").is_none());
     assert_eq!(
         spec["components"]["schemas"]["CalculationResult"]["properties"]["strength_status"]
@@ -365,4 +365,39 @@ async fn explicit_user_limit_endpoints_compare_nominal_results_but_keep_strength
     assert_eq!(v["status"], "exceeds_user_limits");
     assert_eq!(v["cases"][0]["tension"]["ratio"], 1.5);
     assert_eq!(v["strength_status"], "unsupported_calculation");
+}
+
+#[tokio::test]
+async fn width_study_endpoint_recalculates_all_rows_keeps_failures_and_applies_explicit_scale() {
+    let p = serde_json::json!({"schema_version":1,"title":"HTTP width study","input":input(),"last_calculation":null});
+    let r = weld_api::router("test-token".into())
+        .oneshot(request(
+            "/api/v1/studies/width",
+            serde_json::json!({"schema_version":1,"project":p,"factors":[1,2,1e308]}),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(r.status(), StatusCode::OK);
+    let value: serde_json::Value =
+        serde_json::from_slice(&r.into_body().collect().await.unwrap().to_bytes()).unwrap();
+    assert_eq!(value["rows"].as_array().unwrap().len(), 3);
+    assert_eq!(value["rows"][1]["area_mm2"], 400.0);
+    assert_eq!(value["rows"][2]["status"], "failed");
+    assert_eq!(value["rows"][2]["error"]["code"], "numerical_range");
+    let r = weld_api::router("test-token".into())
+        .oneshot(request(
+            "/api/v1/studies/width/apply",
+            serde_json::json!({"schema_version":1,"project":p,"factor":2}),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(r.status(), StatusCode::OK);
+    let value: serde_json::Value =
+        serde_json::from_slice(&r.into_body().collect().await.unwrap().to_bytes()).unwrap();
+    assert_eq!(value["input"]["segments"][0]["effective_width_mm"], 4.0);
+    assert_eq!(value["last_calculation"]["traction_mpa"][2], 1.5);
+    assert_eq!(
+        value["last_calculation"]["strength_status"],
+        "unsupported_calculation"
+    );
 }

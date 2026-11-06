@@ -79,6 +79,18 @@ fn evaluate_user_limits(
 ) -> Result<weld_application::user_limits::LimitEvaluation, AppError> {
     weld_application::user_limits::evaluate(&request)
 }
+#[tauri::command]
+fn evaluate_width_study(
+    request: weld_application::width_study::WidthStudyRequest,
+) -> Result<weld_application::width_study::WidthStudyResult, AppError> {
+    weld_application::width_study::evaluate(&request)
+}
+#[tauri::command]
+fn apply_width_scale(
+    request: weld_application::width_study::ApplyWidthScaleRequest,
+) -> Result<Project, AppError> {
+    weld_application::width_study::apply(&request)
+}
 type Store = Mutex<ProjectStore>;
 #[tauri::command]
 fn calculate_joint(input: CalculationInput) -> Result<CalculationResult, AppError> {
@@ -195,6 +207,8 @@ fn main() {
             evaluate_materials,
             validate_user_limits,
             evaluate_user_limits,
+            evaluate_width_study,
+            apply_width_scale,
             save_pdf_report,
             calculate_joint,
             calculate_load_cases,

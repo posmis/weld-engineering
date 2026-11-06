@@ -283,5 +283,19 @@
   "incompleteUserLimits": "Comparison incomplete",
   "knownLimitExcesses": "Known exceeded cases",
   "limitMaximum": "Maximum demand/threshold ratio",
-  "userLimitsShort": "Limits"
+  "userLimitsShort": "Limits",
+  "widthStudy": "Weld size variants",
+  "widthStudyShort": "Sizes",
+  "widthStudyScope": "Each factor scales every effective width. Both legs of an idealized fillet section scale proportionally. Coordinates, loads and material conditions remain fixed. Every case is recalculated. 1 is the original size; other factors are explicit. This compares nominal models, not normative sizing, weld volume/mass or strength acceptance. Select manually; only fully computed candidates can be applied. The table is temporary: save a PDF before applying to retain it.",
+  "studyFactor": "Width scale",
+  "studyStatus": "Status",
+  "studyComplete": "Computed",
+  "studyIncomplete": "Incomplete",
+  "studyFailed": "Calculation failed",
+  "studySelect": "Select candidate",
+  "addStudyCandidate": "Add candidate",
+  "runWidthStudy": "Calculate variants",
+  "applyWidthCandidate": "Apply selected size",
+  "studyPdf": "Variants PDF report",
+  "widthStudyResults": "Size variant results"
 }

@@ -32,5 +32,9 @@
   "invalid_material": "Check designation, properties, sources and thickness/temperature ranges. Values must be finite and positive.",
   "material_property_overlap": "Ranges overlap for the same property. Adjust bounds so that the value is unambiguous.",
   "invalid_user_limits": "Enter three finite positive limits in MPa and a source for each value.",
-  "missing_user_limits": "User limits have not been configured."
+  "missing_user_limits": "User limits have not been configured.",
+  "invalid_width_study": "Enter 1–16 distinct finite positive scale factors.",
+  "width_study_budget": "Variants × cases × segments exceeds 32768. Reduce candidates or problem size.",
+  "width_study_incomplete": "Candidate is incomplete and cannot be applied. Check loads and numeric limits.",
+  "invalid_width_study_response": "Study response does not match its source project or factors. Recalculate."
 }

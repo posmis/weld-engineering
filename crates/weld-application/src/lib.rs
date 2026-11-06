@@ -11,6 +11,7 @@ pub mod projects;
 pub mod sections;
 pub mod settings;
 pub mod user_limits;
+pub mod width_study;
 
 use serde::{Deserialize, Serialize};
 use weld_core::{Millimetres, NewtonMillimetres, Newtons, Point2, Segment};

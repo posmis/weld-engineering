@@ -2,10 +2,10 @@ import { PDFDocument, rgb, type PDFPage } from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
 import fontLicense from './assets/OFL.txt?raw';
 import {sameValue} from './projectHistory';
-import type { CalculationResult, CaseSummary, Project, MaterialEvaluation, MaterialPropertyKind, LimitEvaluation } from './contracts';
+import type { CalculationResult, CaseSummary, Project, MaterialEvaluation, MaterialPropertyKind, LimitEvaluation, WidthStudyResult } from './contracts';
 
 /** Presentation only. All mechanical values and envelopes come from Rust snapshots. */
-export async function createReport(project: Project, fontBytes: Uint8Array, summary: CaseSummary | null, date = new Date(), materials:MaterialEvaluation|null=null, limits:LimitEvaluation|null=null): Promise<Uint8Array> {
+export async function createReport(project: Project, fontBytes: Uint8Array, summary: CaseSummary | null, date = new Date(), materials:MaterialEvaluation|null=null, limits:LimitEvaluation|null=null, study:WidthStudyResult|null=null): Promise<Uint8Array> {
   const pdf = await PDFDocument.create(); pdf.registerFontkit(fontkit);
   const font = await pdf.embedFont(fontBytes, { subset: true });
   pdf.setTitle(project.title); pdf.setAuthor('Weld Engineering'); pdf.setSubject('Номинальные напряжения. Нормативная прочность не проверена.'); pdf.setCreationDate(date);
@@ -55,6 +55,11 @@ export async function createReport(project: Project, fontBytes: Uint8Array, summ
     if(limits){const status=(s:string)=>s==='within_user_limits'?'В пределах пользовательских значений':s==='exceeds_user_limits'?'Пользовательские пределы превышены':'Контроль неполон';line(`${status(limits.status)}; доступно ${limits.available}/${limits.total}, известных превышений ${limits.exceeded}.`);line(`Максимальное отношение спрос/порог: ${limits.maximum_ratio===null?'неизвестно':number(limits.maximum_ratio)}`);
       for(const c of limits.cases){line(`${c.title}: ${c.status==='unavailable'?`Недоступно (${c.reason})`:status(c.status)}`);for(let i=0;i<keys.length;i++){const q=c[keys[i]];if(q)line(`${names[i]}: ${number(q.demand_mpa)} / ${number(q.limit_mpa)} MPa = ${number(q.ratio)}; ${q.point?`S${q.point.segment_index+1}/${q.point.endpoint}`:'нулевой спрос'}`);}}
     }else{line('Сравнение пользовательских пределов не вычислено.');}
+  }
+  if(study){
+    if(study.schema_version!==1||study.method_id!=='global-effective-width-study-v1'||!sameValue(JSON.parse(JSON.stringify(study.source_project)),JSON.parse(JSON.stringify(project))))throw new Error('Width study does not match source project');
+    heading('Варианты размеров швов');line('Ручное сравнение номинальных моделей. Масштаб эффективной ширины и катетов, фиксированные координаты/нагрузки/условия материалов. Все случаи пересчитаны; нормативная прочность и пригодность не установлены. Площадь эффективного сечения не является объёмом или массой сварки.');line(study.method_id);
+    for(const row of study.rows){const factor=row.factor>=1e8||row.factor<1e-5?row.factor.toExponential(5):number(row.factor);line(`Масштаб ${factor}: ${row.status}; A=${row.area_mm2===null?'неизвестно':number(row.area_mm2)} mm²; случаи ${row.summary?`${row.summary.computed}/${row.summary.total}`:'не рассчитаны'}`);if(row.summary){line(`σz min / max: ${row.summary.normal_min?number(row.summary.normal_min.value_mpa):'неизвестно'} / ${row.summary.normal_max?number(row.summary.normal_max.value_mpa):'неизвестно'} MPa; |τ| max: ${row.summary.shear_max?number(row.summary.shear_max.value_mpa):'неизвестно'} MPa`);}if(row.comparison)line(`Пользовательские пороги: ${row.comparison.status}; u max=${row.comparison.maximum_ratio===null?'неизвестно':number(row.comparison.maximum_ratio)}. Не нормативный pass.`);if(row.error)line(`Ошибка: ${row.error.code}`);for(const failure of row.failures)line(`Случай ${failure.case_id}: ${failure.error.code}`);}
   }
   heading('Схема и общая геометрия');
   const points = project.input.segments.flatMap(s => [s.start_mm, s.end_mm]);
@@ -126,6 +131,7 @@ export async function createReport(project: Project, fontBytes: Uint8Array, summ
   line('Подпись и проверка инженера: __________________________________');
   const pages = pdf.getPages();
   pages.forEach((p, i) => p.drawText(`Weld Engineering | ${i + 1} / ${pages.length} | Прочность не проверена`, { x: 42, y: 24, font, size: 8, color: rgb(0.4, 0.4, 0.4) }));
+  if(study){await pdf.attach(new TextEncoder().encode(JSON.stringify(study,null,2)),'width-study.json',{mimeType:'application/json',description:'Source project and explicit width variants; no normative sizing'});}
   if(project.user_limits&&limits){await pdf.attach(new TextEncoder().encode(JSON.stringify(limits,null,2)),'user-limit-comparison.json',{mimeType:'application/json',description:'Independent user thresholds, not normative strength acceptance'});}
   await pdf.attach(new TextEncoder().encode(JSON.stringify(project, null, 2)), 'weld-project.json', { mimeType: 'application/json', description: 'Project inputs and original result snapshots', creationDate: date });
   await pdf.attach(new TextEncoder().encode(fontLicense), 'NotoSans-OFL.txt', { mimeType: 'text/plain', description: 'SIL Open Font License for the embedded Noto Sans font' });

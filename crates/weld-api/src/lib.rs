@@ -227,6 +227,34 @@ async fn evaluate_limits(
         Err(e) => e.into_response(),
     }
 }
+async fn width_study(
+    State(state): State<ApiState>,
+    request: Result<Json<weld_application::width_study::WidthStudyRequest>, JsonRejection>,
+) -> Response {
+    match json_input(request) {
+        Ok(request) => {
+            work(state, move || {
+                weld_application::width_study::evaluate(&request)
+            })
+            .await
+        }
+        Err(e) => e.into_response(),
+    }
+}
+async fn width_scale(
+    State(state): State<ApiState>,
+    request: Result<Json<weld_application::width_study::ApplyWidthScaleRequest>, JsonRejection>,
+) -> Response {
+    match json_input(request) {
+        Ok(request) => {
+            work(state, move || {
+                weld_application::width_study::apply(&request)
+            })
+            .await
+        }
+        Err(e) => e.into_response(),
+    }
+}
 async fn capabilities() -> Json<serde_json::Value> {
     Json(
         serde_json::json!({"schema_version": 1, "engine_version": env!("CARGO_PKG_VERSION"),
@@ -253,6 +281,8 @@ pub fn router(token: String) -> Router {
         .route("/api/v1/materials/evaluate", post(materials))
         .route("/api/v1/limits/validate", post(validate_limits))
         .route("/api/v1/limits/evaluate", post(evaluate_limits))
+        .route("/api/v1/studies/width", post(width_study))
+        .route("/api/v1/studies/width/apply", post(width_scale))
         .route("/api/v1/projects/validate", post(validate))
         .route("/api/v1/capabilities", get(capabilities))
         .route(

@@ -133,3 +133,50 @@ for case in limit_project["casebook"]["cases"]:
         ratios.append(demand/threshold)
 assert math.isclose(comparison["maximum_ratio"],max(ratios),rel_tol=1e-12)
 print("PASS: independent PDF parser verifies user threshold ratios against original signed normal/vector shear fields; physics snapshots unchanged and normative strength unsupported.")
+
+study_reader = PdfReader(path.with_name('weld-width-study-report-smoke.pdf'))
+study_text = '\n'.join(page.extract_text() or '' for page in study_reader.pages)
+assert 'Варианты размеров швов' in study_text and 'global-effective-width-study-v1' in study_text
+assert 'numerical_range' in study_text and '1.00000e+308' in study_text
+assert '?' not in study_text
+study = json.loads(study_reader.attachments['width-study.json'][0])
+assert json.loads(study_reader.attachments['weld-project.json'][0]) == limit_project
+assert study['source_project'] == limit_project
+assert [r['factor'] for r in study['rows']] == [1.0, 2.0, 1e308]
+assert [r['status'] for r in study['rows']] == ['complete', 'complete', 'failed']
+assert study['rows'][2]['error']['code'] == 'numerical_range'
+assert study['rows'][0]['area_mm2'] == 440.0 and study['rows'][1]['area_mm2'] == 880.0
+for row in study['rows'][:2]:
+    assert row['summary']['computed'] == row['summary']['total'] == 3
+    assert row['comparison']['strength_status'] == 'unsupported_calculation'
+    assert math.isclose(row['comparison']['maximum_ratio'], comparison['maximum_ratio']/row['factor'], rel_tol=1e-12)
+for key in ['normal_min','normal_max','shear_max']:
+    assert math.isclose(study['rows'][1]['summary'][key]['value_mpa'], study['rows'][0]['summary'][key]['value_mpa']/2, rel_tol=1e-12)
+scaled_reader = PdfReader(path.with_name('weld-width-applied-report-smoke.pdf'))
+scaled_text = '\n'.join(page.extract_text() or '' for page in scaled_reader.pages)
+assert '?' not in scaled_text
+scaled_project = json.loads(scaled_reader.attachments['weld-project.json'][0])
+assert 'width-study.json' not in scaled_reader.attachments, 'Temporary study silently persisted as a selected geometry result'
+assert scaled_project['materials'] == limit_project['materials']
+assert scaled_project['user_limits'] == limit_project['user_limits']
+assert scaled_project['casebook']['active_id'] == limit_project['casebook']['active_id']
+assert [s['effective_width_mm'] for s in scaled_project['input']['segments']] == [4.8,4.0]
+assert scaled_project['input']['segments'][0]['section'] == {'kind':'idealized_right_angle_fillet','leg_1_mm':6.0,'leg_2_mm':8.0}
+for original, scaled in zip(limit_project['input']['segments'],scaled_project['input']['segments'],strict=True):
+    assert original['start_mm'] == scaled['start_mm'] and original['end_mm'] == scaled['end_mm']
+for key in ['force_n','forces','couple_n_mm','application']:
+    assert scaled_project['input'].get(key) == limit_project['input'].get(key)
+for original, scaled in zip(limit_project['casebook']['cases'],scaled_project['casebook']['cases'],strict=True):
+    assert {k:v for k,v in scaled.items() if k!='last_calculation'} == {k:v for k,v in original.items() if k!='last_calculation'}
+    before,after = original['last_calculation'],scaled['last_calculation']
+    assert after['analysis_status'] == 'computed' and after['strength_status'] == 'unsupported_calculation'
+    assert after['validation_status'] == 'not_independently_validated'
+    assert after['geometry']['area_mm2'] == before['geometry']['area_mm2']*2
+    assert after['geometry']['centroid_mm'] == before['geometry']['centroid_mm']
+    if before['traction_mpa'] is not None:
+        fields = [(before['traction_mpa'],after['traction_mpa'])]
+    else:
+        fields = [(a[endpoint],b[endpoint]) for a,b in zip(before['distribution']['segments'],after['distribution']['segments'],strict=True) for endpoint in ['start_mpa','end_mpa']]
+    for a,b in fields:
+        assert all(math.isclose(y,x/2,rel_tol=1e-12,abs_tol=1e-12) for x,y in zip(a,b,strict=True))
+print('PASS: independent PDF parser verifies source/failed study rows, doubled effective area/fillet legs, unchanged coordinates/materials/loads/frozen combinations and halved nominal fields for all 3 cases; no normative acceptance.')

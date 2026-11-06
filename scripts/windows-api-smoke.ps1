@@ -128,6 +128,17 @@ try {
     $partialComparison=Invoke-RestMethod -Method Post -Uri "$base/limits/evaluate" -Headers $headers -ContentType 'application/json' -Body (@{schema_version=1;project=$partial}|ConvertTo-Json -Depth 100)
     Assert-Contract 'LimitEvaluation' ($partialComparison|ConvertTo-Json -Depth 100)
     if ($partialComparison.status -ne 'incomplete' -or $partialComparison.available -ne 2 -or $partialComparison.total -ne 3) { throw 'Missing case disappeared from user threshold completeness' }
+    $studyProject=@{schema_version=1;title='Synthetic width study';input=($inputJson|ConvertFrom-Json);last_calculation=$null}
+    $studyJson=@{schema_version=1;project=$studyProject;factors=@(1,2,1e308)}|ConvertTo-Json -Depth 100
+    Assert-Contract 'WidthStudyRequest' $studyJson
+    $study=Invoke-RestMethod -Method Post -Uri "$base/studies/width" -Headers $headers -ContentType 'application/json' -Body $studyJson
+    Assert-Contract 'WidthStudyResult' ($study|ConvertTo-Json -Depth 100)
+    if ($study.rows.Count -ne 3 -or $study.rows[1].area_mm2 -ne 400 -or $study.rows[2].status -ne 'failed' -or $study.rows[2].error.code -ne 'numerical_range') { throw 'Width study dropped a failed candidate or returned incorrect area' }
+    $applyJson=@{schema_version=1;project=$studyProject;factor=2}|ConvertTo-Json -Depth 100
+    Assert-Contract 'ApplyWidthScaleRequest' $applyJson
+    $scaled=Invoke-RestMethod -Method Post -Uri "$base/studies/width/apply" -Headers $headers -ContentType 'application/json' -Body $applyJson
+    Assert-Contract 'Project' ($scaled|ConvertTo-Json -Depth 100)
+    if ($scaled.input.segments[0].effective_width_mm -ne 4 -or $scaled.last_calculation.traction_mpa[2] -ne 1.5 -or $scaled.last_calculation.strength_status -ne 'unsupported_calculation') { throw 'Width study apply changed loads or claimed normative strength' }
     $massJson='{"schema_version":1,"model":{"mass_kg":10,"gravity_m_s2":[0,0,-10],"acceleration_m_s2":[2,0,0]}}'
     Assert-Contract 'MassLoadRequest' $massJson
     $mass=Invoke-RestMethod -Method Post -Uri "$base/loads/mass" -Headers $headers -ContentType 'application/json' -Body $massJson
