@@ -1,4 +1,4 @@
-> В работе: [идеализированные объём/масса](weld-quantities.md), отдельные от эффективной площади номинальной механики, без технологических/закупочных припусков; Windows-проверки ожидаются.
+> Реализовано и проверено: [идеализированные объём/масса](weld-quantities.md), отдельные от эффективной площади номинальной механики, без технологических/закупочных припусков; [Windows run 42191406499 — SUCCESS](https://github.com/posmis/weld-engineering/actions/runs/42191406499), source `b0edbc6`: 110 Rust/API, 114 frontend ×3, установленный EXE/SQLite/restart/Undo, HTTP/OpenAPI/C#, независимый разбор 10 PDF, NSIS/uninstall.
 
 > Полный текущий статус: [completion-status.md](completion-status.md). Новые модули: [load cases](load-cases.md), [прерывистые швы](intermittent-welds.md), [PDF](pdf-reports.md), [REST/OpenAPI](api-reference.md). Их последний результат Windows смотрите в этих документах.
 

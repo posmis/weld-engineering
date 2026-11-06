@@ -1,3 +1,16 @@
+## Геометрический объём и масса — 2026-11-06
+
+[Windows run 42191406499](https://github.com/posmis/weld-engineering/actions/runs/42191406499) — **SUCCESS**, проверенный код `b0edbc6a0809b0167cdaea296c01302da933168a`. После этого кода менялись только собственные документы и снимок. [Артефакт/установщик ZIP](https://github.com/posmis/weld-engineering/actions/runs/42191406499/artifacts/13490128034), хранение 7 дней; setup находится в `release/bundle/nsis/Weld Engineering_0.1.0_x64-setup.exe`.
+
+- 110 Rust/API тестов, rustfmt и clippy `-D warnings` пройдены: треугольник 3/4/100 → 600 mm³/0.0048 kg, удвоение катетов → ×4 V/m, partial/null, запрет base-density fallback, вне диапазона/overflow, новый HTTP endpoint.
+- 114 frontend тестов в каждом из трёх свежих процессов; unknown/stale/provenance PDF; TypeScript/Vite, Windows dev-check, release Desktop/API и C# build пройдены.
+- Реальные HTTP/OpenAPI: QuantityRequest/QuantityResult по Test-Json, 600 mm³/0.0048 kg, вне диапазона density → mass=null, все прежние маршруты/auth/loopback также прошли.
+- Установленный EXE: исходный частичный объём/неизвестная масса; два явно заданных сечения 6/8, пользовательская weld density 8000 kg/m³ → 4800 mm³/0.0384 kg, три номинальных случая, SQLite и полный process restart. Температура 21 °C за заданным [20,20] убрала массу без изменения сохранённых номинальных результатов; one Undo восстановил плотность/массу и точный сохранённый проект.
+- Независимый pypdf 6.1.1: все 10 quantity/source вложений, пер-участковые длины/площади/объёмы/массы, partial/null, новый complete/unknown PDF, отсутствие потери глифов, неизменные нагрузки/P/m/g/a/сочетания и snapshots при изменении применимости плотности. Все прежние PDF-сценарии прошли.
+- NSIS current-user install, hash установленного EXE после точной штатной замены Tauri bundle marker, весь native workflow, silent uninstall с сохранением базы пройдены. Тёмная тема включена по умолчанию и проверена на снимке установленного приложения.
+
+Промежуточные отказы: run 42190096268 — конфликт импортов в Rust-тесте; run 42190371245 — UIA filename ещё не принимает фокус в shell PDF-диалоге. Исправлены импорты и ожидание готового editable child; текущий run выше прошёл полностью, с прежними проверками точного пути и PDF. [Вывод/ограничения](weld-quantities.md) · [снимок](screenshots/weld-quantities.png). Только идеализированная геометрия/пользовательская плотность, не фактический расход или нормативная прочность; независимая инженерная валидация не заявлена. UI-переработка в конце. Оригиналы публикаций не публикуются.
+
 ## Сравнение размеров швов — 2026-11-06
 
 [Windows run 42187561551](https://github.com/posmis/weld-engineering/actions/runs/42187561551) — **SUCCESS**, проверенные исходники `30c402ee0996a68dbb551c2542942ba82022a33e`. После него менялись только собственная документация и снимок окна. [Установщик/артефакт ZIP](https://github.com/posmis/weld-engineering/actions/runs/42187561551/artifacts/13487584585), хранение 7 дней. EXE установщика: `release/bundle/nsis/Weld Engineering_0.1.0_x64-setup.exe`.

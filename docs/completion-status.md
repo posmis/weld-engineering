@@ -1,10 +1,10 @@
-> В работе 2026-11-06: [геометрический объём и масса швов](weld-quantities.md), explicit triangle prisms + applicable custom weld density, partial/null, fresh Rust/Tauri/REST/PDF, исходные нагрузки и номинальная механика независимы. Project/schema/SQLite не меняются; UI в конце, тёмная тема по умолчанию. Windows-проверки ожидаются.
+> Реализовано и проверено 2026-11-06: [геометрический объём и масса швов](weld-quantities.md), explicit triangle prisms + applicable custom weld density, partial/null, fresh Rust/Tauri/REST/PDF, исходные нагрузки и номинальная механика независимы. Project/schema/SQLite не меняются; UI в конце, тёмная тема по умолчанию. [Windows run 42191406499 — SUCCESS](https://github.com/posmis/weld-engineering/actions/runs/42191406499), source `b0edbc6`: 110 Rust/API, 114 frontend ×3, установленный EXE/SQLite/restart/Undo, HTTP/OpenAPI/C#, независимый разбор 10 PDF, NSIS/uninstall.
 
 > Реализовано и проверено: [ручное сравнение ширины](width-parameter-study.md) — номинальные кандидаты/все случаи/пороги/failed rows/PDF/Undo, [Windows run 42187561551 — SUCCESS](https://github.com/posmis/weld-engineering/actions/runs/42187561551), source `30c402e`: 105 Rust/API, 111 frontend ×3, установленный EXE/SQLite/restart/Undo/Redo, HTTP/OpenAPI/C#, независимый PDF/parser и NSIS/uninstall. Полная нормативная оптимизация не завершена; UI в самом конце.
 
 # Состояние полного плана разработки
 
-Обновлено: 2026-11-05. Нельзя объявлять весь продукт завершённым: наличие CAD-окна, API или PDF не заменяет нормативную методику и инженерную валидацию.
+Обновлено: 2026-11-06. Нельзя объявлять весь продукт завершённым: наличие CAD-окна, API или PDF не заменяет нормативную методику и инженерную валидацию.
 
 | Этап исходного плана | Реально выполнено | Что ещё требуется до приёмки |
 |---|---|---|
