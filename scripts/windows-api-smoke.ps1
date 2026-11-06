@@ -27,7 +27,7 @@ try {
     if ($spec.openapi -ne '3.1.0') { throw 'OpenAPI document unavailable' }
     function Assert-Contract([string]$SchemaName, [string]$Json) {
         $schema = @{ '$schema' = 'https://json-schema.org/draft/2020-12/schema'; '$ref' = "#/components/schemas/$SchemaName"; components = $spec.components } | ConvertTo-Json -Depth 100
-        if (-not (Test-Json -Json $Json -Schema $schema -ErrorAction Stop)) { throw "OpenAPI schema violation: $SchemaName" }
+        try { if (-not (Test-Json -Json $Json -Schema $schema -ErrorAction Stop)) { throw 'Schema mismatch' } } catch { throw "OpenAPI contract $SchemaName failed: $_" }
     }
     Assert-Contract 'CalculationInput' $inputJson
     Assert-Contract 'CalculationResult' ($result | ConvertTo-Json -Depth 100)
@@ -129,11 +129,16 @@ try {
     Assert-Contract 'LimitEvaluation' ($partialComparison|ConvertTo-Json -Depth 100)
     if ($partialComparison.status -ne 'incomplete' -or $partialComparison.available -ne 2 -or $partialComparison.total -ne 3) { throw 'Missing case disappeared from user threshold completeness' }
     $studyProject=@{schema_version=1;title='Synthetic width study';input=($inputJson|ConvertFrom-Json);last_calculation=$null}
-    $studyJson=@{schema_version=1;project=$studyProject;factors=@(1,2,1e308)}|ConvertTo-Json -Depth 100
+    $studyJson=@{schema_version=1;project=$studyProject;factors=@(1,2)}|ConvertTo-Json -Depth 100
     Assert-Contract 'WidthStudyRequest' $studyJson
     $study=Invoke-RestMethod -Method Post -Uri "$base/studies/width" -Headers $headers -ContentType 'application/json' -Body $studyJson
     Assert-Contract 'WidthStudyResult' ($study|ConvertTo-Json -Depth 100)
-    if ($study.rows.Count -ne 3 -or $study.rows[1].area_mm2 -ne 400 -or $study.rows[2].status -ne 'failed' -or $study.rows[2].error.code -ne 'numerical_range') { throw 'Width study dropped a failed candidate or returned incorrect area' }
+    if ($study.rows.Count -ne 2 -or $study.rows[1].area_mm2 -ne 400) { throw 'Width study returned incorrect area' }
+    # Test-Json's numeric parser rejects 1e308 even though it is valid finite binary64 JSON.
+    # Validate ordinary request/response contracts above; exercise the extreme actual wire value separately.
+    $extremeJson=@{schema_version=1;project=$studyProject;factors=@(1,2,1e308)}|ConvertTo-Json -Depth 100
+    $extreme=Invoke-RestMethod -Method Post -Uri "$base/studies/width" -Headers $headers -ContentType 'application/json' -Body $extremeJson
+    if ($extreme.rows.Count -ne 3 -or $extreme.rows[2].status -ne 'failed' -or $extreme.rows[2].error.code -ne 'numerical_range' -or $null -ne $extreme.rows[2].summary) { throw 'Width study dropped a failed extreme candidate' }
     $applyJson=@{schema_version=1;project=$studyProject;factor=2}|ConvertTo-Json -Depth 100
     Assert-Contract 'ApplyWidthScaleRequest' $applyJson
     $scaled=Invoke-RestMethod -Method Post -Uri "$base/studies/width/apply" -Headers $headers -ContentType 'application/json' -Body $applyJson
