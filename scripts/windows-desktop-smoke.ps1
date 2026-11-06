@@ -42,10 +42,12 @@ function Key-Press([byte]$Key) {
 function Activate-Tree([string]$Name) {
     if (-not (Find-Name $Name ([System.Windows.Automation.ControlType]::TreeItem))) {
         $parentName = if ($Name -match '^Шов S') { 'Сварные швы' } elseif ($Name -match '^(Сила |Свободный момент)') { 'Нагрузки' } else { $null }
-        if ($parentName) { $parent = Find-Name $parentName ([System.Windows.Automation.ControlType]::TreeItem); if ($parent) { $parent.SetFocus(); Key-Press 0x27 } }
+        if ($parentName) { $parent = Find-Name $parentName ([System.Windows.Automation.ControlType]::TreeItem); if ($parent) { $parent.SetFocus();$null=Wait-Until { $parent.Current.HasKeyboardFocus } "keyboard focus on tree branch $parentName";Key-Press 0x27 } }
     }
     $item = Wait-Until { $node = Find-Name $Name ([System.Windows.Automation.ControlType]::TreeItem); if ($node -and $node.Current.IsEnabled) { return $node }; return $null } "tree item $Name"
-    $item.SetFocus(); Key-Press 0x20
+    $item.SetFocus()
+    $null=Wait-Until { $node=Find-Name $Name ([System.Windows.Automation.ControlType]::TreeItem);$node -and $node.Current.HasKeyboardFocus } "keyboard focus on tree item $Name"
+    Key-Press 0x0D
 }
 function Open-TreeContext([string]$Name) {
     Activate-Tree $Name
