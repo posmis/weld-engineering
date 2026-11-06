@@ -106,6 +106,27 @@ function Save-Preview([string]$Name) {
         } finally { $graphics.Dispose(); $image.Dispose() }
     } catch { Write-Warning "Optional screenshot unavailable: $_" }
 }
+# The shell publishes its save window before the editable child is ready for UIA focus.
+# AutomationId 1001 can identify the filename combo container rather than its edit child.
+function Focus-PdfFilename($Dialog) {
+    return Wait-Until {
+        $id = [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::AutomationIdProperty, '1001')
+        $container = $Dialog.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $id)
+        if (-not $container) { return $null }
+        $editType = [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Edit)
+        $candidates = @($container) + @($container.FindAll([System.Windows.Automation.TreeScope]::Descendants, $editType))
+        foreach ($candidate in $candidates) {
+            try {
+                if (-not $candidate.Current.IsEnabled -or -not $candidate.Current.IsKeyboardFocusable -or $candidate.Current.IsOffscreen) { continue }
+                $value = $null
+                if (-not $candidate.TryGetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern, [ref]$value)) { continue }
+                $candidate.SetFocus()
+                return $candidate
+            } catch [System.InvalidOperationException] { continue }
+        }
+        return $null
+    } 'native PDF filename editable and focusable'
+}
 function Open-LatestRevision {
     Click-Name 'Открыть ревизию'
     $revision = Wait-Until {
@@ -402,11 +423,8 @@ try {
             [System.Windows.Automation.TreeScope]::Children,
             [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::NameProperty, 'Weld Engineering — PDF'))
     } 'native PDF save dialog'
-    $filenameCondition = [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::AutomationIdProperty, '1001')
-    $filename = $dialog.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $filenameCondition)
-    if (-not $filename) { throw 'Native PDF filename input not found' }
+    $filename = Focus-PdfFilename $dialog
     $reportPath = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../target/weld-report-smoke.pdf'))
-    $filename.SetFocus()
     # The shell dialog requires actual editing keystrokes, not only UIA SetValue.
     Set-Clipboard -Value $reportPath
     [WeldDesktopInput]::keybd_event(0x11, 0, 0, [UIntPtr]::Zero)
@@ -631,11 +649,8 @@ try {
             [System.Windows.Automation.TreeScope]::Children,
             [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::NameProperty, 'Weld Engineering — PDF'))
     } 'native PDF save dialog'
-    $filenameCondition = [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::AutomationIdProperty, '1001')
-    $filename = $dialog.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $filenameCondition)
-    if (-not $filename) { throw 'Native PDF filename input not found' }
+    $filename = Focus-PdfFilename $dialog
     $reportPath = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../target/weld-mass-report-smoke.pdf'))
-    $filename.SetFocus()
     # The shell dialog requires actual editing keystrokes, not only UIA SetValue.
     Set-Clipboard -Value $reportPath
     [WeldDesktopInput]::keybd_event(0x11, 0, 0, [UIntPtr]::Zero)
@@ -705,11 +720,8 @@ try {
             [System.Windows.Automation.TreeScope]::Children,
             [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::NameProperty, 'Weld Engineering — PDF'))
     } 'native PDF save dialog'
-    $filenameCondition = [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::AutomationIdProperty, '1001')
-    $filename = $dialog.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $filenameCondition)
-    if (-not $filename) { throw 'Native PDF filename input not found' }
+    $filename = Focus-PdfFilename $dialog
     $reportPath = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../target/weld-combination-report-smoke.pdf'))
-    $filename.SetFocus()
     # The shell dialog requires actual editing keystrokes, not only UIA SetValue.
     Set-Clipboard -Value $reportPath
     [WeldDesktopInput]::keybd_event(0x11, 0, 0, [UIntPtr]::Zero)
@@ -770,11 +782,8 @@ try {
             [System.Windows.Automation.TreeScope]::Children,
             [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::NameProperty, 'Weld Engineering — PDF'))
     } 'native PDF save dialog'
-    $filenameCondition = [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::AutomationIdProperty, '1001')
-    $filename = $dialog.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $filenameCondition)
-    if (-not $filename) { throw 'Native PDF filename input not found' }
+    $filename = Focus-PdfFilename $dialog
     $reportPath = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../target/weld-combination-edit-report-smoke.pdf'))
-    $filename.SetFocus()
     # The shell dialog requires actual editing keystrokes, not only UIA SetValue.
     Set-Clipboard -Value $reportPath
     [WeldDesktopInput]::keybd_event(0x11, 0, 0, [UIntPtr]::Zero)
@@ -851,11 +860,8 @@ try {
             [System.Windows.Automation.TreeScope]::Children,
             [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::NameProperty, 'Weld Engineering — PDF'))
     } 'native PDF save dialog'
-    $filenameCondition = [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::AutomationIdProperty, '1001')
-    $filename = $dialog.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $filenameCondition)
-    if (-not $filename) { throw 'Native PDF filename input not found' }
+    $filename = Focus-PdfFilename $dialog
     $reportPath = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../target/weld-material-report-smoke.pdf'))
-    $filename.SetFocus()
     # The shell dialog requires actual editing keystrokes, not only UIA SetValue.
     Set-Clipboard -Value $reportPath
     [WeldDesktopInput]::keybd_event(0x11, 0, 0, [UIntPtr]::Zero)
@@ -921,11 +927,8 @@ try {
             [System.Windows.Automation.TreeScope]::Children,
             [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::NameProperty, 'Weld Engineering — PDF'))
     } 'native PDF save dialog'
-    $filenameCondition = [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::AutomationIdProperty, '1001')
-    $filename = $dialog.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $filenameCondition)
-    if (-not $filename) { throw 'Native PDF filename input not found' }
+    $filename = Focus-PdfFilename $dialog
     $reportPath = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../target/weld-user-limits-report-smoke.pdf'))
-    $filename.SetFocus()
     # The shell dialog requires actual editing keystrokes, not only UIA SetValue.
     Set-Clipboard -Value $reportPath
     [WeldDesktopInput]::keybd_event(0x11, 0, 0, [UIntPtr]::Zero)
@@ -971,11 +974,8 @@ try {
             [System.Windows.Automation.TreeScope]::Children,
             [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::NameProperty, 'Weld Engineering — PDF'))
     } 'native PDF save dialog'
-    $filenameCondition = [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::AutomationIdProperty, '1001')
-    $filename = $dialog.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $filenameCondition)
-    if (-not $filename) { throw 'Native PDF filename input not found' }
+    $filename = Focus-PdfFilename $dialog
     $reportPath = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../target/weld-width-study-report-smoke.pdf'))
-    $filename.SetFocus()
     # The shell dialog requires actual editing keystrokes, not only UIA SetValue.
     Set-Clipboard -Value $reportPath
     [WeldDesktopInput]::keybd_event(0x11, 0, 0, [UIntPtr]::Zero)
@@ -1033,11 +1033,8 @@ try {
             [System.Windows.Automation.TreeScope]::Children,
             [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::NameProperty, 'Weld Engineering — PDF'))
     } 'native PDF save dialog'
-    $filenameCondition = [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::AutomationIdProperty, '1001')
-    $filename = $dialog.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $filenameCondition)
-    if (-not $filename) { throw 'Native PDF filename input not found' }
+    $filename = Focus-PdfFilename $dialog
     $reportPath = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../target/weld-width-applied-report-smoke.pdf'))
-    $filename.SetFocus()
     # The shell dialog requires actual editing keystrokes, not only UIA SetValue.
     Set-Clipboard -Value $reportPath
     [WeldDesktopInput]::keybd_event(0x11, 0, 0, [UIntPtr]::Zero)
@@ -1109,11 +1106,8 @@ try {
             [System.Windows.Automation.TreeScope]::Children,
             [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::NameProperty, 'Weld Engineering — PDF'))
     } 'native PDF save dialog'
-    $filenameCondition = [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::AutomationIdProperty, '1001')
-    $filename = $dialog.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $filenameCondition)
-    if (-not $filename) { throw 'Native PDF filename input not found' }
+    $filename = Focus-PdfFilename $dialog
     $reportPath = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../target/weld-quantities-report-smoke.pdf'))
-    $filename.SetFocus()
     # The shell dialog requires actual editing keystrokes, not only UIA SetValue.
     Set-Clipboard -Value $reportPath
     [WeldDesktopInput]::keybd_event(0x11, 0, 0, [UIntPtr]::Zero)
@@ -1152,11 +1146,8 @@ try {
             [System.Windows.Automation.TreeScope]::Children,
             [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::NameProperty, 'Weld Engineering — PDF'))
     } 'native PDF save dialog'
-    $filenameCondition = [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::AutomationIdProperty, '1001')
-    $filename = $dialog.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $filenameCondition)
-    if (-not $filename) { throw 'Native PDF filename input not found' }
+    $filename = Focus-PdfFilename $dialog
     $reportPath = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../target/weld-quantities-unknown-report-smoke.pdf'))
-    $filename.SetFocus()
     # The shell dialog requires actual editing keystrokes, not only UIA SetValue.
     Set-Clipboard -Value $reportPath
     [WeldDesktopInput]::keybd_event(0x11, 0, 0, [UIntPtr]::Zero)
