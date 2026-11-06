@@ -4197,6 +4197,16 @@
               "type": "number",
               "exclusiveMinimum": 0
             }
+          },
+          "objective": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WidthObjective"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         }
       },
@@ -4299,6 +4309,26 @@
                 "type": "null"
               }
             ]
+          },
+          "quantities": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/QuantityResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "quantity_error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AppError"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         }
       },
@@ -4328,6 +4358,16 @@
             "items": {
               "$ref": "#/components/schemas/WidthStudyRow"
             }
+          },
+          "selection": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WidthSelection"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         }
       },
@@ -4476,6 +4516,89 @@
             "maxItems": 256,
             "items": {
               "$ref": "#/components/schemas/SegmentQuantity"
+            }
+          }
+        }
+      },
+      "WidthObjective": {
+        "type": "string",
+        "enum": [
+          "minimum_volume",
+          "minimum_mass"
+        ]
+      },
+      "WidthSelection": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "objective",
+          "status",
+          "eligible_count",
+          "unavailable_count",
+          "selected_row_index",
+          "objective_value",
+          "exclusions"
+        ],
+        "properties": {
+          "objective": {
+            "$ref": "#/components/schemas/WidthObjective"
+          },
+          "status": {
+            "enum": [
+              "complete",
+              "incomplete"
+            ]
+          },
+          "eligible_count": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 16
+          },
+          "unavailable_count": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 16
+          },
+          "selected_row_index": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 15
+          },
+          "objective_value": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "exclusions": {
+            "type": "array",
+            "maxItems": 16,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "row_index",
+                "reason"
+              ],
+              "properties": {
+                "row_index": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 15
+                },
+                "reason": {
+                  "enum": [
+                    "calculation_unavailable",
+                    "limits_unavailable",
+                    "limits_exceeded",
+                    "quantity_unavailable",
+                    "quantity_error"
+                  ]
+                }
+              }
             }
           }
         }

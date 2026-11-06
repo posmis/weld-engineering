@@ -308,5 +308,25 @@
   "quantityArea": "Triangle area",
   "quantityLength": "Length",
   "quantityMissing": "Total volume requires every section model; mass also requires applicable weld-metal density.",
-  "quantityComplete": "All sections specified"
+  "quantityComplete": "All sections specified",
+  "studyObjective": "Selection objective",
+  "studyNoObjective": "No selection",
+  "studyMinVolume": "Minimum geometric volume",
+  "studyMinMass": "Minimum geometric mass",
+  "studyRankingScope": "Selection only among supplied factors under independent user thresholds for every case. No normative sizing or global optimum; process constraints, costs and allowances excluded. Unknown data block automatic selection. Apply manually.",
+  "studyLimitsRequired": "Selection requires explicit user tension, compression and shear thresholds.",
+  "studyRanking": "Candidate selection",
+  "studyRankingIncomplete": "Selection incomplete",
+  "studyRankingNone": "No candidate within user thresholds",
+  "studyRankingFound": "Minimum among supplied candidates",
+  "studyPickMinimum": "Select minimum from table",
+  "studyEligible": "Within thresholds with known objective",
+  "studyUnavailable": "Candidates with unknown data",
+  "studyExclusionNames": [
+    "Calculation unavailable",
+    "Threshold comparison incomplete",
+    "User thresholds exceeded",
+    "Objective quantity unknown",
+    "Volume/mass evaluation error"
+  ]
 }

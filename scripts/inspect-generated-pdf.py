@@ -236,3 +236,54 @@ for reader in [qreader,unknown_reader]:
     qtext='\n'.join(page.extract_text() or '' for page in reader.pages)
     assert '?' not in qtext and 'Объём и масса швов' in qtext and 'Не нормативная или закупочная масса' in qtext
 print('PASS: independent PDF parser verifies all 10 quantity/source attachments, unknown partial totals, triangular volume versus effective area, 4800 mm3/0.0384 kg, explicit weld density, unknown out-of-domain mass and preserved nominal snapshots/loads.')
+
+incomplete_reader=PdfReader(path.with_name('weld-discrete-incomplete-report-smoke.pdf'))
+incomplete_study=json.loads(incomplete_reader.attachments['width-study.json'][0])
+assert [r['factor'] for r in incomplete_study['rows']] == [2.0,0.5,1.5,1e308]
+rank=incomplete_study['selection']
+assert rank['status']=='incomplete' and rank['selected_row_index'] is None and rank['objective_value'] is None
+assert rank['eligible_count']==2 and rank['unavailable_count']==1
+assert rank['exclusions']==[{'row_index':1,'reason':'limits_exceeded'},{'row_index':3,'reason':'calculation_unavailable'}]
+sizing_reader=PdfReader(path.with_name('weld-discrete-sizing-report-smoke.pdf'))
+sizing_study=json.loads(sizing_reader.attachments['width-study.json'][0])
+sizing_source=json.loads(sizing_reader.attachments['weld-project.json'][0])
+assert sizing_study['source_project']==sizing_source==incomplete_study['source_project']
+assert sizing_source['input']==quantity_project['input'] and sizing_source['materials']==quantity_project['materials']
+assert sizing_source['casebook']==quantity_project['casebook']
+assert sizing_source['user_limits']['tension']['value_mpa']==20.0
+assert sizing_source['user_limits']['compression']['value_mpa']==20.0
+assert sizing_source['user_limits']['shear']['value_mpa']==100.0
+rank=sizing_study['selection']
+assert rank['objective']=='minimum_mass' and rank['status']=='complete'
+assert rank['eligible_count']==2 and rank['unavailable_count']==0
+assert rank['selected_row_index']==2 and math.isclose(rank['objective_value'],0.0864,rel_tol=1e-12)
+assert rank['exclusions']==[{'row_index':1,'reason':'limits_exceeded'}]
+for row,factor in zip(sizing_study['rows'],[2.0,0.5,1.5],strict=True):
+    assert row['factor']==factor and row['summary']['computed']==row['summary']['total']==3
+    q=row['quantities']
+    assert q['complete'] and math.isclose(q['volume_mm3'],4800*factor**2,rel_tol=1e-12)
+    assert math.isclose(q['mass_kg'],0.0384*factor**2,rel_tol=1e-12)
+    assert all(s['section']['leg_1_mm']==6*factor and s['section']['leg_2_mm']==8*factor for s in q['source']['segments'])
+    comparison=row['comparison']
+    assert comparison['limits']==sizing_source['user_limits'] and comparison['strength_status']=='unsupported_calculation'
+    assert comparison['status']==('exceeds_user_limits' if factor==0.5 else 'within_user_limits')
+    assert row['quantity_error'] is None
+applied_reader=PdfReader(path.with_name('weld-discrete-applied-report-smoke.pdf'))
+applied_project=json.loads(applied_reader.attachments['weld-project.json'][0])
+applied_quantity=json.loads(applied_reader.attachments['weld-quantities.json'][0])
+assert all(s['effective_width_mm']==7.2 and s['section']=={'kind':'idealized_right_angle_fillet','leg_1_mm':9.0,'leg_2_mm':12.0} for s in applied_project['input']['segments'])
+assert applied_project['materials']==sizing_source['materials'] and applied_project['user_limits']==sizing_source['user_limits']
+assert applied_quantity['volume_mm3']==10800 and math.isclose(applied_quantity['mass_kg'],0.0864,rel_tol=1e-12)
+for old,new in zip(sizing_source['casebook']['cases'],applied_project['casebook']['cases'],strict=True):
+    assert {k:v for k,v in old.items() if k!='last_calculation'}=={k:v for k,v in new.items() if k!='last_calculation'}
+    before,after=old['last_calculation'],new['last_calculation']
+    assert after['analysis_status']=='computed' and after['strength_status']=='unsupported_calculation'
+    assert math.isclose(after['geometry']['area_mm2'],before['geometry']['area_mm2']*1.5,rel_tol=1e-12)
+    for a,b in zip(before['distribution']['segments'],after['distribution']['segments'],strict=True):
+        for endpoint in ['start_mpa','end_mpa']:
+            assert all(math.isclose(y,x/1.5,rel_tol=1e-12,abs_tol=1e-12) for x,y in zip(a[endpoint],b[endpoint],strict=True))
+for pdf in [incomplete_reader,sizing_reader,applied_reader]:
+    assert '?' not in '\n'.join(p.extract_text() or '' for p in pdf.pages)
+assert 'Минимум не определён' in '\n'.join(p.extract_text() or '' for p in incomplete_reader.pages)
+assert 'Минимум среди заданных вариантов' in '\n'.join(p.extract_text() or '' for p in sizing_reader.pages)
+print('PASS: independent PDF parser verifies discrete mass minimum/excluded threshold excess, unknown candidate blocks ranking, explicit factor 1.5 geometry and squared volume/mass scaling, unchanged load sources and inverse nominal stress scaling for all 3 cases; no normative acceptance.')

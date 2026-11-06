@@ -1177,6 +1177,154 @@ try {
     $null=Wait-Until { Find-Name '0.0384' ([System.Windows.Automation.ControlType]::Text) } 'one Undo restores applicable density and mass'
     if (Find-Name 'Есть несохранённые изменения') { throw 'Quantity context Undo did not restore saved project' }
     Write-Output 'PASS: explicit triangular volume and weld-density mass, partial/unknown results, 4800 mm3 and 0.0384 kg, SQLite/process restart, out-of-domain density, one Undo and separate complete/unknown PDF evidence.'
+    Click-Name 'Пользовательские пределы'
+    Set-Field 'Растяжение, MPa' '20';Set-Field 'Сжатие, MPa' '20';Set-Field 'Срез, MPa' '100'
+    Click-Name 'Применить пределы'
+    $null=Wait-Until { Find-Name 'Контроль пользовательских пределов · 3/3 — В пределах пользовательских значений' } 'explicit sizing thresholds retain all nominal source snapshots'
+    Click-Name 'Сохранить ревизию'
+    $null=Wait-Until { Find-Name 'Ревизия сохранена' } 'sizing source and explicit thresholds saved'
+    Click-Name 'Варианты размеров швов'
+    (Find-Name 'Цель отбора' ([System.Windows.Automation.ControlType]::ComboBox)).SetFocus();Key-Press 0x23;Key-Press 0x09
+    Set-Field 'Масштаб ширины 1' '2'
+    Click-Name 'Добавить вариант';Set-Field 'Масштаб ширины 2' '0.5'
+    Click-Name 'Добавить вариант';Set-Field 'Масштаб ширины 3' '1.5'
+    Click-Name 'Добавить вариант';Set-Field 'Масштаб ширины 4' '1e308'
+    Click-Name 'Рассчитать варианты'
+    $null=Wait-Until { Find-Name 'Отбор неполон' ([System.Windows.Automation.ControlType]::Text) } 'a failed candidate prevents claiming a minimum among supplied factors'
+    if ((Find-Name 'Выбрать минимум из таблицы' ([System.Windows.Automation.ControlType]::Button)).Current.IsEnabled) { throw 'Incomplete sizing table can select a purported minimum' }
+    Click-Name 'Отчёт вариантов PDF'
+    $dialog = Wait-Until {
+        [System.Windows.Automation.AutomationElement]::RootElement.FindFirst(
+            [System.Windows.Automation.TreeScope]::Children,
+            [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::NameProperty, 'Weld Engineering — PDF'))
+    } 'native PDF save dialog'
+    $filename = Focus-PdfFilename $dialog
+    $reportPath = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../target/weld-discrete-incomplete-report-smoke.pdf'))
+    # The shell dialog requires actual editing keystrokes, not only UIA SetValue.
+    Set-Clipboard -Value $reportPath
+    [WeldDesktopInput]::keybd_event(0x11, 0, 0, [UIntPtr]::Zero)
+    Key-Press 0x41
+    Key-Press 0x56
+    [WeldDesktopInput]::keybd_event(0x11, 0, 2, [UIntPtr]::Zero)
+    $null = Wait-Until { $filename.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.Value -eq $reportPath } 'native filename entered by keyboard'
+    Key-Press 0x09
+    $saveCondition = [System.Windows.Automation.AndCondition]::new(
+        [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::AutomationIdProperty, '1'),
+        [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Button))
+    $save = $dialog.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $saveCondition)
+    $save.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    $pdfPrefix = 'PDF-отчёт сохранён: '
+    $pdfStatus = Wait-Until {
+        $texts = $script:window.FindAll([System.Windows.Automation.TreeScope]::Descendants,
+            [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Text))
+        foreach ($text in $texts) { if ($text.Current.Name -eq ($pdfPrefix+$reportPath)) { return $text.Current.Name } }
+        return $null
+    } 'PDF generated and written by native adapter'
+    $actualPath = $pdfStatus.Substring($pdfPrefix.Length)
+    Write-Output "Synthetic report saved at: $actualPath"
+    if (-not [string]::Equals($actualPath, $reportPath, [StringComparison]::OrdinalIgnoreCase)) { throw "Native save chose '$actualPath' instead of '$reportPath'" }
+    $reportBytes = [System.IO.File]::ReadAllBytes($reportPath)
+    if ($reportBytes.Length -lt 1000 -or [System.Text.Encoding]::ASCII.GetString($reportBytes, 0, 5) -ne '%PDF-') { throw 'Invalid PDF report output' }
+    Click-Name 'Удалить Масштаб ширины 4'
+    Click-Name 'Рассчитать варианты'
+    $null=Wait-Until { Find-Name 'Минимум среди заданных вариантов' ([System.Windows.Automation.ControlType]::Text) } 'all known candidate objectives and user thresholds yield a discrete minimum'
+    if ((Find-Name 'Применить выбранный размер' ([System.Windows.Automation.ControlType]::Button)).Current.IsEnabled) { throw 'Backend sizing recommendation silently selected a geometry edit' }
+    Click-Name 'Выбрать минимум из таблицы'
+    $null=Wait-Until { (Find-Name 'Применить выбранный размер' ([System.Windows.Automation.ControlType]::Button)).Current.IsEnabled } 'explicit choice of backend minimum enables manual apply'
+    Save-Preview 'windows-discrete-sizing-smoke.png'
+    Click-Name 'Отчёт вариантов PDF'
+    $dialog = Wait-Until {
+        [System.Windows.Automation.AutomationElement]::RootElement.FindFirst(
+            [System.Windows.Automation.TreeScope]::Children,
+            [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::NameProperty, 'Weld Engineering — PDF'))
+    } 'native PDF save dialog'
+    $filename = Focus-PdfFilename $dialog
+    $reportPath = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../target/weld-discrete-sizing-report-smoke.pdf'))
+    # The shell dialog requires actual editing keystrokes, not only UIA SetValue.
+    Set-Clipboard -Value $reportPath
+    [WeldDesktopInput]::keybd_event(0x11, 0, 0, [UIntPtr]::Zero)
+    Key-Press 0x41
+    Key-Press 0x56
+    [WeldDesktopInput]::keybd_event(0x11, 0, 2, [UIntPtr]::Zero)
+    $null = Wait-Until { $filename.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.Value -eq $reportPath } 'native filename entered by keyboard'
+    Key-Press 0x09
+    $saveCondition = [System.Windows.Automation.AndCondition]::new(
+        [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::AutomationIdProperty, '1'),
+        [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Button))
+    $save = $dialog.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $saveCondition)
+    $save.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    $pdfPrefix = 'PDF-отчёт сохранён: '
+    $pdfStatus = Wait-Until {
+        $texts = $script:window.FindAll([System.Windows.Automation.TreeScope]::Descendants,
+            [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Text))
+        foreach ($text in $texts) { if ($text.Current.Name -eq ($pdfPrefix+$reportPath)) { return $text.Current.Name } }
+        return $null
+    } 'PDF generated and written by native adapter'
+    $actualPath = $pdfStatus.Substring($pdfPrefix.Length)
+    Write-Output "Synthetic report saved at: $actualPath"
+    if (-not [string]::Equals($actualPath, $reportPath, [StringComparison]::OrdinalIgnoreCase)) { throw "Native save chose '$actualPath' instead of '$reportPath'" }
+    $reportBytes = [System.IO.File]::ReadAllBytes($reportPath)
+    if ($reportBytes.Length -lt 1000 -or [System.Text.Encoding]::ASCII.GetString($reportBytes, 0, 5) -ne '%PDF-') { throw 'Invalid PDF report output' }
+    Click-Name 'Применить выбранный размер'
+    $null=Wait-Until { -not (Find-Name 'Рассчитать варианты' ([System.Windows.Automation.ControlType]::Button)) } 'discrete sizing manually applied'
+    Activate-Tree 'Шов S1'
+    $null=Wait-Until { (Read-Field 'S1 a') -eq '7.2' -and (Find-Name 'Сводка случаев · 3/3 — Все случаи рассчитаны') } 'factor 1.5 applied with every load case freshly recalculated'
+    Click-Name 'Отменить'
+    $null=Wait-Until { (Read-Field 'S1 a') -eq '4.8' -and -not (Find-Name 'Есть несохранённые изменения') } 'one Undo restores complete sizing source project'
+    Click-Name 'Повторить'
+    $null=Wait-Until { (Read-Field 'S1 a') -eq '7.2' -and (Find-Name 'Есть несохранённые изменения') } 'Redo restores chosen discrete candidate'
+    Click-Name 'Сохранить ревизию'
+    $null=Wait-Until { Find-Name 'Ревизия сохранена' } 'chosen discrete candidate persisted'
+    $handle = [IntPtr]$script:window.Current.NativeWindowHandle
+    $null = [WeldDesktopInput]::PostMessage($handle, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero)
+    if (-not $process.WaitForExit(10000)) { throw 'Discrete sizing application did not close cleanly' }
+    $process = Start-Process -FilePath $executable -PassThru
+    $script:window = Wait-Until {
+        $condition = [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $process.Id)
+        [System.Windows.Automation.AutomationElement]::RootElement.FindFirst([System.Windows.Automation.TreeScope]::Children, $condition)
+    } 'discrete sizing process restart'
+    $null = Wait-Until { $control=Find-Name 'Настройки приложения' ([System.Windows.Automation.ControlType]::Button);$control -and $control.Current.IsEnabled } 'settings loaded after discrete sizing restart'
+    Open-LatestRevision
+    Activate-Tree 'Шов S1'
+    if ((Read-Field 'S1 a') -ne '7.2') { throw 'Discrete sizing choice lost after restart' }
+    Click-Name 'Модель сечения'
+    if ((Read-Field 'Катет k₁, mm') -ne '9' -or (Read-Field 'Катет k₂, mm') -ne '12') { throw 'Discrete sizing source legs lost after restart' }
+    Click-Name 'Модель сечения'
+    $null=Wait-Until { Find-Name 'Сводка случаев · 3/3 — Все случаи рассчитаны' } 'discrete sizing cached results survive restart'
+    Click-Name 'Отчёт PDF'
+    $dialog = Wait-Until {
+        [System.Windows.Automation.AutomationElement]::RootElement.FindFirst(
+            [System.Windows.Automation.TreeScope]::Children,
+            [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::NameProperty, 'Weld Engineering — PDF'))
+    } 'native PDF save dialog'
+    $filename = Focus-PdfFilename $dialog
+    $reportPath = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../target/weld-discrete-applied-report-smoke.pdf'))
+    # The shell dialog requires actual editing keystrokes, not only UIA SetValue.
+    Set-Clipboard -Value $reportPath
+    [WeldDesktopInput]::keybd_event(0x11, 0, 0, [UIntPtr]::Zero)
+    Key-Press 0x41
+    Key-Press 0x56
+    [WeldDesktopInput]::keybd_event(0x11, 0, 2, [UIntPtr]::Zero)
+    $null = Wait-Until { $filename.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.Value -eq $reportPath } 'native filename entered by keyboard'
+    Key-Press 0x09
+    $saveCondition = [System.Windows.Automation.AndCondition]::new(
+        [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::AutomationIdProperty, '1'),
+        [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Button))
+    $save = $dialog.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $saveCondition)
+    $save.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    $pdfPrefix = 'PDF-отчёт сохранён: '
+    $pdfStatus = Wait-Until {
+        $texts = $script:window.FindAll([System.Windows.Automation.TreeScope]::Descendants,
+            [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Text))
+        foreach ($text in $texts) { if ($text.Current.Name -eq ($pdfPrefix+$reportPath)) { return $text.Current.Name } }
+        return $null
+    } 'PDF generated and written by native adapter'
+    $actualPath = $pdfStatus.Substring($pdfPrefix.Length)
+    Write-Output "Synthetic report saved at: $actualPath"
+    if (-not [string]::Equals($actualPath, $reportPath, [StringComparison]::OrdinalIgnoreCase)) { throw "Native save chose '$actualPath' instead of '$reportPath'" }
+    $reportBytes = [System.IO.File]::ReadAllBytes($reportPath)
+    if ($reportBytes.Length -lt 1000 -or [System.Text.Encoding]::ASCII.GetString($reportBytes, 0, 5) -ne '%PDF-') { throw 'Invalid PDF report output' }
+    Write-Output 'PASS: discrete minimum mass under explicit user thresholds, unknown candidate blocks selection, exclusions retained, explicit selection/manual apply, factor 1.5, one Undo/Redo, SQLite restart and independent sizing/incomplete/applied PDF evidence.'
     $handle = [IntPtr]$script:window.Current.NativeWindowHandle
     $null = [WeldDesktopInput]::PostMessage($handle, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero)
     if (-not $process.WaitForExit(10000)) { throw 'Restarted desktop did not close cleanly' }

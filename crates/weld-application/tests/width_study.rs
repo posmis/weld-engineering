@@ -69,6 +69,7 @@ fn project() -> Project {
 fn global_width_scaling_recomputes_independent_inverse_stress_and_user_ratio_reference() {
     let p = project();
     let result = evaluate(&WidthStudyRequest {
+        objective: None,
         schema_version: 1,
         project: p.clone(),
         factors: vec![1.0, 2.0, 0.5],
@@ -233,6 +234,7 @@ fn fillet_legs_mass_sources_frozen_combinations_and_old_sqlite_revision_are_pres
 fn failed_and_unsupported_candidates_remain_visible_and_cannot_be_applied() {
     let p = project();
     let result = evaluate(&WidthStudyRequest {
+        objective: None,
         schema_version: 1,
         project: p.clone(),
         factors: vec![1.0, 2.0, 1e308],
@@ -249,6 +251,7 @@ fn failed_and_unsupported_candidates_remain_visible_and_cannot_be_applied() {
     p.input.segments.truncate(1);
     p.last_calculation = None;
     let result = evaluate(&WidthStudyRequest {
+        objective: None,
         schema_version: 1,
         project: p.clone(),
         factors: vec![1.0],
@@ -279,6 +282,7 @@ fn invalid_factors_versions_and_explicit_work_budget_are_rejected() {
         (1..=17).map(f64::from).collect(),
     ] {
         assert!(evaluate(&WidthStudyRequest {
+            objective: None,
             schema_version: 1,
             project: project(),
             factors
@@ -286,6 +290,7 @@ fn invalid_factors_versions_and_explicit_work_budget_are_rejected() {
         .is_err());
     }
     assert!(evaluate(&WidthStudyRequest {
+        objective: None,
         schema_version: 2,
         project: project(),
         factors: vec![1.0]
@@ -320,6 +325,7 @@ fn invalid_factors_versions_and_explicit_work_budget_are_rejected() {
     });
     assert_eq!(
         evaluate(&WidthStudyRequest {
+            objective: None,
             schema_version: 1,
             project: p,
             factors: vec![1.0, 2.0, 3.0, 4.0, 5.0]
@@ -328,4 +334,197 @@ fn invalid_factors_versions_and_explicit_work_budget_are_rejected() {
         .code,
         "width_study_budget"
     );
+}
+
+fn sizing_project() -> Project {
+    let mut p = project();
+    p.last_calculation = None;
+    p.input.force_n = [0.0, 0.0, 600.0];
+    p.input.couple_n_mm = [0.0; 3];
+    for s in &mut p.input.segments {
+        s.section = Some(SectionModel::IdealizedRightAngleFillet {
+            leg_1_mm: 3.0,
+            leg_2_mm: 4.0,
+        });
+        s.effective_width_mm = 2.4;
+    }
+    let limits = p.user_limits.as_mut().unwrap();
+    limits.tension.value_mpa = 2.0;
+    limits.compression.value_mpa = 2.0;
+    limits.shear.value_mpa = 2.0;
+    p.materials.as_mut().unwrap().weld = Some(weld_application::materials::MaterialCard {
+        kind: weld_application::materials::MaterialKind::Custom,
+        designation: "Synthetic weld".into(),
+        product_form: None,
+        condition: None,
+        properties: vec![weld_application::materials::CustomProperty {
+            kind: weld_application::materials::PropertyKind::Density,
+            value: 8000.0,
+            thickness_mm: [0.0, 20.0],
+            temperature_c: [20.0, 20.0],
+            source: "User density S-001".into(),
+        }],
+    });
+    p
+}
+#[test]
+fn finite_candidate_volume_and_mass_selection_rejects_excess_and_recalculates_every_metric() {
+    for objective in [WidthObjective::MinimumVolume, WidthObjective::MinimumMass] {
+        let p = sizing_project();
+        let original = p.clone();
+        let result = evaluate(&WidthStudyRequest {
+            objective: Some(objective),
+            schema_version: 1,
+            project: p,
+            factors: vec![2.0, 1.0, 0.5],
+        })
+        .unwrap();
+        let selection = result.selection.unwrap();
+        assert_eq!(result.source_project, original);
+        assert_eq!(selection.status, SelectionStatus::Complete);
+        assert_eq!(selection.eligible_count, 2);
+        assert_eq!(selection.unavailable_count, 0);
+        assert_eq!(selection.selected_row_index, Some(1));
+        assert_eq!(selection.exclusions[0].row_index, 2);
+        assert_eq!(
+            selection.exclusions[0].reason,
+            ExclusionReason::LimitsExceeded
+        );
+        for (row, volume) in result.rows.iter().zip([4800.0, 1200.0, 300.0]) {
+            let q = row.quantities.as_ref().unwrap();
+            assert_eq!(q.volume_mm3, Some(volume));
+            assert!((q.mass_kg.unwrap() - volume * 1e-9 * 8000.0).abs() < 1e-15);
+            assert_eq!(
+                row.comparison.as_ref().unwrap().strength_status,
+                weld_application::StrengthStatus::UnsupportedCalculation
+            );
+        }
+        let expected = if objective == WidthObjective::MinimumVolume {
+            1200.0
+        } else {
+            0.0096
+        };
+        assert!((selection.objective_value.unwrap() - expected).abs() < 1e-15);
+    }
+}
+#[test]
+fn an_unknown_quantity_or_failed_candidate_blocks_discrete_selection_even_with_known_eligible_rows()
+{
+    let p = sizing_project();
+    let result = evaluate(&WidthStudyRequest {
+        objective: Some(WidthObjective::MinimumMass),
+        schema_version: 1,
+        project: p.clone(),
+        factors: vec![1.0, 2.0, 1e308],
+    })
+    .unwrap();
+    let s = result.selection.unwrap();
+    assert_eq!(s.eligible_count, 2);
+    assert_eq!(s.unavailable_count, 1);
+    assert_eq!(s.status, SelectionStatus::Incomplete);
+    assert!(s.selected_row_index.is_none() && s.objective_value.is_none());
+    let mut p = p;
+    p.input.segments[0].section = None;
+    p.last_calculation = None;
+    let result = evaluate(&WidthStudyRequest {
+        objective: Some(WidthObjective::MinimumVolume),
+        schema_version: 1,
+        project: p,
+        factors: vec![1.0, 2.0],
+    })
+    .unwrap();
+    let s = result.selection.unwrap();
+    assert_eq!(s.status, SelectionStatus::Incomplete);
+    assert_eq!(s.unavailable_count, 2);
+    assert!(s.selected_row_index.is_none());
+    assert_eq!(s.exclusions[0].reason, ExclusionReason::QuantityUnavailable);
+}
+#[test]
+fn no_eligible_candidate_missing_limits_and_out_of_domain_density_never_produce_a_minimum() {
+    let mut p = sizing_project();
+    let result = evaluate(&WidthStudyRequest {
+        objective: Some(WidthObjective::MinimumVolume),
+        schema_version: 1,
+        project: p.clone(),
+        factors: vec![0.1, 0.2],
+    })
+    .unwrap();
+    let s = result.selection.unwrap();
+    assert_eq!(s.status, SelectionStatus::Complete);
+    assert_eq!(s.eligible_count, 0);
+    assert_eq!(s.unavailable_count, 0);
+    assert!(s.selected_row_index.is_none());
+    p.materials.as_mut().unwrap().context.temperature_c = 21.0;
+    let result = evaluate(&WidthStudyRequest {
+        objective: Some(WidthObjective::MinimumMass),
+        schema_version: 1,
+        project: p.clone(),
+        factors: vec![1.0, 2.0],
+    })
+    .unwrap();
+    assert_eq!(
+        result.selection.unwrap().status,
+        SelectionStatus::Incomplete
+    );
+    p.user_limits = None;
+    assert_eq!(
+        evaluate(&WidthStudyRequest {
+            objective: Some(WidthObjective::MinimumVolume),
+            schema_version: 1,
+            project: p.clone(),
+            factors: vec![1.0]
+        })
+        .unwrap_err()
+        .code,
+        "width_study_limits_required"
+    );
+    assert!(evaluate(&WidthStudyRequest {
+        objective: None,
+        schema_version: 1,
+        project: p,
+        factors: vec![1.0]
+    })
+    .unwrap()
+    .selection
+    .is_none());
+}
+
+#[test]
+fn quantity_numerical_error_does_not_change_analysis_status_but_blocks_objective_selection() {
+    let mut p = sizing_project();
+    for s in &mut p.input.segments {
+        let model = SectionModel::IdealizedRightAngleFillet {
+            leg_1_mm: 1e140,
+            leg_2_mm: 1e140,
+        };
+        s.effective_width_mm = weld_application::sections::width(&model).unwrap();
+        s.section = Some(model);
+    }
+    p.materials
+        .as_mut()
+        .unwrap()
+        .weld
+        .as_mut()
+        .unwrap()
+        .properties[0]
+        .value = 1e60;
+    let r = evaluate(&WidthStudyRequest {
+        objective: Some(WidthObjective::MinimumMass),
+        schema_version: 1,
+        project: p,
+        factors: vec![1.0],
+    })
+    .unwrap();
+    assert_eq!(r.rows[0].status, WidthStudyStatus::Complete);
+    assert_eq!(
+        r.rows[0].quantity_error.as_ref().unwrap().code,
+        "numerical_range"
+    );
+    let selection = r.selection.unwrap();
+    assert_eq!(selection.status, SelectionStatus::Incomplete);
+    assert_eq!(
+        selection.exclusions[0].reason,
+        ExclusionReason::QuantityError
+    );
+    assert!(selection.selected_row_index.is_none());
 }

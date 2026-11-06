@@ -412,3 +412,13 @@ async fn quantities_endpoint_distinguishes_volume_from_nominal_effective_area() 
     assert_eq!(v["segments"][0]["section_area_mm2"], 6.0);
     assert!(v["mass_kg"].is_null());
 }
+
+#[tokio::test]
+async fn discrete_width_objective_requires_explicit_user_limits() {
+    let p = serde_json::json!({"schema_version":1,"title":"HTTP selection","input":input(),"last_calculation":null});
+    let r=weld_api::router("test-token".into()).oneshot(request("/api/v1/studies/width",serde_json::json!({"schema_version":1,"project":p,"factors":[1,2],"objective":"minimum_mass"}))).await.unwrap();
+    assert_eq!(r.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    let v: serde_json::Value =
+        serde_json::from_slice(&r.into_body().collect().await.unwrap().to_bytes()).unwrap();
+    assert_eq!(v["code"], "width_study_limits_required");
+}

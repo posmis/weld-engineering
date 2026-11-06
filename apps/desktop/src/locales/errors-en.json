@@ -36,5 +36,6 @@
   "invalid_width_study": "Enter 1–16 distinct finite positive scale factors.",
   "width_study_budget": "Variants × cases × segments exceeds 32768. Reduce candidates or problem size.",
   "width_study_incomplete": "Candidate is incomplete and cannot be applied. Check loads and numeric limits.",
-  "invalid_width_study_response": "Study response does not match its source project or factors. Recalculate."
+  "invalid_width_study_response": "Study response does not match its source project or factors. Recalculate.",
+  "width_study_limits_required": "Selection requires explicit user tension, compression and shear thresholds."
 }

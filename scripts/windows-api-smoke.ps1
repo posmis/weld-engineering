@@ -181,6 +181,14 @@ try {
     $unknownQuantity=Invoke-RestMethod -Method Post -Uri "$base/quantities/evaluate" -Headers $headers -ContentType 'application/json' -Body ($quantityRequest|ConvertTo-Json -Depth 100)
     Assert-Contract 'QuantityResult' ($unknownQuantity|ConvertTo-Json -Depth 100)
     if ($unknownQuantity.volume_mm3 -ne 600 -or $null -ne $unknownQuantity.mass_kg) { throw 'Missing applicable weld density became an invented mass' }
+    $quantityRequest.materials.context.thickness_mm=10
+    $sizingLimits=@{method_id='independent-nominal-components-v1';tension=@{value_mpa=3;source='User sizing T'};compression=@{value_mpa=20;source='User sizing C'};shear=@{value_mpa=10;source='User sizing S'}}
+    $sizingProject=@{schema_version=1;title='Synthetic discrete sizing';input=$sectionJoint;last_calculation=$null;materials=$quantityRequest.materials;user_limits=$sizingLimits}
+    $sizingJson=@{schema_version=1;project=$sizingProject;factors=@(2,1,0.5);objective='minimum_mass'}|ConvertTo-Json -Depth 100
+    Assert-Contract 'WidthStudyRequest' $sizingJson
+    $sizing=Invoke-RestMethod -Method Post -Uri "$base/studies/width" -Headers $headers -ContentType 'application/json' -Body $sizingJson
+    Assert-Contract 'WidthStudyResult' ($sizing|ConvertTo-Json -Depth 100)
+    if ($sizing.selection.status -ne 'complete' -or $sizing.selection.selected_row_index -ne 1 -or $sizing.selection.eligible_count -ne 2 -or [Math]::Abs($sizing.selection.objective_value-0.0048) -gt 1e-12 -or $sizing.selection.exclusions[0].reason -ne 'limits_exceeded') { throw 'Discrete mass selection ignored explicit user thresholds or chose incorrect geometry' }
     $clientOutput = & dotnet run --no-build --configuration Release --project (Join-Path $PSScriptRoot '../examples/inventor-client/WeldClient.csproj') -- $port
     if ($LASTEXITCODE -ne 0 -or ($clientOutput -join ' ') -notmatch 'unsupported_calculation') { throw 'C# client did not complete a real API calculation' }
 

@@ -12,6 +12,8 @@ pub const MAX_WORK: usize = 32768;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct WidthStudyRequest {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub objective: Option<WidthObjective>,
     pub schema_version: u32,
     pub project: Project,
     pub factors: Vec<f64>,
@@ -33,6 +35,8 @@ pub enum WidthStudyStatus {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct WidthStudyRow {
+    pub quantities: Option<crate::quantities::QuantityResult>,
+    pub quantity_error: Option<AppError>,
     pub factor: f64,
     pub status: WidthStudyStatus,
     pub area_mm2: Option<f64>,
@@ -44,10 +48,114 @@ pub struct WidthStudyRow {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct WidthStudyResult {
+    pub selection: Option<WidthSelection>,
     pub schema_version: u32,
     pub method_id: String,
     pub source_project: Project,
     pub rows: Vec<WidthStudyRow>,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum WidthObjective {
+    MinimumVolume,
+    MinimumMass,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SelectionStatus {
+    Complete,
+    Incomplete,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ExclusionReason {
+    CalculationUnavailable,
+    LimitsUnavailable,
+    LimitsExceeded,
+    QuantityUnavailable,
+    QuantityError,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct WidthExclusion {
+    pub row_index: usize,
+    pub reason: ExclusionReason,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct WidthSelection {
+    pub objective: WidthObjective,
+    pub status: SelectionStatus,
+    pub eligible_count: usize,
+    pub unavailable_count: usize,
+    pub selected_row_index: Option<usize>,
+    pub objective_value: Option<f64>,
+    pub exclusions: Vec<WidthExclusion>,
+}
+fn select(rows: &[WidthStudyRow], objective: WidthObjective) -> WidthSelection {
+    let mut result = WidthSelection {
+        objective,
+        status: SelectionStatus::Complete,
+        eligible_count: 0,
+        unavailable_count: 0,
+        selected_row_index: None,
+        objective_value: None,
+        exclusions: vec![],
+    };
+    for (i, row) in rows.iter().enumerate() {
+        let reason = if row.status != WidthStudyStatus::Complete {
+            Some(ExclusionReason::CalculationUnavailable)
+        } else {
+            match row.comparison.as_ref().map(|c| &c.status) {
+                Some(user_limits::ComparisonStatus::ExceedsUserLimits) => {
+                    Some(ExclusionReason::LimitsExceeded)
+                }
+                Some(user_limits::ComparisonStatus::WithinUserLimits) => None,
+                _ => Some(ExclusionReason::LimitsUnavailable),
+            }
+        };
+        let metric = row.quantities.as_ref().and_then(|q| {
+            if q.complete {
+                match objective {
+                    WidthObjective::MinimumVolume => q.volume_mm3,
+                    WidthObjective::MinimumMass => q.mass_kg,
+                }
+            } else {
+                None
+            }
+        });
+        let reason = reason.or_else(|| {
+            if row.quantity_error.is_some() {
+                Some(ExclusionReason::QuantityError)
+            } else if metric.is_none() {
+                Some(ExclusionReason::QuantityUnavailable)
+            } else {
+                None
+            }
+        });
+        if let Some(reason) = reason {
+            if reason != ExclusionReason::LimitsExceeded {
+                result.unavailable_count += 1;
+            }
+            result.exclusions.push(WidthExclusion {
+                row_index: i,
+                reason,
+            });
+            continue;
+        }
+        let metric = metric.expect("known objective metric after exclusion");
+        result.eligible_count += 1;
+        if result.objective_value.is_none_or(|old| metric < old) {
+            result.selected_row_index = Some(i);
+            result.objective_value = Some(metric);
+        }
+    }
+    if result.unavailable_count > 0 {
+        result.status = SelectionStatus::Incomplete;
+        result.selected_row_index = None;
+        result.objective_value = None;
+    }
+    result
 }
 fn validate(project: &Project, factors: &[f64]) -> Result<(), AppError> {
     project.to_json()?;
@@ -136,6 +244,8 @@ fn candidate(project: &Project, factor: f64) -> Result<(Project, WidthStudyRow),
         .value();
     let (updated, summary, failures) = recalculate(scaled)?;
     let mut row = WidthStudyRow {
+        quantities: None,
+        quantity_error: None,
         factor,
         status: if summary.complete {
             WidthStudyStatus::Complete
@@ -160,6 +270,14 @@ fn candidate(project: &Project, factor: f64) -> Result<(Project, WidthStudyRow),
             }
         }
     }
+    match crate::quantities::evaluate(&crate::quantities::QuantityRequest {
+        schema_version: SCHEMA_VERSION,
+        segments: updated.input.segments.clone(),
+        materials: updated.materials.clone(),
+    }) {
+        Ok(value) => row.quantities = Some(value),
+        Err(error) => row.quantity_error = Some(error),
+    }
     Ok((updated, row))
 }
 pub fn evaluate(request: &WidthStudyRequest) -> Result<WidthStudyResult, AppError> {
@@ -167,12 +285,20 @@ pub fn evaluate(request: &WidthStudyRequest) -> Result<WidthStudyResult, AppErro
         return Err(AppError::new("unsupported_schema", Some("schema_version")));
     }
     validate(&request.project, &request.factors)?;
-    let rows = request
+    if request.objective.is_some() && request.project.user_limits.is_none() {
+        return Err(AppError::new(
+            "width_study_limits_required",
+            Some("project.user_limits"),
+        ));
+    }
+    let rows: Vec<WidthStudyRow> = request
         .factors
         .iter()
         .map(|&factor| match candidate(&request.project, factor) {
             Ok((_, row)) => row,
             Err(error) => WidthStudyRow {
+                quantities: None,
+                quantity_error: None,
                 factor,
                 status: WidthStudyStatus::Failed,
                 area_mm2: None,
@@ -183,7 +309,9 @@ pub fn evaluate(request: &WidthStudyRequest) -> Result<WidthStudyResult, AppErro
             },
         })
         .collect();
+    let selection = request.objective.map(|objective| select(&rows, objective));
     Ok(WidthStudyResult {
+        selection,
         schema_version: SCHEMA_VERSION,
         method_id: "global-effective-width-study-v1".into(),
         source_project: request.project.clone(),
