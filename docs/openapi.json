@@ -2126,6 +2126,143 @@
           }
         }
       }
+    },
+    "/api/v1/quantities/evaluate": {
+      "post": {
+        "summary": "Idealized triangular prism volume and applicable user-provided weld density mass; unknown sections remain null",
+        "responses": {
+          "200": {
+            "description": "Success; computed is not a strength verdict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuantityResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or incorrect Bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Browser Origin rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Route not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "408": {
+            "description": "Calculation deadline exceeded; worker remains reserved until it exits",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body exceeds 1 MiB",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Use application/json",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input or unsupported application method; see code/field",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Both calculation workers occupied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal calculation task failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuantityRequest"
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -4190,6 +4327,155 @@
             "maxItems": 16,
             "items": {
               "$ref": "#/components/schemas/WidthStudyRow"
+            }
+          }
+        }
+      },
+      "QuantityRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schema_version",
+          "segments"
+        ],
+        "properties": {
+          "schema_version": {
+            "const": 1
+          },
+          "segments": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 256,
+            "items": {
+              "$ref": "#/components/schemas/Segment"
+            }
+          },
+          "materials": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MaterialSelection"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "SegmentQuantity": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "segment_index",
+          "length_mm",
+          "section_area_mm2",
+          "volume_mm3",
+          "mass_kg"
+        ],
+        "properties": {
+          "segment_index": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 255
+          },
+          "length_mm": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "section_area_mm2": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "volume_mm3": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "mass_kg": {
+            "type": [
+              "number",
+              "null"
+            ]
+          }
+        }
+      },
+      "QuantityResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schema_version",
+          "method_id",
+          "source",
+          "total_segments",
+          "known_segments",
+          "complete",
+          "known_volume_mm3",
+          "volume_mm3",
+          "mass_kg",
+          "density_kg_m3",
+          "density_source",
+          "segments"
+        ],
+        "properties": {
+          "schema_version": {
+            "const": 1
+          },
+          "method_id": {
+            "const": "prismatic-right-triangle-quantities-v1"
+          },
+          "source": {
+            "$ref": "#/components/schemas/QuantityRequest"
+          },
+          "total_segments": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 256
+          },
+          "known_segments": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 256
+          },
+          "complete": {
+            "type": "boolean"
+          },
+          "known_volume_mm3": {
+            "type": "number",
+            "minimum": 0
+          },
+          "volume_mm3": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "mass_kg": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "density_kg_m3": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "density_source": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "segments": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 256,
+            "items": {
+              "$ref": "#/components/schemas/SegmentQuantity"
             }
           }
         }

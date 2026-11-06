@@ -171,6 +171,16 @@ try {
     Assert-Contract 'CalculationResult' ($sectionResult | ConvertTo-Json -Depth 100)
     if ($sectionResult.geometry.area_mm2 -ne 240 -or $sectionResult.traction_mpa[2] -ne 2.5 -or $sectionResult.strength_status -ne 'unsupported_calculation') { throw 'Derived section did not reach the actual nominal calculation' }
 
+    $quantityRequest=@{schema_version=1;segments=$sectionJoint.segments;materials=@{context=@{thickness_mm=10;temperature_c=20};base=$null;weld=@{kind='custom';designation='Synthetic weld';product_form=$null;condition=$null;properties=@(@{kind='density';value=8000;thickness_mm=@(0,20);temperature_c=@(20,20);source='User density Q-001'})}}}
+    $quantityJson=$quantityRequest|ConvertTo-Json -Depth 100
+    Assert-Contract 'QuantityRequest' $quantityJson
+    $quantity=Invoke-RestMethod -Method Post -Uri "$base/quantities/evaluate" -Headers $headers -ContentType 'application/json' -Body $quantityJson
+    Assert-Contract 'QuantityResult' ($quantity|ConvertTo-Json -Depth 100)
+    if ($quantity.volume_mm3 -ne 600 -or [Math]::Abs($quantity.mass_kg-0.0048) -gt 1e-12 -or $quantity.density_source -ne 'User density Q-001') { throw 'Prismatic section volume or SI density conversion is wrong' }
+    $quantityRequest.materials.context.thickness_mm=21
+    $unknownQuantity=Invoke-RestMethod -Method Post -Uri "$base/quantities/evaluate" -Headers $headers -ContentType 'application/json' -Body ($quantityRequest|ConvertTo-Json -Depth 100)
+    Assert-Contract 'QuantityResult' ($unknownQuantity|ConvertTo-Json -Depth 100)
+    if ($unknownQuantity.volume_mm3 -ne 600 -or $null -ne $unknownQuantity.mass_kg) { throw 'Missing applicable weld density became an invented mass' }
     $clientOutput = & dotnet run --no-build --configuration Release --project (Join-Path $PSScriptRoot '../examples/inventor-client/WeldClient.csproj') -- $port
     if ($LASTEXITCODE -ne 0 -or ($clientOutput -join ' ') -notmatch 'unsupported_calculation') { throw 'C# client did not complete a real API calculation' }
 

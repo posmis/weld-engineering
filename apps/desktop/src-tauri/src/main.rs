@@ -80,6 +80,12 @@ fn evaluate_user_limits(
     weld_application::user_limits::evaluate(&request)
 }
 #[tauri::command]
+fn evaluate_quantities(
+    request: weld_application::quantities::QuantityRequest,
+) -> Result<weld_application::quantities::QuantityResult, AppError> {
+    weld_application::quantities::evaluate(&request)
+}
+#[tauri::command]
 fn evaluate_width_study(
     request: weld_application::width_study::WidthStudyRequest,
 ) -> Result<weld_application::width_study::WidthStudyResult, AppError> {
@@ -207,6 +213,7 @@ fn main() {
             evaluate_materials,
             validate_user_limits,
             evaluate_user_limits,
+            evaluate_quantities,
             evaluate_width_study,
             apply_width_scale,
             save_pdf_report,

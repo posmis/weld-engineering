@@ -71,3 +71,6 @@ export interface GeometryTransformRequest { copy_index?: number; schema_version:
 export interface WidthStudyRequest {schema_version:1;project:Project;factors:number[]}
 export interface WidthStudyRow {factor:number;status:'complete'|'incomplete'|'failed';area_mm2:number|null;summary:CaseSummary|null;comparison:LimitEvaluation|null;failures:{case_id:string;error:{code:string;field:string|null}}[];error:{code:string;field:string|null}|null}
 export interface WidthStudyResult {schema_version:1;method_id:string;source_project:Project;rows:WidthStudyRow[]}
+
+export interface QuantityRequest {schema_version:1;segments:SegmentInput[];materials:MaterialSelection|null}
+export interface QuantityResult {schema_version:1;method_id:string;source:QuantityRequest;total_segments:number;known_segments:number;complete:boolean;known_volume_mm3:number;volume_mm3:number|null;mass_kg:number|null;density_kg_m3:number|null;density_source:string|null;segments:{segment_index:number;length_mm:number;section_area_mm2:number|null;volume_mm3:number|null;mass_kg:number|null}[]}

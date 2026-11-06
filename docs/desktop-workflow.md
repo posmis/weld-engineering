@@ -1,3 +1,5 @@
+> В работе 2026-11-06: [геометрический объём и масса швов](weld-quantities.md), explicit triangle prisms + applicable custom weld density, partial/null, fresh Rust/Tauri/REST/PDF, исходные нагрузки и номинальная механика независимы. Project/schema/SQLite не меняются; UI в конце, тёмная тема по умолчанию. Windows-проверки ожидаются.
+
 > Новый модуль: [сравнение размеров](width-parameter-study.md), кнопка «Размеры», коэффициенты ширины, пересчёт всех случаев, ручной выбор и один Undo; таблица сохраняется в PDF до применения. [Windows run 42187561551 — SUCCESS](https://github.com/posmis/weld-engineering/actions/runs/42187561551), source `30c402e`: 105 Rust/API, 111 frontend ×3, установленный EXE/SQLite/restart/Undo/Redo, HTTP/OpenAPI/C#, независимый PDF/parser и NSIS/uninstall.
 
 > Актуальная компоновка — классическое CAD/CAE-окно: верхняя панель инструментов, слева дерево и свойства, справа постоянное рабочее поле, снизу раскрываемые результаты. Принудительный fullscreen и прежняя страница-список больше не используются. Подробности и проверка — в последнем разделе этого документа.

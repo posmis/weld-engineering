@@ -297,5 +297,16 @@
   "runWidthStudy": "Calculate variants",
   "applyWidthCandidate": "Apply selected size",
   "studyPdf": "Variants PDF report",
-  "widthStudyResults": "Size variant results"
+  "widthStudyResults": "Size variant results",
+  "quantities": "Weld volume and mass",
+  "quantityScope": "Idealized right-triangle prisms: V = ½ k₁ k₂ L. Excludes reinforcement, penetration, intersections, losses and process allowances. Nominal effective area differs from triangle area. Mass uses applicable user-provided weld-metal density; unknown sections are not zero. No normative or purchasing-mass assessment.",
+  "quantityVolume": "Total geometric volume",
+  "quantityKnownVolume": "Known-section volume",
+  "quantityMass": "Total geometric mass",
+  "quantityDensity": "Weld-metal density",
+  "quantityUnknown": "Unknown",
+  "quantityArea": "Triangle area",
+  "quantityLength": "Length",
+  "quantityMissing": "Total volume requires every section model; mass also requires applicable weld-metal density.",
+  "quantityComplete": "All sections specified"
 }

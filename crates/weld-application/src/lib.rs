@@ -8,6 +8,7 @@ pub mod inertia;
 pub mod intermittent;
 pub mod materials;
 pub mod projects;
+pub mod quantities;
 pub mod sections;
 pub mod settings;
 pub mod user_limits;

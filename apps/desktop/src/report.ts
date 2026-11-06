@@ -2,10 +2,10 @@ import { PDFDocument, rgb, type PDFPage } from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
 import fontLicense from './assets/OFL.txt?raw';
 import {sameValue} from './projectHistory';
-import type { CalculationResult, CaseSummary, Project, MaterialEvaluation, MaterialPropertyKind, LimitEvaluation, WidthStudyResult } from './contracts';
+import type { CalculationResult, CaseSummary, Project, MaterialEvaluation, MaterialPropertyKind, LimitEvaluation, WidthStudyResult, QuantityResult } from './contracts';
 
 /** Presentation only. All mechanical values and envelopes come from Rust snapshots. */
-export async function createReport(project: Project, fontBytes: Uint8Array, summary: CaseSummary | null, date = new Date(), materials:MaterialEvaluation|null=null, limits:LimitEvaluation|null=null, study:WidthStudyResult|null=null): Promise<Uint8Array> {
+export async function createReport(project: Project, fontBytes: Uint8Array, summary: CaseSummary | null, date = new Date(), materials:MaterialEvaluation|null=null, limits:LimitEvaluation|null=null, study:WidthStudyResult|null=null, quantities:QuantityResult|null=null): Promise<Uint8Array> {
   const pdf = await PDFDocument.create(); pdf.registerFontkit(fontkit);
   const font = await pdf.embedFont(fontBytes, { subset: true });
   pdf.setTitle(project.title); pdf.setAuthor('Weld Engineering'); pdf.setSubject('Номинальные напряжения. Нормативная прочность не проверена.'); pdf.setCreationDate(date);
@@ -60,6 +60,13 @@ export async function createReport(project: Project, fontBytes: Uint8Array, summ
     if(study.schema_version!==1||study.method_id!=='global-effective-width-study-v1'||!sameValue(JSON.parse(JSON.stringify(study.source_project)),JSON.parse(JSON.stringify(project))))throw new Error('Width study does not match source project');
     heading('Варианты размеров швов');line('Ручное сравнение номинальных моделей. Масштаб эффективной ширины и катетов, фиксированные координаты/нагрузки/условия материалов. Все случаи пересчитаны; нормативная прочность и пригодность не установлены. Площадь эффективного сечения не является объёмом или массой сварки.');line(study.method_id);
     for(const row of study.rows){const factor=row.factor>=1e8||row.factor<1e-5?row.factor.toExponential(5):number(row.factor);line(`Масштаб ${factor}: ${row.status}; A=${row.area_mm2===null?'неизвестно':number(row.area_mm2)} mm²; случаи ${row.summary?`${row.summary.computed}/${row.summary.total}`:'не рассчитаны'}`);if(row.summary){line(`σz min / max: ${row.summary.normal_min?number(row.summary.normal_min.value_mpa):'неизвестно'} / ${row.summary.normal_max?number(row.summary.normal_max.value_mpa):'неизвестно'} MPa; |τ| max: ${row.summary.shear_max?number(row.summary.shear_max.value_mpa):'неизвестно'} MPa`);}if(row.comparison)line(`Пользовательские пороги: ${row.comparison.status}; u max=${row.comparison.maximum_ratio===null?'неизвестно':number(row.comparison.maximum_ratio)}. Не нормативный pass.`);if(row.error)line(`Ошибка: ${row.error.code}`);for(const failure of row.failures)line(`Случай ${failure.case_id}: ${failure.error.code}`);}
+  }
+  if(quantities){
+    if(quantities.schema_version!==1||quantities.method_id!=='prismatic-right-triangle-quantities-v1'||!sameValue(JSON.parse(JSON.stringify(quantities.source)),JSON.parse(JSON.stringify({schema_version:1,segments:project.input.segments,materials:project.materials??null}))))throw new Error('Quantities do not match source geometry/materials');
+    heading('Объём и масса швов');line(quantities.method_id);line('V = 0.5*k1*k2*L; m [kg] = V [mm3]*1e-9*rho [kg/m3]. Идеализированные прямоугольные треугольные призмы, без усиления, провара, перекрытий и потерь. Не нормативная или закупочная масса. Эффективная площадь номинального расчёта не равна площади треугольника.');
+    const qnumber=(n:number|null)=>n===null?'неизвестно':n!==0&&(Math.abs(n)<1e-5||Math.abs(n)>=1e8)?n.toExponential(6):number(n);
+    line(`Сечения: ${quantities.known_segments}/${quantities.total_segments}; полный объём [mm3]: ${qnumber(quantities.volume_mm3)}; объём известных участков [mm3]: ${qnumber(quantities.known_volume_mm3)}`);line(`Полная геометрическая масса [kg]: ${qnumber(quantities.mass_kg)}; плотность наплавленного металла [kg/m3]: ${qnumber(quantities.density_kg_m3)}`);line(`Источник плотности: ${quantities.density_source??'неизвестно'}. Без применимой плотности масса неизвестна; основной металл не подставляется.`);
+    for(const row of quantities.segments)line(`S${row.segment_index+1}: L=${qnumber(row.length_mm)} mm; площадь треугольника=${qnumber(row.section_area_mm2)} mm2; V=${qnumber(row.volume_mm3)} mm3; m=${qnumber(row.mass_kg)} kg`);
   }
   heading('Схема и общая геометрия');
   const points = project.input.segments.flatMap(s => [s.start_mm, s.end_mm]);
@@ -131,6 +138,7 @@ export async function createReport(project: Project, fontBytes: Uint8Array, summ
   line('Подпись и проверка инженера: __________________________________');
   const pages = pdf.getPages();
   pages.forEach((p, i) => p.drawText(`Weld Engineering | ${i + 1} / ${pages.length} | Прочность не проверена`, { x: 42, y: 24, font, size: 8, color: rgb(0.4, 0.4, 0.4) }));
+  if(quantities){await pdf.attach(new TextEncoder().encode(JSON.stringify(quantities,null,2)),'weld-quantities.json',{mimeType:'application/json',description:'Idealized triangular volume and user-density mass; missing values remain unknown'});}
   if(study){await pdf.attach(new TextEncoder().encode(JSON.stringify(study,null,2)),'width-study.json',{mimeType:'application/json',description:'Source project and explicit width variants; no normative sizing'});}
   if(project.user_limits&&limits){await pdf.attach(new TextEncoder().encode(JSON.stringify(limits,null,2)),'user-limit-comparison.json',{mimeType:'application/json',description:'Independent user thresholds, not normative strength acceptance'});}
   await pdf.attach(new TextEncoder().encode(JSON.stringify(project, null, 2)), 'weld-project.json', { mimeType: 'application/json', description: 'Project inputs and original result snapshots', creationDate: date });

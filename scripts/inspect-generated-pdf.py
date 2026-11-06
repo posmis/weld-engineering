@@ -180,3 +180,59 @@ for original, scaled in zip(limit_project['casebook']['cases'],scaled_project['c
     for a,b in fields:
         assert all(math.isclose(y,x/2,rel_tol=1e-12,abs_tol=1e-12) for x,y in zip(a,b,strict=True))
 print('PASS: independent PDF parser verifies source/failed study rows, doubled effective area/fillet legs, unchanged coordinates/materials/loads/frozen combinations and halved nominal fields for all 3 cases; no normative acceptance.')
+
+# Quantities are freshly derived from geometry/materials, independently of nominal forces/results.
+for filename in ['weld-report-smoke.pdf','weld-mass-report-smoke.pdf','weld-combination-report-smoke.pdf','weld-combination-edit-report-smoke.pdf','weld-material-report-smoke.pdf','weld-user-limits-report-smoke.pdf','weld-width-study-report-smoke.pdf','weld-width-applied-report-smoke.pdf','weld-quantities-report-smoke.pdf','weld-quantities-unknown-report-smoke.pdf']:
+    qreader = PdfReader(path.with_name(filename))
+    qproject = json.loads(qreader.attachments['weld-project.json'][0])
+    q = json.loads(qreader.attachments['weld-quantities.json'][0])
+    assert q['method_id'] == 'prismatic-right-triangle-quantities-v1'
+    assert q['source'] == {'schema_version':1,'segments':qproject['input']['segments'],'materials':qproject.get('materials')}
+    expected_volumes=[]
+    for segment,row in zip(qproject['input']['segments'],q['segments'],strict=True):
+        length=math.hypot(*(b-a for a,b in zip(segment['start_mm'],segment['end_mm'],strict=True)))
+        assert math.isclose(row['length_mm'],length,rel_tol=1e-12)
+        if 'section' not in segment:
+            assert row['section_area_mm2'] is None and row['volume_mm3'] is None and row['mass_kg'] is None
+        else:
+            area=segment['section']['leg_1_mm']*segment['section']['leg_2_mm']/2
+            volume=area*length
+            expected_volumes.append(volume)
+            assert math.isclose(row['section_area_mm2'],area,rel_tol=1e-12)
+            assert math.isclose(row['volume_mm3'],volume,rel_tol=1e-12)
+            if q['density_kg_m3'] is None:
+                assert row['mass_kg'] is None
+            else:
+                assert math.isclose(row['mass_kg'],volume*1e-9*q['density_kg_m3'],rel_tol=1e-12)
+    assert q['known_segments'] == len(expected_volumes)
+    assert q['total_segments'] == len(qproject['input']['segments'])
+    assert q['complete'] == (len(expected_volumes)==q['total_segments'])
+    assert math.isclose(q['known_volume_mm3'],sum(expected_volumes),rel_tol=1e-12)
+    if q['complete']:
+        assert math.isclose(q['volume_mm3'],sum(expected_volumes),rel_tol=1e-12)
+    else:
+        assert q['volume_mm3'] is None and q['mass_kg'] is None
+qreader = PdfReader(path.with_name('weld-quantities-report-smoke.pdf'))
+quantity_project = json.loads(qreader.attachments['weld-project.json'][0])
+q = json.loads(qreader.attachments['weld-quantities.json'][0])
+assert q['volume_mm3'] == 4800.0 and math.isclose(q['mass_kg'],0.0384,rel_tol=1e-12)
+assert q['density_kg_m3'] == 8000.0 and q['density_source'] == 'User density Q-001'
+assert [r['section_area_mm2'] for r in q['segments']] == [24.0,24.0]
+assert quantity_project['last_calculation']['geometry']['area_mm2'] == 960.0
+assert quantity_project['casebook']['active_id'] == scaled_project['casebook']['active_id']
+for before,after in zip(scaled_project['casebook']['cases'],quantity_project['casebook']['cases'],strict=True):
+    assert {k:v for k,v in before.items() if k!='last_calculation'} == {k:v for k,v in after.items() if k!='last_calculation'}
+    assert after['last_calculation']['analysis_status'] == 'computed'
+    assert after['last_calculation']['strength_status'] == 'unsupported_calculation'
+unknown_reader = PdfReader(path.with_name('weld-quantities-unknown-report-smoke.pdf'))
+unknown_quantity_project = json.loads(unknown_reader.attachments['weld-project.json'][0])
+uq = json.loads(unknown_reader.attachments['weld-quantities.json'][0])
+assert uq['volume_mm3'] == 4800.0 and uq['mass_kg'] is None and uq['density_kg_m3'] is None and uq['density_source'] is None
+assert unknown_quantity_project['materials']['context']['temperature_c'] == 21.0
+assert unknown_quantity_project['casebook'] == quantity_project['casebook']
+assert unknown_quantity_project['input'] == quantity_project['input']
+assert unknown_quantity_project['last_calculation'] == quantity_project['last_calculation']
+for reader in [qreader,unknown_reader]:
+    qtext='\n'.join(page.extract_text() or '' for page in reader.pages)
+    assert '?' not in qtext and 'Объём и масса швов' in qtext and 'Не нормативная или закупочная масса' in qtext
+print('PASS: independent PDF parser verifies all 10 quantity/source attachments, unknown partial totals, triangular volume versus effective area, 4800 mm3/0.0384 kg, explicit weld density, unknown out-of-domain mass and preserved nominal snapshots/loads.')

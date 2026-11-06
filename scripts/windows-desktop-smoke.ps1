@@ -1064,6 +1064,128 @@ try {
     $reportBytes = [System.IO.File]::ReadAllBytes($reportPath)
     if ($reportBytes.Length -lt 1000 -or [System.Text.Encoding]::ASCII.GetString($reportBytes, 0, 5) -ne '%PDF-') { throw 'Invalid PDF report output' }
     Write-Output 'PASS: width study recalculates all cases, retains failed rows, requires explicit selection, scales source fillet legs, supports one Undo/Redo and survives SQLite/process restart with independent study/applied PDF evidence.'
+    Click-Name 'Объём и масса швов'
+    $null=Wait-Until { Find-Name 'Объём и масса швов' ([System.Windows.Automation.ControlType]::Table) } 'partial triangular quantities with one unknown manual section'
+    $null=Wait-Until { Find-Name 'Неизвестно' ([System.Windows.Automation.ControlType]::Text) } 'partial volume and missing weld density stay unknown'
+    Activate-Tree 'Шов S2'
+    Click-Name 'Модель сечения'
+    Set-Field 'Катет k₁, mm' '6';Set-Field 'Катет k₂, mm' '8'
+    Click-Name 'Рассчитать и применить сечение'
+    $null=Wait-Until { (Read-Field 'S2 a') -eq '4.8' } 'second explicit triangular section enables complete geometric volume'
+    Click-Name 'Материалы проекта'
+    Click-Name 'Задать карточку Наплавленный металл'
+    Set-Field 'Наплавленный металл · Обозначение' 'Synthetic weld'
+    Click-Name 'Добавить свойство Наплавленный металл'
+    (Find-Name 'Наплавленный металл · 1 · Свойство' ([System.Windows.Automation.ControlType]::ComboBox)).SetFocus();Key-Press 0x23;Key-Press 0x09
+    Set-Field 'Наплавленный металл · 1 · Значение' '8000'
+    Set-Field 'Наплавленный металл · 1 · thickness_mm 1' '100'
+    Set-Field 'Наплавленный металл · 1 · temperature_c 0' '20';Set-Field 'Наплавленный металл · 1 · temperature_c 1' '20'
+    Set-Field 'Наплавленный металл · 1 · Источник свойства' 'User density Q-001'
+    Click-Name 'Проверить применимость'
+    $null=Wait-Until { (Find-Name 'Применить материалы' ([System.Windows.Automation.ControlType]::Button)).Current.IsEnabled } 'explicit weld density validated for the common material context'
+    Click-Name 'Применить материалы'
+    $null=Wait-Until { Find-Name '0.0384' ([System.Windows.Automation.ControlType]::Text) } '4800 cubic mm times 8000 kg per cubic metre gives 0.0384 kg'
+    Click-Name 'Рассчитать все'
+    $null=Wait-Until { Find-Name 'Сводка случаев · 3/3 — Все случаи рассчитаны' } 'quantity and section editing leave every nominal case calculable'
+    Click-Name 'Сохранить ревизию'
+    $null=Wait-Until { Find-Name 'Ревизия сохранена' } 'complete section geometry and explicit weld density saved'
+    $handle = [IntPtr]$script:window.Current.NativeWindowHandle
+    $null = [WeldDesktopInput]::PostMessage($handle, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero)
+    if (-not $process.WaitForExit(10000)) { throw 'Quantity application did not close cleanly' }
+    $process = Start-Process -FilePath $executable -PassThru
+    $script:window = Wait-Until {
+        $condition = [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $process.Id)
+        [System.Windows.Automation.AutomationElement]::RootElement.FindFirst([System.Windows.Automation.TreeScope]::Children, $condition)
+    } 'quantity process restart'
+    $null = Wait-Until { $control=Find-Name 'Настройки приложения' ([System.Windows.Automation.ControlType]::Button);$control -and $control.Current.IsEnabled } 'settings loaded after quantity restart'
+    Open-LatestRevision
+    Click-Name 'Объём и масса швов'
+    $null=Wait-Until { Find-Name '0.0384' ([System.Windows.Automation.ControlType]::Text) } 'geometric mass recomputed from persisted sections and density after full restart'
+    (Find-Name 'Объём и масса швов' ([System.Windows.Automation.ControlType]::Table)).SetFocus()
+    Save-Preview 'windows-quantities-smoke.png'
+    Click-Name 'Отчёт PDF'
+    $dialog = Wait-Until {
+        [System.Windows.Automation.AutomationElement]::RootElement.FindFirst(
+            [System.Windows.Automation.TreeScope]::Children,
+            [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::NameProperty, 'Weld Engineering — PDF'))
+    } 'native PDF save dialog'
+    $filenameCondition = [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::AutomationIdProperty, '1001')
+    $filename = $dialog.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $filenameCondition)
+    if (-not $filename) { throw 'Native PDF filename input not found' }
+    $reportPath = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../target/weld-quantities-report-smoke.pdf'))
+    $filename.SetFocus()
+    # The shell dialog requires actual editing keystrokes, not only UIA SetValue.
+    Set-Clipboard -Value $reportPath
+    [WeldDesktopInput]::keybd_event(0x11, 0, 0, [UIntPtr]::Zero)
+    Key-Press 0x41
+    Key-Press 0x56
+    [WeldDesktopInput]::keybd_event(0x11, 0, 2, [UIntPtr]::Zero)
+    $null = Wait-Until { $filename.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.Value -eq $reportPath } 'native filename entered by keyboard'
+    Key-Press 0x09
+    $saveCondition = [System.Windows.Automation.AndCondition]::new(
+        [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::AutomationIdProperty, '1'),
+        [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Button))
+    $save = $dialog.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $saveCondition)
+    $save.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    $pdfPrefix = 'PDF-отчёт сохранён: '
+    $pdfStatus = Wait-Until {
+        $texts = $script:window.FindAll([System.Windows.Automation.TreeScope]::Descendants,
+            [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Text))
+        foreach ($text in $texts) { if ($text.Current.Name -eq ($pdfPrefix+$reportPath)) { return $text.Current.Name } }
+        return $null
+    } 'PDF generated and written by native adapter'
+    $actualPath = $pdfStatus.Substring($pdfPrefix.Length)
+    Write-Output "Synthetic report saved at: $actualPath"
+    if (-not [string]::Equals($actualPath, $reportPath, [StringComparison]::OrdinalIgnoreCase)) { throw "Native save chose '$actualPath' instead of '$reportPath'" }
+    $reportBytes = [System.IO.File]::ReadAllBytes($reportPath)
+    if ($reportBytes.Length -lt 1000 -or [System.Text.Encoding]::ASCII.GetString($reportBytes, 0, 5) -ne '%PDF-') { throw 'Invalid PDF report output' }
+    Click-Name 'Материалы проекта'
+    Set-Field 'Температура, °C' '21'
+    Click-Name 'Проверить применимость'
+    $null=Wait-Until { (Find-Name 'Применить материалы' ([System.Windows.Automation.ControlType]::Button)).Current.IsEnabled } 'out-of-domain density remains a valid unknown material query'
+    Click-Name 'Применить материалы'
+    $null=Wait-Until { (Find-Name 'Объём и масса швов' ([System.Windows.Automation.ControlType]::Table)) -and -not (Find-Name '0.0384' ([System.Windows.Automation.ControlType]::Text)) -and (Find-Name 'Неизвестно' ([System.Windows.Automation.ControlType]::Text)) } 'out-of-domain density removes total mass without changing complete volume or nominal results'
+    $null=Wait-Until { Find-Name 'Сводка случаев · 3/3 — Все случаи рассчитаны' } 'density applicability change preserves every nominal result'
+    Click-Name 'Отчёт PDF'
+    $dialog = Wait-Until {
+        [System.Windows.Automation.AutomationElement]::RootElement.FindFirst(
+            [System.Windows.Automation.TreeScope]::Children,
+            [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::NameProperty, 'Weld Engineering — PDF'))
+    } 'native PDF save dialog'
+    $filenameCondition = [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::AutomationIdProperty, '1001')
+    $filename = $dialog.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $filenameCondition)
+    if (-not $filename) { throw 'Native PDF filename input not found' }
+    $reportPath = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../target/weld-quantities-unknown-report-smoke.pdf'))
+    $filename.SetFocus()
+    # The shell dialog requires actual editing keystrokes, not only UIA SetValue.
+    Set-Clipboard -Value $reportPath
+    [WeldDesktopInput]::keybd_event(0x11, 0, 0, [UIntPtr]::Zero)
+    Key-Press 0x41
+    Key-Press 0x56
+    [WeldDesktopInput]::keybd_event(0x11, 0, 2, [UIntPtr]::Zero)
+    $null = Wait-Until { $filename.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.Value -eq $reportPath } 'native filename entered by keyboard'
+    Key-Press 0x09
+    $saveCondition = [System.Windows.Automation.AndCondition]::new(
+        [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::AutomationIdProperty, '1'),
+        [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Button))
+    $save = $dialog.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $saveCondition)
+    $save.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    $pdfPrefix = 'PDF-отчёт сохранён: '
+    $pdfStatus = Wait-Until {
+        $texts = $script:window.FindAll([System.Windows.Automation.TreeScope]::Descendants,
+            [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Text))
+        foreach ($text in $texts) { if ($text.Current.Name -eq ($pdfPrefix+$reportPath)) { return $text.Current.Name } }
+        return $null
+    } 'PDF generated and written by native adapter'
+    $actualPath = $pdfStatus.Substring($pdfPrefix.Length)
+    Write-Output "Synthetic report saved at: $actualPath"
+    if (-not [string]::Equals($actualPath, $reportPath, [StringComparison]::OrdinalIgnoreCase)) { throw "Native save chose '$actualPath' instead of '$reportPath'" }
+    $reportBytes = [System.IO.File]::ReadAllBytes($reportPath)
+    if ($reportBytes.Length -lt 1000 -or [System.Text.Encoding]::ASCII.GetString($reportBytes, 0, 5) -ne '%PDF-') { throw 'Invalid PDF report output' }
+    Click-Name 'Отменить'
+    $null=Wait-Until { Find-Name '0.0384' ([System.Windows.Automation.ControlType]::Text) } 'one Undo restores applicable density and mass'
+    if (Find-Name 'Есть несохранённые изменения') { throw 'Quantity context Undo did not restore saved project' }
+    Write-Output 'PASS: explicit triangular volume and weld-density mass, partial/unknown results, 4800 mm3 and 0.0384 kg, SQLite/process restart, out-of-domain density, one Undo and separate complete/unknown PDF evidence.'
     $handle = [IntPtr]$script:window.Current.NativeWindowHandle
     $null = [WeldDesktopInput]::PostMessage($handle, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero)
     if (-not $process.WaitForExit(10000)) { throw 'Restarted desktop did not close cleanly' }

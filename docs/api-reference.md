@@ -1,3 +1,5 @@
+> В работе 2026-11-06: [геометрический объём и масса швов](weld-quantities.md), explicit triangle prisms + applicable custom weld density, partial/null, fresh Rust/Tauri/REST/PDF, исходные нагрузки и номинальная механика независимы. Project/schema/SQLite не меняются; UI в конце, тёмная тема по умолчанию. Windows-проверки ожидаются.
+
 > Новые POST /api/v1/studies/width и /api/v1/studies/width/apply: [контракт исследования ширины](width-parameter-study.md), строгий OpenAPI. Пересчёт всех случаев, failed rows, явное ручное применение, без нормативного подбора. [Windows run 42187561551 — SUCCESS](https://github.com/posmis/weld-engineering/actions/runs/42187561551), source `30c402e`: 105 Rust/API, 111 frontend ×3, установленный EXE/SQLite/restart/Undo/Redo, HTTP/OpenAPI/C#, независимый PDF/parser и NSIS/uninstall.
 
 # Локальный API v1

@@ -1,3 +1,5 @@
+> В работе: [идеализированные объём/масса](weld-quantities.md), отдельные от эффективной площади номинальной механики, без технологических/закупочных припусков; Windows-проверки ожидаются.
+
 > Полный текущий статус: [completion-status.md](completion-status.md). Новые модули: [load cases](load-cases.md), [прерывистые швы](intermittent-welds.md), [PDF](pdf-reports.md), [REST/OpenAPI](api-reference.md). Их последний результат Windows смотрите в этих документах.
 
 > Актуализация: первый desktop workflow и application service описаны в [iteration-01.md](iteration-01.md), [desktop-workflow.md](desktop-workflow.md) и [application-contract.md](application-contract.md). Исходное состояние ниже сохранено как контекст; нормативная прочность по-прежнему недоступна.

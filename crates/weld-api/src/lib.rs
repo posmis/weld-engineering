@@ -227,6 +227,20 @@ async fn evaluate_limits(
         Err(e) => e.into_response(),
     }
 }
+async fn quantities(
+    State(state): State<ApiState>,
+    request: Result<Json<weld_application::quantities::QuantityRequest>, JsonRejection>,
+) -> Response {
+    match json_input(request) {
+        Ok(request) => {
+            work(state, move || {
+                weld_application::quantities::evaluate(&request)
+            })
+            .await
+        }
+        Err(e) => e.into_response(),
+    }
+}
 async fn width_study(
     State(state): State<ApiState>,
     request: Result<Json<weld_application::width_study::WidthStudyRequest>, JsonRejection>,
@@ -275,6 +289,7 @@ pub fn router(token: String) -> Router {
         .route("/api/v1/geometry/template", post(group_template))
         .route("/api/v1/geometry/transform", post(group_transform))
         .route("/api/v1/sections/derive", post(section))
+        .route("/api/v1/quantities/evaluate", post(quantities))
         .route("/api/v1/loads/mass", post(mass_load))
         .route("/api/v1/cases/calculate", post(cases))
         .route("/api/v1/cases/combine", post(combination))

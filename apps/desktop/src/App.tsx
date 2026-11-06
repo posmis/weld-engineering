@@ -1,3 +1,4 @@
+import {QuantityResults} from './QuantityResults';
 import type {WidthStudyResult} from './contracts';
 import { WidthStudyDialog } from './WidthStudyDialog';
 import { UserLimitsDialog } from './UserLimitsDialog';
@@ -237,7 +238,8 @@ export function App() {
     const summary = validated.casebook ? await backend.summarizeCases(validated) : null;
     const materials=validated.materials?await backend.evaluateMaterials({schema_version:1,selection:validated.materials}):null;
     const limits=validated.user_limits?await backend.evaluateUserLimits({schema_version:1,project:validated}):null;
-    const bytes = await createReport(validated, new Uint8Array(await response.arrayBuffer()), summary,new Date(),materials,limits);
+    const quantities=await backend.quantities({schema_version:1,segments:validated.input.segments,materials:validated.materials??null});
+    const bytes = await createReport(validated, new Uint8Array(await response.arrayBuffer()), summary,new Date(),materials,limits,null,quantities);
     const path = await backend.savePdf(bytes);
     if (path) setMessage(`${t.reportSaved}: ${path}`);
   }
@@ -248,7 +250,8 @@ export function App() {
     const summary=base.casebook?await backend.summarizeCases(base):null;
     const materials=base.materials?await backend.evaluateMaterials({schema_version:1,selection:base.materials}):null;
     const limits=base.user_limits?await backend.evaluateUserLimits({schema_version:1,project:base}):null;
-    return backend.savePdf(await createReport(base,new Uint8Array(await response.arrayBuffer()),summary,new Date(),materials,limits,study));
+    const quantities=await backend.quantities({schema_version:1,segments:base.input.segments,materials:base.materials??null});
+    return backend.savePdf(await createReport(base,new Uint8Array(await response.arrayBuffer()),summary,new Date(),materials,limits,study,quantities));
   }
   const blocked = busy || pending !== null;
   return <div className={dark ? 'app dark' : 'app'} onBlurCapture={() => history.current.breakGroup()} onKeyDownCapture={event => {
@@ -337,7 +340,7 @@ export function App() {
           }} onDragFinish={() => { dragSnapshot.current = null; setGestureActive(false); history.current.breakGroup(); }}/>
       </section>} results={<section className="results" aria-label={t.results}>
         <div className="dock-title"><strong>{t.results}</strong><button aria-label={t.closeResults} onClick={() => setResultsOpen(false)}>×</button></div>
-        <div className="result-scroll"><UserLimitResults project={project} t={t}/>{project.casebook && <CaseResults project={project} t={t} disabled={blocked || gestureActive} onActivate={id => changeCase(activateCase(project, id))}/>}<ProjectResults result={result} selected={selected} onSelect={selectWeld} t={t}/></div>
+        <div className="result-scroll"><QuantityResults project={project} t={t}/><UserLimitResults project={project} t={t}/>{project.casebook && <CaseResults project={project} t={t} disabled={blocked || gestureActive} onActivate={id => changeCase(activateCase(project, id))}/>}<ProjectResults result={result} selected={selected} onSelect={selectWeld} t={t}/></div>
       </section>}/>
       <footer className="status-bar">
         {error && !pending && <span className="status-error" role="alert">{t.error}: {error}</span>}

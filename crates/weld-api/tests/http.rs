@@ -91,7 +91,7 @@ fn published_openapi_contains_the_actual_routes_and_no_unimplemented_strength_en
     let spec: serde_json::Value =
         serde_json::from_str(include_str!("../../../docs/openapi.json")).unwrap();
     assert_eq!(spec["openapi"], "3.1.0");
-    assert_eq!(spec["paths"].as_object().unwrap().len(), 16);
+    assert_eq!(spec["paths"].as_object().unwrap().len(), 17);
     assert!(spec["paths"].get("/api/v1/optimize").is_none());
     assert_eq!(
         spec["components"]["schemas"]["CalculationResult"]["properties"]["strength_status"]
@@ -400,4 +400,15 @@ async fn width_study_endpoint_recalculates_all_rows_keeps_failures_and_applies_e
         value["last_calculation"]["strength_status"],
         "unsupported_calculation"
     );
+}
+
+#[tokio::test]
+async fn quantities_endpoint_distinguishes_volume_from_nominal_effective_area() {
+    let r=weld_api::router("test-token".into()).oneshot(request("/api/v1/quantities/evaluate",serde_json::json!({"schema_version":1,"segments":[{"start_mm":[0,0],"end_mm":[100,0],"effective_width_mm":2.4,"section":{"kind":"idealized_right_angle_fillet","leg_1_mm":3,"leg_2_mm":4}}],"materials":null}))).await.unwrap();
+    assert_eq!(r.status(), StatusCode::OK);
+    let v: serde_json::Value =
+        serde_json::from_slice(&r.into_body().collect().await.unwrap().to_bytes()).unwrap();
+    assert_eq!(v["volume_mm3"], 600.0);
+    assert_eq!(v["segments"][0]["section_area_mm2"], 6.0);
+    assert!(v["mass_kg"].is_null());
 }
