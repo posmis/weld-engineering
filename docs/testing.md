@@ -1,3 +1,16 @@
+## Пользовательские ограничения размеров — 2026-11-06
+
+[Windows run 42197942523](https://github.com/posmis/weld-engineering/actions/runs/42197942523) — **SUCCESS** с первой попытки, проверенный исходный коммит `f3deba28d698259d641689db0810b72e7f75a30a`. После него изменены только собственные Markdown-документы и снимок. [Установщик/артефакт ZIP](https://github.com/posmis/weld-engineering/actions/runs/42197942523/artifacts/13492672838), хранение 7 дней; setup: `release/bundle/nsis/Weld Engineering_0.1.0_x64-setup.exe`.
+
+- 121 Rust/API тест, rustfmt и clippy `-D warnings`: включённые границы a/k1/k2, явные источники и каждый участок; missing legs → unknown; известное нарушение вместе с unknown; некорректные/дублирующиеся диапазоны/отсутствующие источники; fresh study/selection и повторное enforcement на apply, включая unknown.
+- 120 frontend тестов в каждом из трёх свежих процессов: пустые диапазоны/источник блокируют запуск, echo обязан совпадать, нарушенные radio недоступны, ограничения передаются на apply, неизвестные катеты и источники в PDF. TypeScript/Vite, Windows dev-check, release Desktop/API и C# build пройдены.
+- HTTP/OpenAPI: constraints/SizeCheck/per-segment values/exclusion reasons по полному Test-Json; [3,4] mm выбирает factor1.5 среди [1,1.5,2] для исходной ширины 2.4 mm; прямой apply factor1 → 422 width_study_size_limits_not_met, factor1.5 → a=3.6. Все прежние маршруты/auth/loopback проверены.
+- Установленный EXE: 3 случая, исходная a=7.2, диапазон [8,10] mm с источником User bounds B-001, факторы [0.75,1.25,1.5]. Размеры 5.4 и 10.8 отклонены/радио недоступны при соблюдённых порогах напряжений; выбран factor1.25 → a=9, катеты 11.25/15. Явные выбор/применение, one Undo/Redo, SQLite и полный process restart со всеми 3 computed случаями пройдены.
+- Независимый pypdf 6.1.1: все прежние PDF и два новых constraints-study/applied PDF; точные source bounds и значения всех участков, размерные причины, критерии отбора, V=16875 mm³, m=0.135 kg; нагрузки/P/m/g/a и frozen sources прежние, номинальная площадь ×1.25 и все поля трёх случаев ÷1.25. Глифы/кириллица сохранены, прочность unsupported.
+- NSIS per-user install, hash установленного EXE после точной штатной замены Tauri bundle marker, полный native workflow, silent uninstall с сохранением базы пройдены. Тёмная тема по умолчанию сохранена.
+
+[Метод/контракт/ограничения](user-size-constraints.md) · [снимок](screenshots/user-size-constraints.png). Это пользовательские диапазоны, не назначенные по ГОСТ/технологии; нормативная пригодность и независимая инженерная валидация не заявлены. В Project сохраняется выбранная модель, временные правила — в study PDF; Project/schema/SQLite не менялись. UI-переработка в конце, исходные публикации не публикуются.
+
 ## Дискретный отбор размеров — 2026-11-06
 
 [Windows run 42195265326](https://github.com/posmis/weld-engineering/actions/runs/42195265326) — **SUCCESS**, проверенный исходный коммит `8f7d2e338ddd002b14042606d6e7615601d93e00`. После него менялись только собственные Markdown-документы и снимок. [Установщик/артефакт ZIP](https://github.com/posmis/weld-engineering/actions/runs/42195265326/artifacts/13492261302), хранение 7 дней; setup: `release/bundle/nsis/Weld Engineering_0.1.0_x64-setup.exe`.
