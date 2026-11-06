@@ -192,7 +192,7 @@ test('a late calculation for a cancelled drag cannot overwrite the restored save
   pointer(svg, 'pointermove', 124, 156);
   fireEvent.click(screen.getByText('Рассчитать'));
   expect(screen.getByRole('button', { name: 'Рассчитать' }).getAttribute('aria-busy')).toBe('true');
-  expect((screen.getByRole('button', { name: 'Рассчитать' }) as HTMLButtonElement).disabled).toBe(true);
+  expect(screen.getByRole('button', { name: 'Рассчитать' }).matches(':disabled')).toBe(true);
   const request = vi.mocked(backend.calculate).mock.calls[1][0];
   fireEvent.keyDown(svg, { key: 'Escape' });
   await act(async () => { resolveRequest({ ...result(), input_snapshot: request, engine_version: 'stale-response' }); });
