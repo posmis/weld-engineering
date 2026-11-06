@@ -1,3 +1,17 @@
+## Сравнение размеров швов — 2026-11-06
+
+[Windows run 42187561551](https://github.com/posmis/weld-engineering/actions/runs/42187561551) — **SUCCESS**, проверенные исходники `30c402ee0996a68dbb551c2542942ba82022a33e`. После него менялись только собственная документация и снимок окна. [Установщик/артефакт ZIP](https://github.com/posmis/weld-engineering/actions/runs/42187561551/artifacts/13487584585), хранение 7 дней. EXE установщика: `release/bundle/nsis/Weld Engineering_0.1.0_x64-setup.exe`.
+
+- 105 Rust/API тестов; rustfmt и clippy с `-D warnings` пройдены.
+- 111 frontend тестов в каждом из трёх свежих процессов; TypeScript/Vite, Windows dev-check, release Desktop/API, C# build пройдены.
+- HTTP/OpenAPI: обе команды сравнения/применения, обычные DTO по Test-Json и реальный extreme `1e308` с retained error отдельно (числовой предел парсера Test-Json); все прежние маршруты/loopback/auth проверены.
+- Установленный EXE: исходная площадь 440 → выбранная 880 mm², все три случая и frozen combination рассчитаны; ошибочная строка видна и недоступна, автоматического выбора нет. Явный выбор, one Undo/Redo, SQLite, полный процессный перезапуск, катеты 3/4 → 6/8, ширины 2.4/2 → 4.8/4.
+- Исправление временного переноса toolbar: постоянное название расчёта/aria-busy/статус; прежняя нативная проверка восстановления точной высоты результатов после restart пройдена.
+- Независимый pypdf 6.1.1: собственные study/applied PDF, исходный JSON/полный width-study.json, крайняя failed строка, удвоение площади и деление номинальных полей всех трёх случаев на два; неизменные координаты, нагрузки/P/m/g/a, материалы, пороги, IDs и frozen sources сочетаний. Все прежние PDF-сценарии также прошли.
+- NSIS установлен per-user; installed EXE сверён с build после точной штатной замены Tauri bundle marker, silent uninstall сохранил проектную базу.
+
+[Метод и ограничения](width-parameter-study.md) · [снимок](screenshots/width-parameter-study.png). Нормативная прочность по-прежнему unsupported, независимая инженерная валидация не заявлена; полная UI-переработка в конце. Оригиналы публикаций не входят ни в Git, ни в артефакты. Промежуточные неуспешные runs: 42185485397 (Test-Json numeric parsing), 42186203508 (toolbar/dock regression), 42187327414 (исправлена проверка inherited fieldset disabled); итоговый run выше прошёл полностью.
+
 # Выполненные проверки — актуализировано 2026-11-06
 
 Проверенные исходники: `9d3cb8ba3f676cbbe1da5f98ee7673ba4b491806`. [Windows run 42129393389 — SUCCESS](https://github.com/posmis/weld-engineering/actions/runs/42129393389). Цель — Windows x64, runner windows-2022. Linux/macOS сборки и испытания приложения не выполнялись.

@@ -1,4 +1,4 @@
-> В работе: [ручное сравнение ширины](width-parameter-study.md) — номинальные кандидаты/все случаи/пороги/failed rows/PDF/Undo, Windows-проверки ожидаются. Полная нормативная оптимизация не завершена; UI в самом конце.
+> Реализовано и проверено: [ручное сравнение ширины](width-parameter-study.md) — номинальные кандидаты/все случаи/пороги/failed rows/PDF/Undo, [Windows run 42187561551 — SUCCESS](https://github.com/posmis/weld-engineering/actions/runs/42187561551), source `30c402e`: 105 Rust/API, 111 frontend ×3, установленный EXE/SQLite/restart/Undo/Redo, HTTP/OpenAPI/C#, независимый PDF/parser и NSIS/uninstall. Полная нормативная оптимизация не завершена; UI в самом конце.
 
 # Состояние полного плана разработки
 
