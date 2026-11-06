@@ -270,7 +270,7 @@ export function App() {
           <button disabled={!history.current.canRedo || gestureActive} onClick={() => travel('redo')} title="Ctrl+Y / Ctrl+Shift+Z">{t.redo}</button></div>
         <div className="tool-group"><button disabled={project.input.segments.length >= 256 || gestureActive} onClick={addSegment}>{t.add}</button><button disabled={gestureActive} onClick={() => setTemplateOpen(true)}>{t.groupTemplate}</button><button disabled={gestureActive} onClick={() => setTransformOpen(true)}>{t.transformGroup}</button><button aria-label={t.widthStudy} title={t.widthStudy} onClick={()=>setWidthStudyOpen(true)}>{t.widthStudyShort}</button></div>
         <div className="tool-group"><button onClick={() => run(exportPdf)}>{t.pdfReport}</button>
-          <button className="primary" onClick={() => run(calculateCurrent)}>{busy ? t.busy : t.calculate}</button>
+          <button className="primary" aria-busy={busy} onClick={() => run(calculateCurrent)}>{t.calculate}</button>
           <button disabled={!project.casebook} onClick={() => run(calculateAll)}>{t.calculateAll}</button><button aria-label={t.userLimits} title={t.userLimits} onClick={()=>setUserLimitsOpen(true)}>{t.userLimitsShort}</button>
           <button aria-pressed={resultsOpen} disabled={gestureActive} onClick={() => setResultsOpen(!resultsOpen)}>{t.toggleResults}</button></div>
       </fieldset>
@@ -344,7 +344,7 @@ export function App() {
         {settingsWarning && <span role="alert">{t.settingsLoadError}</span>}
         {message && <span role="status">{message}</span>}
         {historical && <span title={t.snapshot}>{t.snapshot}</span>}
-        <span className={dirty ? 'dirty-state' : ''}>{dirty ? t.dirty : t.ready}</span><span>{project.input.segments.length} {t.welds.toLowerCase()} · {t.units}</span>
+        <span className={dirty ? 'dirty-state' : ''} aria-live="polite">{busy ? t.busy : dirty ? t.dirty : t.ready}</span><span>{project.input.segments.length} {t.welds.toLowerCase()} · {t.units}</span>
       </footer>
     </div>
     {transformActive && <GeometryTransformDialog segments={project.input.segments} copyIndex={copyIndex ?? undefined} t={t} describeError={describe} onCancel={() => { setTransformOpen(false); setCopyIndex(null); }} onApply={segments => {
