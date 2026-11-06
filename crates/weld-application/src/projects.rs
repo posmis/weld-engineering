@@ -14,6 +14,8 @@ use std::{
 #[serde(deny_unknown_fields)]
 pub struct Project {
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub production_parameters: Option<crate::production::ProductionParameters>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub user_limits: Option<crate::user_limits::UserLimits>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub materials: Option<crate::materials::MaterialSelection>,
@@ -44,6 +46,9 @@ impl Project {
         }
         if self.title.trim().is_empty() || self.title.chars().count() > 200 {
             return Err(AppError::new("invalid_title", Some("title")));
+        }
+        if let Some(p) = &self.production_parameters {
+            crate::production::validate(p)?;
         }
         if let Some(limits) = &self.user_limits {
             crate::user_limits::validate(limits)?;

@@ -127,6 +127,7 @@ fn project_material_cards_roundtrip_without_changing_nominal_results_or_old_sqli
     };
     let result = calculate(&input).unwrap();
     let mut p = Project {
+        production_parameters: None,
         user_limits: None,
         materials: None,
         schema_version: 1,

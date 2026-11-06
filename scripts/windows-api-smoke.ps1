@@ -202,6 +202,31 @@ try {
     $boundedApplied=Invoke-RestMethod -Method Post -Uri "$base/studies/width/apply" -Headers $headers -ContentType 'application/json' -Body (@{schema_version=1;project=$sizingProject;factor=1.5;constraints=$bounds}|ConvertTo-Json -Depth 100)
     Assert-Contract 'Project' ($boundedApplied|ConvertTo-Json -Depth 100)
     if ($boundedApplied.input.segments[0].effective_width_mm -ne 3.6) { throw 'Size-compliant candidate failed manual apply' }
+    $productionParameters=@{process_label='User process P-001';currency_label='RUB';source='Cost scenario P-001';travel_speed_mm_min=100;passes=2;arc_time_fraction=0.5;preparation_minutes=10;inspection_minutes=5;labor_rate_per_hour=600;equipment_rate_per_hour=300;consumable_price_per_kg=200;deposition_efficiency=0.9;external_inspection_cost=50}
+    $productionValidation=@{schema_version=1;parameters=$productionParameters}|ConvertTo-Json -Depth 100
+    Assert-Contract 'ValidateProductionRequest' $productionValidation
+    $validatedProduction=Invoke-RestMethod -Method Post -Uri "$base/production/validate" -Headers $headers -ContentType 'application/json' -Body $productionValidation
+    Assert-Contract 'ProductionParameters' ($validatedProduction|ConvertTo-Json -Depth 100)
+    $productionSegments=@(@{start_mm=@(-50,-20);end_mm=@(50,-20);effective_width_mm=9;section=@{kind='idealized_right_angle_fillet';leg_1_mm=11.25;leg_2_mm=15}},@{start_mm=@(-50,20);end_mm=@(50,20);effective_width_mm=9;section=@{kind='idealized_right_angle_fillet';leg_1_mm=11.25;leg_2_mm=15}})
+    $productionRequest=@{schema_version=1;segments=$productionSegments;materials=$quantityRequest.materials;parameters=$productionParameters}
+    $productionJson=$productionRequest|ConvertTo-Json -Depth 100
+    Assert-Contract 'ProductionRequest' $productionJson
+    $production=Invoke-RestMethod -Method Post -Uri "$base/production/evaluate" -Headers $headers -ContentType 'application/json' -Body $productionJson
+    Assert-Contract 'ProductionResult' ($production|ConvertTo-Json -Depth 100)
+    if (-not $production.complete -or $production.arc_on_minutes -ne 4 -or $production.total_minutes -ne 23 -or [Math]::Abs($production.total_cost-350) -gt 1e-10) { throw 'Explicit production time/cost reference failed' }
+    $productionRequest.materials.context.temperature_c=21
+    $unknownProduction=Invoke-RestMethod -Method Post -Uri "$base/production/evaluate" -Headers $headers -ContentType 'application/json' -Body ($productionRequest|ConvertTo-Json -Depth 100)
+    Assert-Contract 'ProductionResult' ($unknownProduction|ConvertTo-Json -Depth 100)
+    if ($unknownProduction.complete -or $null -ne $unknownProduction.total_cost -or [Math]::Abs($unknownProduction.known_subtotal-320) -gt 1e-10) { throw 'Missing mass became a complete cheap production total' }
+    $productionRequest.materials.context.temperature_c=20
+    $productionProject=$sizingProject|ConvertTo-Json -Depth 100|ConvertFrom-Json -AsHashtable
+    $productionProject.input.segments=$productionSegments;$productionProject['production_parameters']=$productionParameters
+    Assert-Contract 'Project' ($productionProject|ConvertTo-Json -Depth 100)
+    $costStudyJson=@{schema_version=1;project=$productionProject;factors=@(0.75,1.25,1.5);objective='minimum_cost';constraints=@(@{dimension='effective_width';minimum_mm=8;maximum_mm=12;source='Production bound P-001'})}|ConvertTo-Json -Depth 100
+    Assert-Contract 'WidthStudyRequest' $costStudyJson
+    $costStudy=Invoke-RestMethod -Method Post -Uri "$base/studies/width" -Headers $headers -ContentType 'application/json' -Body $costStudyJson
+    Assert-Contract 'WidthStudyResult' ($costStudy|ConvertTo-Json -Depth 100)
+    if ($costStudy.selection.objective -ne 'minimum_cost' -or $costStudy.selection.selected_row_index -ne 1 -or [Math]::Abs($costStudy.selection.objective_value-366.875) -gt 1e-10) { throw 'Cost objective ignored explicit scenario or size bounds' }
     $clientOutput = & dotnet run --no-build --configuration Release --project (Join-Path $PSScriptRoot '../examples/inventor-client/WeldClient.csproj') -- $port
     if ($LASTEXITCODE -ne 0 -or ($clientOutput -join ' ') -notmatch 'unsupported_calculation') { throw 'C# client did not complete a real API calculation' }
 

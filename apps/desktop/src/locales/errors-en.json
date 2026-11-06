@@ -39,5 +39,7 @@
   "invalid_width_study_response": "Study response does not match its source project or factors. Recalculate.",
   "width_study_limits_required": "Selection requires explicit user tension, compression and shear thresholds.",
   "invalid_size_constraints": "Provide up to three distinct positive size ranges with sources.",
-  "width_study_size_limits_not_met": "Size constraints failed or remain unknown. Apply is blocked."
+  "width_study_size_limits_not_met": "Size constraints failed or remain unknown. Apply is blocked.",
+  "invalid_production_parameters": "Provide all production inputs and a source; speed/passes/fractions must be positive, rates/times nonnegative.",
+  "width_study_production_required": "Cost selection requires explicit production parameters."
 }

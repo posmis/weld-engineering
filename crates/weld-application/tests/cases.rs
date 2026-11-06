@@ -36,6 +36,7 @@ fn project() -> Project {
         ..a.clone()
     };
     Project {
+        production_parameters: None,
         user_limits: None,
         materials: None,
         schema_version: 1,

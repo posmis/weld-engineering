@@ -2263,6 +2263,280 @@
           }
         }
       }
+    },
+    "/api/v1/production/validate": {
+      "post": {
+        "summary": "Validate an explicit user production scenario without assigning defaults",
+        "responses": {
+          "200": {
+            "description": "Success; computed is not a strength verdict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductionParameters"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or incorrect Bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Browser Origin rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Route not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "408": {
+            "description": "Calculation deadline exceeded; worker remains reserved until it exits",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body exceeds 1 MiB",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Use application/json",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input or unsupported application method; see code/field",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Both calculation workers occupied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal calculation task failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ValidateProductionRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/production/evaluate": {
+      "post": {
+        "summary": "Single-operation user time/cost estimate; missing mass keeps total unknown",
+        "responses": {
+          "200": {
+            "description": "Success; computed is not a strength verdict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductionResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or incorrect Bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Browser Origin rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Route not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "408": {
+            "description": "Calculation deadline exceeded; worker remains reserved until it exits",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body exceeds 1 MiB",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Use application/json",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input or unsupported application method; see code/field",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Both calculation workers occupied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal calculation task failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductionRequest"
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -2829,6 +3103,9 @@
                 "type": "null"
               }
             ]
+          },
+          "production_parameters": {
+            "$ref": "#/components/schemas/ProductionParameters"
           }
         }
       },
@@ -4353,6 +4630,26 @@
                 "type": "null"
               }
             ]
+          },
+          "production_cost": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProductionResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "production_error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AppError"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         }
       },
@@ -4555,7 +4852,8 @@
         "type": "string",
         "enum": [
           "minimum_volume",
-          "minimum_mass"
+          "minimum_mass",
+          "minimum_cost"
         ]
       },
       "WidthSelection": {
@@ -4628,7 +4926,9 @@
                     "quantity_unavailable",
                     "quantity_error",
                     "size_limits_exceeded",
-                    "size_limits_unknown"
+                    "size_limits_unknown",
+                    "production_unavailable",
+                    "production_error"
                   ]
                 }
               }
@@ -4745,6 +5045,223 @@
             "items": {
               "$ref": "#/components/schemas/ConstraintCheck"
             }
+          }
+        }
+      },
+      "ProductionParameters": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "process_label",
+          "currency_label",
+          "source",
+          "travel_speed_mm_min",
+          "arc_time_fraction",
+          "deposition_efficiency",
+          "passes",
+          "preparation_minutes",
+          "inspection_minutes",
+          "labor_rate_per_hour",
+          "equipment_rate_per_hour",
+          "consumable_price_per_kg",
+          "external_inspection_cost"
+        ],
+        "properties": {
+          "process_label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "currency_label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 12
+          },
+          "source": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "travel_speed_mm_min": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "arc_time_fraction": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 1
+          },
+          "deposition_efficiency": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 1
+          },
+          "passes": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 4294967295
+          },
+          "preparation_minutes": {
+            "type": "number",
+            "minimum": 0
+          },
+          "inspection_minutes": {
+            "type": "number",
+            "minimum": 0
+          },
+          "labor_rate_per_hour": {
+            "type": "number",
+            "minimum": 0
+          },
+          "equipment_rate_per_hour": {
+            "type": "number",
+            "minimum": 0
+          },
+          "consumable_price_per_kg": {
+            "type": "number",
+            "minimum": 0
+          },
+          "external_inspection_cost": {
+            "type": "number",
+            "minimum": 0
+          }
+        }
+      },
+      "ValidateProductionRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schema_version",
+          "parameters"
+        ],
+        "properties": {
+          "schema_version": {
+            "const": 1
+          },
+          "parameters": {
+            "$ref": "#/components/schemas/ProductionParameters"
+          }
+        }
+      },
+      "ProductionRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schema_version",
+          "segments",
+          "parameters"
+        ],
+        "properties": {
+          "schema_version": {
+            "const": 1
+          },
+          "segments": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 256,
+            "items": {
+              "$ref": "#/components/schemas/Segment"
+            }
+          },
+          "materials": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MaterialSelection"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "parameters": {
+            "$ref": "#/components/schemas/ProductionParameters"
+          }
+        }
+      },
+      "ProductionResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schema_version",
+          "method_id",
+          "source",
+          "quantities",
+          "complete",
+          "arc_on_minutes",
+          "welding_elapsed_minutes",
+          "total_minutes",
+          "labor_cost",
+          "equipment_cost",
+          "external_inspection_cost",
+          "known_subtotal",
+          "consumed_mass_kg",
+          "material_cost",
+          "total_cost"
+        ],
+        "properties": {
+          "schema_version": {
+            "const": 1
+          },
+          "method_id": {
+            "const": "user-travel-time-cost-v1"
+          },
+          "source": {
+            "$ref": "#/components/schemas/ProductionRequest"
+          },
+          "quantities": {
+            "$ref": "#/components/schemas/QuantityResult"
+          },
+          "complete": {
+            "type": "boolean"
+          },
+          "arc_on_minutes": {
+            "type": "number",
+            "minimum": 0
+          },
+          "welding_elapsed_minutes": {
+            "type": "number",
+            "minimum": 0
+          },
+          "total_minutes": {
+            "type": "number",
+            "minimum": 0
+          },
+          "labor_cost": {
+            "type": "number",
+            "minimum": 0
+          },
+          "equipment_cost": {
+            "type": "number",
+            "minimum": 0
+          },
+          "external_inspection_cost": {
+            "type": "number",
+            "minimum": 0
+          },
+          "known_subtotal": {
+            "type": "number",
+            "minimum": 0
+          },
+          "consumed_mass_kg": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "material_cost": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "total_cost": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0
           }
         }
       }

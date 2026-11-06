@@ -1,0 +1,13 @@
+import {useEffect,useMemo,useState} from 'react';
+import {backend} from './backend';
+import {sameValue} from './projectHistory';
+import type {Project,ProductionResult,ProductionRequest} from './contracts';
+import type ru from './locales/ru.json';
+export function ProductionResults({project,t,onEdit,disabled}:{project:Project;t:typeof ru;onEdit:()=>void;disabled:boolean}){
+ const [open,setOpen]=useState(false),[received,setReceived]=useState<{request:ProductionRequest;value:ProductionResult}|null>(null),[failed,setFailed]=useState<ProductionRequest|null>(null);
+ const request=useMemo<ProductionRequest|null>(()=>project.production_parameters?{schema_version:1,segments:project.input.segments,materials:project.materials??null,parameters:project.production_parameters}:null,[project.input.segments,project.materials,project.production_parameters]);
+ const finite=!!request&&request.segments.every(s=>[...s.start_mm,...s.end_mm,s.effective_width_mm,...(s.section?[s.section.leg_1_mm,s.section.leg_2_mm]:[])].every(Number.isFinite));
+ useEffect(()=>{if(!open||!request||!finite)return;let active=true;const timer=setTimeout(()=>{void backend.productionCost(request).then(value=>{if(value.schema_version!==1||value.method_id!=='user-travel-time-cost-v1'||!sameValue(value.source,JSON.parse(JSON.stringify(request))))throw new Error('Stale production result');if(active)setReceived({request,value});}).catch(()=>{if(active)setFailed(request);});},250);return()=>{active=false;clearTimeout(timer);};},[request,open,finite]);
+ const value=finite&&received?.request===request?received.value:null;const number=(v:number|null)=>v===null?t.quantityUnknown:new Intl.NumberFormat(undefined,{maximumSignificantDigits:10}).format(v);
+ return <details className="case-results" onToggle={e=>setOpen(e.currentTarget.open)}><summary>{t.productionTitle}</summary><button disabled={disabled} onClick={onEdit}>{t.productionParameters}</button><p className="hint">{t.productionScope}</p>{!request?<p>{t.productionMissing}</p>:value?<><p>{value.complete?t.productionComplete:t.productionIncomplete} · {value.source.parameters.currency_label}</p><p>{value.source.parameters.process_label} · {value.source.parameters.source}</p><dl className="metric-grid">{[value.arc_on_minutes,value.welding_elapsed_minutes,value.total_minutes,value.consumed_mass_kg,value.material_cost,value.labor_cost,value.equipment_cost,value.external_inspection_cost,value.known_subtotal,value.total_cost].map((v,i)=><div key={i}><dt>{t.productionMetrics[i]}</dt><dd>{number(v)}</dd></div>)}</dl></>:<p>{failed===request||!finite?t.error:open?t.busy:'—'}</p>}</details>;
+}

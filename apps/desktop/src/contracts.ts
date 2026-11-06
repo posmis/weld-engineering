@@ -39,7 +39,7 @@ export interface LimitPoint {segment_index:number;endpoint:'start'|'end'}
 export interface ComponentCheck {demand_mpa:number;limit_mpa:number;ratio:number;point:LimitPoint|null}
 export interface CaseLimitCheck {case_id:string;title:string;status:'within_user_limits'|'exceeds_user_limits'|'unavailable';reason:string|null;analysis_method_id:string|null;tension:ComponentCheck|null;compression:ComponentCheck|null;shear:ComponentCheck|null}
 export interface LimitEvaluation {schema_version:1;limits:UserLimits;total:number;available:number;exceeded:number;status:'within_user_limits'|'exceeds_user_limits'|'incomplete';maximum_ratio:number|null;governing:{case_id:string;component:LimitComponent;point:LimitPoint|null}|null;cases:CaseLimitCheck[];strength_status:'unsupported_calculation';validation_status:'not_independently_validated'}
-export interface Project { user_limits?:UserLimits; materials?:MaterialSelection; schema_version: 1; title: string; input: CalculationInput; last_calculation: CalculationResult | null; casebook?: CaseBook }
+export interface Project {production_parameters?:ProductionParameters; user_limits?:UserLimits; materials?:MaterialSelection; schema_version: 1; title: string; input: CalculationInput; last_calculation: CalculationResult | null; casebook?: CaseBook }
 export interface Revision { id: string; title: string; saved_at_unix_ms: string }
 export function newProject(): Project {
   return { schema_version: 1, title: 'Новый проект', input: { schema_version: 1,
@@ -68,10 +68,10 @@ export type GeometryTransform = { kind: 'translate'; delta_mm: [number, number] 
   | { kind: 'mirror'; origin_mm: [number, number]; axis: 'x' | 'y' };
 export interface GeometryTransformRequest { copy_index?: number; schema_version: 1; segments: SegmentInput[]; transform: GeometryTransform }
 
-export type WidthObjective = 'minimum_volume'|'minimum_mass';
-export interface WidthSelection {objective:WidthObjective;status:'complete'|'incomplete';eligible_count:number;unavailable_count:number;selected_row_index:number|null;objective_value:number|null;exclusions:{row_index:number;reason:'calculation_unavailable'|'limits_unavailable'|'limits_exceeded'|'quantity_unavailable'|'quantity_error'|'size_limits_exceeded'|'size_limits_unknown'}[]}
+export type WidthObjective = 'minimum_volume'|'minimum_mass'|'minimum_cost';
+export interface WidthSelection {objective:WidthObjective;status:'complete'|'incomplete';eligible_count:number;unavailable_count:number;selected_row_index:number|null;objective_value:number|null;exclusions:{row_index:number;reason:'calculation_unavailable'|'limits_unavailable'|'limits_exceeded'|'quantity_unavailable'|'quantity_error'|'size_limits_exceeded'|'size_limits_unknown'|'production_unavailable'|'production_error'}[]}
 export interface WidthStudyRequest {constraints?:SizeConstraint[];objective?:WidthObjective;schema_version:1;project:Project;factors:number[]}
-export interface WidthStudyRow {size_checks?:SizeCheck|null;quantities?:QuantityResult|null;quantity_error?:{code:string;field:string|null}|null;factor:number;status:'complete'|'incomplete'|'failed';area_mm2:number|null;summary:CaseSummary|null;comparison:LimitEvaluation|null;failures:{case_id:string;error:{code:string;field:string|null}}[];error:{code:string;field:string|null}|null}
+export interface WidthStudyRow {production_cost?:ProductionResult|null;production_error?:{code:string;field:string|null}|null;size_checks?:SizeCheck|null;quantities?:QuantityResult|null;quantity_error?:{code:string;field:string|null}|null;factor:number;status:'complete'|'incomplete'|'failed';area_mm2:number|null;summary:CaseSummary|null;comparison:LimitEvaluation|null;failures:{case_id:string;error:{code:string;field:string|null}}[];error:{code:string;field:string|null}|null}
 export interface WidthStudyResult {constraints?:SizeConstraint[];selection?:WidthSelection|null;schema_version:1;method_id:string;source_project:Project;rows:WidthStudyRow[]}
 
 export interface QuantityRequest {schema_version:1;segments:SegmentInput[];materials:MaterialSelection|null}
@@ -81,3 +81,7 @@ export type SizeDimension='effective_width'|'leg_1'|'leg_2';
 export interface SizeConstraint {dimension:SizeDimension;minimum_mm:number;maximum_mm:number;source:string}
 export type SizeStatus='within_limits'|'exceeds_limits'|'unknown';
 export interface SizeCheck {status:SizeStatus;checks:{constraint:SizeConstraint;status:SizeStatus;values:{segment_index:number;value_mm:number|null;status:SizeStatus}[]}[]}
+
+export interface ProductionParameters {process_label:string;currency_label:string;source:string;travel_speed_mm_min:number;passes:number;arc_time_fraction:number;preparation_minutes:number;inspection_minutes:number;labor_rate_per_hour:number;equipment_rate_per_hour:number;consumable_price_per_kg:number;deposition_efficiency:number;external_inspection_cost:number}
+export interface ProductionRequest {schema_version:1;segments:SegmentInput[];materials:MaterialSelection|null;parameters:ProductionParameters}
+export interface ProductionResult {schema_version:1;method_id:string;source:ProductionRequest;quantities:QuantityResult;complete:boolean;arc_on_minutes:number;welding_elapsed_minutes:number;total_minutes:number;consumed_mass_kg:number|null;material_cost:number|null;labor_cost:number;equipment_cost:number;external_inspection_cost:number;known_subtotal:number;total_cost:number|null}

@@ -35,6 +35,7 @@ fn project() -> Project {
     };
     let result = calculate(&input).unwrap();
     Project {
+        production_parameters: None,
         user_limits: Some(UserLimits {
             method_id: LimitMethod::IndependentNominalComponentsV1,
             tension: StressLimit {
@@ -644,5 +645,95 @@ fn an_unavailable_leg_constraint_blocks_selection_and_manual_application() {
         .unwrap_err()
         .code,
         "width_study_size_limits_not_met"
+    );
+}
+
+#[test]
+fn minimum_cost_uses_complete_user_scenario_and_retains_fixed_time_costs() {
+    use weld_application::production::ProductionParameters;
+    let mut p = sizing_project();
+    p.production_parameters = Some(ProductionParameters {
+        process_label: "User process".into(),
+        currency_label: "RUB".into(),
+        source: "Cost P-001".into(),
+        travel_speed_mm_min: 100.0,
+        passes: 2,
+        arc_time_fraction: 0.5,
+        preparation_minutes: 10.0,
+        inspection_minutes: 5.0,
+        labor_rate_per_hour: 600.0,
+        equipment_rate_per_hour: 300.0,
+        consumable_price_per_kg: 200.0,
+        deposition_efficiency: 0.9,
+        external_inspection_cost: 50.0,
+    });
+    let r = evaluate(&WidthStudyRequest {
+        constraints: vec![],
+        objective: Some(WidthObjective::MinimumCost),
+        schema_version: 1,
+        project: p.clone(),
+        factors: vec![2.0, 1.0, 0.5],
+    })
+    .unwrap();
+    let rank = r.selection.unwrap();
+    assert_eq!(rank.selected_row_index, Some(1));
+    for row in &r.rows {
+        let cost = row.production_cost.as_ref().unwrap();
+        assert_eq!(cost.arc_on_minutes, 4.0);
+        assert!((cost.known_subtotal - 320.0).abs() < 1e-10);
+        assert!(cost.complete);
+        assert!(
+            (cost.total_cost.unwrap()
+                - (320.0 + 1200.0 * row.factor.powi(2) * 1e-9 * 8000.0 / 0.9 * 200.0))
+                .abs()
+                < 1e-10
+        );
+    }
+    {
+        let rates = p.production_parameters.as_mut().unwrap();
+        rates.labor_rate_per_hour = 0.0;
+        rates.equipment_rate_per_hour = 0.0;
+        rates.consumable_price_per_kg = 0.0;
+        rates.external_inspection_cost = 0.0;
+    }
+    let free = evaluate(&WidthStudyRequest {
+        constraints: vec![],
+        objective: Some(WidthObjective::MinimumCost),
+        schema_version: 1,
+        project: p.clone(),
+        factors: vec![2.0, 1.0],
+    })
+    .unwrap();
+    let free = free.selection.unwrap();
+    assert_eq!(free.objective_value, Some(0.0));
+    assert_eq!(free.selected_row_index, Some(0));
+    p.materials.as_mut().unwrap().weld = None;
+    let r = evaluate(&WidthStudyRequest {
+        constraints: vec![],
+        objective: Some(WidthObjective::MinimumCost),
+        schema_version: 1,
+        project: p.clone(),
+        factors: vec![1.0, 2.0],
+    })
+    .unwrap();
+    let rank = r.selection.unwrap();
+    assert_eq!(rank.status, SelectionStatus::Incomplete);
+    assert!(rank.selected_row_index.is_none());
+    assert_eq!(
+        rank.exclusions[0].reason,
+        ExclusionReason::ProductionUnavailable
+    );
+    p.production_parameters = None;
+    assert_eq!(
+        evaluate(&WidthStudyRequest {
+            constraints: vec![],
+            objective: Some(WidthObjective::MinimumCost),
+            schema_version: 1,
+            project: p,
+            factors: vec![1.0]
+        })
+        .unwrap_err()
+        .code,
+        "width_study_production_required"
     );
 }

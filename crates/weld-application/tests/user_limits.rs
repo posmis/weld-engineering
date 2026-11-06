@@ -38,6 +38,7 @@ fn project() -> Project {
     };
     let result = calculate(&input).unwrap();
     Project {
+        production_parameters: None,
         user_limits: Some(limits()),
         materials: None,
         schema_version: 1,

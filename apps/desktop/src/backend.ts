@@ -1,9 +1,11 @@
 import type { EditorSettings } from './editorMovement';
 import { invoke } from '@tauri-apps/api/core';
-import type { BatchResult, CaseSummary, SizeConstraint, QuantityRequest, QuantityResult, WidthStudyRequest, WidthStudyResult, UserLimits, LimitEvaluation, MaterialRequest, MaterialEvaluation, CombinationRequest, MassLoadRequest, MassLoadResult, SectionRequest, SectionResult, GeometryTransformRequest, GeometryTemplateRequest, GeometryTemplateResult, IntermittentInput, CalculationInput, CalculationResult, Project, Revision } from './contracts';
+import type { BatchResult, CaseSummary, ProductionParameters, ProductionRequest, ProductionResult, SizeConstraint, QuantityRequest, QuantityResult, WidthStudyRequest, WidthStudyResult, UserLimits, LimitEvaluation, MaterialRequest, MaterialEvaluation, CombinationRequest, MassLoadRequest, MassLoadResult, SectionRequest, SectionResult, GeometryTransformRequest, GeometryTemplateRequest, GeometryTemplateResult, IntermittentInput, CalculationInput, CalculationResult, Project, Revision } from './contracts';
 export const backend = {
   getEditorSettings: () => invoke<EditorSettings>('get_editor_settings'),
   saveEditorSettings: (settings: EditorSettings) => invoke<void>('save_editor_settings', { settings }),
+  validateProduction: (request:{schema_version:1;parameters:ProductionParameters})=>invoke<ProductionParameters>('validate_production_parameters',{request}),
+  productionCost: (request:ProductionRequest)=>invoke<ProductionResult>('evaluate_production_cost',{request}),
   quantities: (request:QuantityRequest)=>invoke<QuantityResult>('evaluate_quantities',{request}),
   widthStudy: (request:WidthStudyRequest)=>invoke<WidthStudyResult>('evaluate_width_study',{request}),
   applyWidthScale: (request:{constraints?:SizeConstraint[];schema_version:1;project:Project;factor:number})=>invoke<Project>('apply_width_scale',{request}),

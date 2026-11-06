@@ -80,6 +80,18 @@ fn evaluate_user_limits(
     weld_application::user_limits::evaluate(&request)
 }
 #[tauri::command]
+fn validate_production_parameters(
+    request: weld_application::production::ValidateProductionRequest,
+) -> Result<weld_application::production::ProductionParameters, AppError> {
+    weld_application::production::validate_request(&request)
+}
+#[tauri::command]
+fn evaluate_production_cost(
+    request: weld_application::production::ProductionRequest,
+) -> Result<weld_application::production::ProductionResult, AppError> {
+    weld_application::production::evaluate(&request)
+}
+#[tauri::command]
 fn evaluate_quantities(
     request: weld_application::quantities::QuantityRequest,
 ) -> Result<weld_application::quantities::QuantityResult, AppError> {
@@ -213,6 +225,8 @@ fn main() {
             evaluate_materials,
             validate_user_limits,
             evaluate_user_limits,
+            validate_production_parameters,
+            evaluate_production_cost,
             evaluate_quantities,
             evaluate_width_study,
             apply_width_scale,

@@ -91,7 +91,7 @@ fn published_openapi_contains_the_actual_routes_and_no_unimplemented_strength_en
     let spec: serde_json::Value =
         serde_json::from_str(include_str!("../../../docs/openapi.json")).unwrap();
     assert_eq!(spec["openapi"], "3.1.0");
-    assert_eq!(spec["paths"].as_object().unwrap().len(), 17);
+    assert_eq!(spec["paths"].as_object().unwrap().len(), 19);
     assert!(spec["paths"].get("/api/v1/optimize").is_none());
     assert_eq!(
         spec["components"]["schemas"]["CalculationResult"]["properties"]["strength_status"]
@@ -431,4 +431,25 @@ async fn width_apply_rejects_explicit_size_range_violation() {
     let v: serde_json::Value =
         serde_json::from_slice(&r.into_body().collect().await.unwrap().to_bytes()).unwrap();
     assert_eq!(v["code"], "width_study_size_limits_not_met");
+}
+
+#[tokio::test]
+async fn production_api_requires_explicit_scenario_and_keeps_missing_mass_incomplete() {
+    let parameters = serde_json::json!({"process_label":"User process","currency_label":"RUB","source":"P-001","travel_speed_mm_min":100,"passes":2,"arc_time_fraction":0.5,"preparation_minutes":10,"inspection_minutes":5,"labor_rate_per_hour":600,"equipment_rate_per_hour":300,"consumable_price_per_kg":200,"deposition_efficiency":0.9,"external_inspection_cost":50});
+    let r = weld_api::router("test-token".into())
+        .oneshot(request(
+            "/api/v1/production/validate",
+            serde_json::json!({"schema_version":1,"parameters":parameters}),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(r.status(), StatusCode::OK);
+    let joint = input();
+    let r=weld_api::router("test-token".into()).oneshot(request("/api/v1/production/evaluate",serde_json::json!({"schema_version":1,"segments":joint["segments"],"materials":null,"parameters":parameters}))).await.unwrap();
+    assert_eq!(r.status(), StatusCode::OK);
+    let v: serde_json::Value =
+        serde_json::from_slice(&r.into_body().collect().await.unwrap().to_bytes()).unwrap();
+    assert_eq!(v["complete"], false);
+    assert!(v["total_cost"].is_null());
+    assert_eq!(v["arc_on_minutes"], 2.0);
 }

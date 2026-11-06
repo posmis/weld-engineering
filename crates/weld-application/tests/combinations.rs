@@ -59,6 +59,7 @@ fn request() -> CombinationRequest {
         replace_case_id: None,
         schema_version: 1,
         project: Project {
+            production_parameters: None,
             user_limits: None,
             materials: None,
             schema_version: 1,

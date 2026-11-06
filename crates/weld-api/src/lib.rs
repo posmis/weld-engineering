@@ -227,6 +227,29 @@ async fn evaluate_limits(
         Err(e) => e.into_response(),
     }
 }
+async fn production_validate(
+    State(state): State<ApiState>,
+    request: Result<Json<weld_application::production::ValidateProductionRequest>, JsonRejection>,
+) -> Response {
+    match json_input(request) {
+        Ok(r) => {
+            work(state, move || {
+                weld_application::production::validate_request(&r)
+            })
+            .await
+        }
+        Err(e) => e.into_response(),
+    }
+}
+async fn production_cost(
+    State(state): State<ApiState>,
+    request: Result<Json<weld_application::production::ProductionRequest>, JsonRejection>,
+) -> Response {
+    match json_input(request) {
+        Ok(r) => work(state, move || weld_application::production::evaluate(&r)).await,
+        Err(e) => e.into_response(),
+    }
+}
 async fn quantities(
     State(state): State<ApiState>,
     request: Result<Json<weld_application::quantities::QuantityRequest>, JsonRejection>,
@@ -290,6 +313,8 @@ pub fn router(token: String) -> Router {
         .route("/api/v1/geometry/transform", post(group_transform))
         .route("/api/v1/sections/derive", post(section))
         .route("/api/v1/quantities/evaluate", post(quantities))
+        .route("/api/v1/production/validate", post(production_validate))
+        .route("/api/v1/production/evaluate", post(production_cost))
         .route("/api/v1/loads/mass", post(mass_load))
         .route("/api/v1/cases/calculate", post(cases))
         .route("/api/v1/cases/combine", post(combination))

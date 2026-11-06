@@ -39,6 +39,8 @@ pub enum WidthStudyStatus {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct WidthStudyRow {
+    pub production_cost: Option<crate::production::ProductionResult>,
+    pub production_error: Option<AppError>,
     pub size_checks: Option<crate::size_limits::SizeCheck>,
     pub quantities: Option<crate::quantities::QuantityResult>,
     pub quantity_error: Option<AppError>,
@@ -66,6 +68,7 @@ pub struct WidthStudyResult {
 pub enum WidthObjective {
     MinimumVolume,
     MinimumMass,
+    MinimumCost,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -83,6 +86,8 @@ pub enum ExclusionReason {
     QuantityError,
     SizeLimitsExceeded,
     SizeLimitsUnknown,
+    ProductionUnavailable,
+    ProductionError,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -132,21 +137,31 @@ fn select(rows: &[WidthStudyRow], objective: WidthObjective) -> WidthSelection {
             }
             _ => None,
         });
-        let metric = row.quantities.as_ref().and_then(|q| {
-            if q.complete {
-                match objective {
-                    WidthObjective::MinimumVolume => q.volume_mm3,
-                    WidthObjective::MinimumMass => q.mass_kg,
+        let metric = match objective {
+            WidthObjective::MinimumCost => row.production_cost.as_ref().and_then(|c| c.total_cost),
+            _ => row.quantities.as_ref().and_then(|q| {
+                if q.complete {
+                    match objective {
+                        WidthObjective::MinimumVolume => q.volume_mm3,
+                        WidthObjective::MinimumMass => q.mass_kg,
+                        WidthObjective::MinimumCost => None,
+                    }
+                } else {
+                    None
                 }
-            } else {
-                None
-            }
-        });
+            }),
+        };
         let reason = reason.or_else(|| {
             if row.quantity_error.is_some() {
                 Some(ExclusionReason::QuantityError)
+            } else if objective == WidthObjective::MinimumCost && row.production_error.is_some() {
+                Some(ExclusionReason::ProductionError)
             } else if metric.is_none() {
-                Some(ExclusionReason::QuantityUnavailable)
+                Some(if objective == WidthObjective::MinimumCost {
+                    ExclusionReason::ProductionUnavailable
+                } else {
+                    ExclusionReason::QuantityUnavailable
+                })
             } else {
                 None
             }
@@ -269,6 +284,8 @@ fn candidate(
         .value();
     let (updated, summary, failures) = recalculate(scaled)?;
     let mut row = WidthStudyRow {
+        production_cost: None,
+        production_error: None,
         size_checks,
         quantities: None,
         quantity_error: None,
@@ -304,6 +321,17 @@ fn candidate(
         Ok(value) => row.quantities = Some(value),
         Err(error) => row.quantity_error = Some(error),
     }
+    if let Some(parameters) = &updated.production_parameters {
+        match crate::production::evaluate(&crate::production::ProductionRequest {
+            schema_version: SCHEMA_VERSION,
+            segments: updated.input.segments.clone(),
+            materials: updated.materials.clone(),
+            parameters: parameters.clone(),
+        }) {
+            Ok(value) => row.production_cost = Some(value),
+            Err(e) => row.production_error = Some(e),
+        }
+    }
     Ok((updated, row))
 }
 pub fn evaluate(request: &WidthStudyRequest) -> Result<WidthStudyResult, AppError> {
@@ -318,6 +346,14 @@ pub fn evaluate(request: &WidthStudyRequest) -> Result<WidthStudyResult, AppErro
             Some("project.user_limits"),
         ));
     }
+    if request.objective == Some(WidthObjective::MinimumCost)
+        && request.project.production_parameters.is_none()
+    {
+        return Err(AppError::new(
+            "width_study_production_required",
+            Some("project.production_parameters"),
+        ));
+    }
     let rows: Vec<WidthStudyRow> = request
         .factors
         .iter()
@@ -325,6 +361,8 @@ pub fn evaluate(request: &WidthStudyRequest) -> Result<WidthStudyResult, AppErro
             |&factor| match candidate(&request.project, factor, &request.constraints) {
                 Ok((_, row)) => row,
                 Err(error) => WidthStudyRow {
+                    production_cost: None,
+                    production_error: None,
                     size_checks: None,
                     quantities: None,
                     quantity_error: None,

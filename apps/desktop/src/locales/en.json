@@ -313,7 +313,7 @@
   "studyNoObjective": "No selection",
   "studyMinVolume": "Minimum geometric volume",
   "studyMinMass": "Minimum geometric mass",
-  "studyRankingScope": "Selection only among supplied factors under independent user thresholds for every case. No normative sizing or global optimum; process constraints, costs and allowances excluded. Unknown data block automatic selection. Apply manually.",
+  "studyRankingScope": "Selection only among supplied factors under independent user thresholds and explicit size bounds. Cost requires a declared production model. No normative sizing/global optimum; manufacturing suitability and actual expenses are unverified. Unknown data block selection. Apply manually.",
   "studyLimitsRequired": "Selection requires explicit user tension, compression and shear thresholds.",
   "studyRanking": "Candidate selection",
   "studyRankingIncomplete": "Selection incomplete",
@@ -329,7 +329,9 @@
     "Objective quantity unknown",
     "Volume/mass evaluation error",
     "User size limits exceeded",
-    "Size constraints unknown"
+    "Size constraints unknown",
+    "Production estimate incomplete",
+    "Production estimate error"
   ],
   "sizeConstraints": "Size constraints",
   "sizeConstraintScope": "User ranges in mm for every segment; endpoints included, source required. No GOST or process values are supplied. Leg bounds require an explicit section model; unknown dimensions block apply and selection.",
@@ -348,5 +350,42 @@
     "Sizes within limits",
     "Sizes outside limits",
     "Sizes unknown"
-  ]
+  ],
+  "productionTitle": "Production time and cost",
+  "productionParameters": "Production parameters",
+  "productionApply": "Apply production parameters",
+  "productionRemove": "Remove production parameters",
+  "productionProcess": "Process description",
+  "productionCurrency": "Currency",
+  "productionSource": "Production parameter source",
+  "productionFields": [
+    "Travel speed, mm/min",
+    "Passes of every segment",
+    "Arc fraction during welding operation",
+    "Preparation, min",
+    "Operator inspection, min",
+    "Labor rate, currency/h",
+    "Equipment rate, currency/h",
+    "Filler price, currency/kg",
+    "Filler deposition efficiency",
+    "External inspection, currency"
+  ],
+  "productionMetrics": [
+    "Arc-on time, min",
+    "Welding operation with pauses, min",
+    "Total time, min",
+    "Consumed filler, kg",
+    "Materials",
+    "Labor",
+    "Equipment",
+    "External inspection",
+    "Known subtotal excluding materials",
+    "Total estimated cost"
+  ],
+  "productionScope": "User estimate of one operation for the whole group; load cases do not multiply production. Each segment receives the stated number of passes at one speed. Arc fraction includes welding-operation pauses only; preparation/operator inspection are separate. Equipment is charged for welding operation, labor for total time. External inspection excludes operator labor. Filler = geometric mass / declared efficiency. No default prices, WPS or actual-consumption assurance. No currency conversion. Unknown mass means unknown total cost.",
+  "productionMissing": "Provide production parameters and a source.",
+  "productionIncomplete": "Total cost unknown",
+  "productionComplete": "Estimate computed",
+  "studyMinCost": "Minimum estimated cost",
+  "studyProductionRequired": "Cost selection requires explicit production parameters."
 }

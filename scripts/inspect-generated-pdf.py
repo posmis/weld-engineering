@@ -326,3 +326,75 @@ for pdf in [bounded_reader,constrained_reader]:
     assert '?' not in '\n'.join(p.extract_text() or '' for p in pdf.pages)
 assert 'User bounds B-001' in '\n'.join(p.extract_text() or '' for p in bounded_reader.pages)
 print('PASS: independent PDF parser verifies explicit [8,10] mm source bounds, every segment dimension, rejected lower/upper candidates despite valid stress thresholds, constrained minimum/apply factor 1.25, 16875 mm3/0.135 kg and unchanged loads with inverse nominal fields for all 3 cases.')
+
+# Independent single-operation production arithmetic; no multiplication by case count.
+def inspect_production(reader):
+    project=json.loads(reader.attachments['weld-project.json'][0])
+    cost=json.loads(reader.attachments['production-cost.json'][0])
+    p=project['production_parameters']
+    assert cost['method_id']=='user-travel-time-cost-v1'
+    assert cost['source']=={'schema_version':1,'segments':project['input']['segments'],'materials':project.get('materials'),'parameters':p}
+    length=sum(math.hypot(*(b-a for a,b in zip(s['start_mm'],s['end_mm'],strict=True))) for s in project['input']['segments'])
+    arc=length*p['passes']/p['travel_speed_mm_min']
+    welding=arc/p['arc_time_fraction']
+    total=p['preparation_minutes']+welding+p['inspection_minutes']
+    labor=total/60*p['labor_rate_per_hour']
+    equipment=welding/60*p['equipment_rate_per_hour']
+    subtotal=labor+equipment+p['external_inspection_cost']
+    for key,expected in [('arc_on_minutes',arc),('welding_elapsed_minutes',welding),('total_minutes',total),('labor_cost',labor),('equipment_cost',equipment),('known_subtotal',subtotal)]:
+        assert math.isclose(cost[key],expected,rel_tol=1e-12,abs_tol=1e-12)
+    mass=cost['quantities']['mass_kg']
+    if mass is None:
+        assert not cost['complete'] and cost['consumed_mass_kg'] is None and cost['material_cost'] is None and cost['total_cost'] is None
+    else:
+        consumed=mass/p['deposition_efficiency']
+        material=consumed*p['consumable_price_per_kg']
+        assert cost['complete'] and math.isclose(cost['consumed_mass_kg'],consumed,rel_tol=1e-12)
+        assert math.isclose(cost['material_cost'],material,rel_tol=1e-12)
+        assert math.isclose(cost['total_cost'],subtotal+material,rel_tol=1e-12)
+    assert all(c['last_calculation']['strength_status']=='unsupported_calculation' for c in project['casebook']['cases'])
+    pdf_text='\n'.join(page.extract_text() or '' for page in reader.pages)
+    assert '?' not in pdf_text and 'Производство и стоимость' in pdf_text and 'Cost scenario P-001' in pdf_text
+    return project,cost
+production_reader=PdfReader(path.with_name('weld-production-report-smoke.pdf'))
+production_project,cost=inspect_production(production_reader)
+assert production_project['input']==constrained_project['input']
+assert production_project['casebook']==constrained_project['casebook']
+assert production_project['last_calculation']==constrained_project['last_calculation']
+assert production_project['materials']==constrained_project['materials']
+assert production_project['production_parameters']['currency_label']=='RUB'
+assert cost['arc_on_minutes']==4 and cost['total_minutes']==23 and math.isclose(cost['total_cost'],350,rel_tol=1e-12)
+unknown_production_reader=PdfReader(path.with_name('weld-production-unknown-report-smoke.pdf'))
+unknown_production_project,unknown_cost=inspect_production(unknown_production_reader)
+assert math.isclose(unknown_cost['known_subtotal'],320,rel_tol=1e-12) and unknown_cost['total_cost'] is None
+assert unknown_production_project['casebook']==production_project['casebook']
+assert unknown_production_project['input']==production_project['input']
+assert unknown_production_project['last_calculation']==production_project['last_calculation']
+cost_sizing_reader=PdfReader(path.with_name('weld-production-sizing-report-smoke.pdf'))
+cost_source,base_cost=inspect_production(cost_sizing_reader)
+assert cost_source==production_project
+cost_study=json.loads(cost_sizing_reader.attachments['width-study.json'][0])
+assert cost_study['source_project']==production_project
+assert cost_study['selection']['objective']=='minimum_cost' and cost_study['selection']['selected_row_index']==1
+assert math.isclose(cost_study['selection']['objective_value'],366.875,rel_tol=1e-12)
+assert cost_study['selection']['exclusions']==[{'row_index':0,'reason':'size_limits_exceeded'},{'row_index':2,'reason':'size_limits_exceeded'}]
+for row,factor in zip(cost_study['rows'],[0.75,1.25,1.5],strict=True):
+    estimate=row['production_cost']
+    assert row['production_error'] is None and estimate['complete']
+    assert estimate['source']['parameters']==production_project['production_parameters']
+    assert estimate['quantities']==row['quantities']
+    assert estimate['arc_on_minutes']==4 and math.isclose(estimate['known_subtotal'],320,rel_tol=1e-12)
+    assert math.isclose(estimate['total_cost'],320+30*factor**2,rel_tol=1e-12)
+cost_applied_reader=PdfReader(path.with_name('weld-production-applied-report-smoke.pdf'))
+cost_applied,cost_applied_result=inspect_production(cost_applied_reader)
+assert all(s['effective_width_mm']==11.25 and s['section']=={'kind':'idealized_right_angle_fillet','leg_1_mm':14.0625,'leg_2_mm':18.75} for s in cost_applied['input']['segments'])
+assert math.isclose(cost_applied_result['total_cost'],366.875,rel_tol=1e-12)
+assert cost_applied_result['quantities']['volume_mm3']==26367.1875
+assert math.isclose(cost_applied_result['quantities']['mass_kg'],0.2109375,rel_tol=1e-12)
+assert cost_applied['production_parameters']==production_project['production_parameters']
+for old,new in zip(production_project['casebook']['cases'],cost_applied['casebook']['cases'],strict=True):
+    assert {k:v for k,v in old.items() if k!='last_calculation'}=={k:v for k,v in new.items() if k!='last_calculation'}
+    for a,b in zip(old['last_calculation']['distribution']['segments'],new['last_calculation']['distribution']['segments'],strict=True):
+        for endpoint in ['start_mpa','end_mpa']:
+            assert all(math.isclose(y,x/1.25,rel_tol=1e-12,abs_tol=1e-12) for x,y in zip(a[endpoint],b[endpoint],strict=True))
+print('PASS: independent PDF parser verifies explicit production parameters, time/rate/filler efficiency arithmetic, 4 arc min/23 total min/350 RUB, unknown mass keeps total unknown, unchanged nominal snapshots, constrained cost selection 366.875 RUB and unchanged loads with applied nominal scaling.')
